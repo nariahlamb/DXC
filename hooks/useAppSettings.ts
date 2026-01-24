@@ -6,7 +6,7 @@ import { DEFAULT_PROMPT_MODULES, DEFAULT_MEMORY_CONFIG } from '../utils/ai';
 const DEFAULT_CONTEXT_MODULES: ContextModuleConfig[] = [
     { id: 'm_sys', type: 'SYSTEM_PROMPTS', name: '系统核心设定', enabled: true, order: 0, params: {} },
     { id: 'm_player', type: 'PLAYER_DATA', name: '玩家数据', enabled: true, order: 1, params: {} },
-    { id: 'm_map', type: 'MAP_CONTEXT', name: '地图环境', enabled: true, order: 2, params: { detailLevel: 'medium' } },
+    { id: 'm_map', type: 'MAP_CONTEXT', name: '地图环境', enabled: true, order: 2, params: { detailLevel: 'medium', alwaysIncludeDungeon: true } },
     { id: 'm_social', type: 'SOCIAL_CONTEXT', name: '周边NPC', enabled: true, order: 3, params: { includeAttributes: ['appearance', 'status'], presentMemoryLimit: 30, absentMemoryLimit: 6, specialPresentMemoryLimit: 30, specialAbsentMemoryLimit: 12 } },
     { id: 'm_familia', type: 'FAMILIA_CONTEXT', name: '眷族信息', enabled: true, order: 4, params: {} },
     { id: 'm_inv', type: 'INVENTORY_CONTEXT', name: '背包/公共战利品', enabled: true, order: 5, params: { detailLevel: 'medium' } },
@@ -73,7 +73,7 @@ export const useAppSettings = () => {
                   return { ...def, ...saved, name: renamed };
               });
               const defaultIds = new Set(DEFAULT_PROMPT_MODULES.map(m => m.id));
-              const extraModules = savedModules.filter((m: any) => !defaultIds.has(m.id));
+              const extraModules = savedModules.filter((m: any) => !defaultIds.has(m.id) && m.id !== 'world_if');
               const mergedPromptModules = [...mergedDefaults, ...extraModules];
               
               if (!contextConfig || Array.isArray(contextConfig.order)) {

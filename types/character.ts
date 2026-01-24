@@ -17,10 +17,23 @@ export interface MagicSpell {
 export interface Skill {
   id: string;
   名称: string;
-  消耗: string;
   描述: string;
-  属性: string; // Element
+  消耗?: string | number;
+  属性?: string;
+  类型?: string;
+  冷却?: string | number;
+  范围?: string;
+  持续?: string;
+  触发?: string;
+  效果?: string;
+  备注?: string;
+  等级?: string | number;
+  指令?: string;
+  前置?: string;
+  限制?: string;
+  标签?: string[] | string;
   稀有?: boolean;
+  [key: string]: any;
 }
 
 export interface SurvivalStats {

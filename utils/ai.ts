@@ -3,7 +3,7 @@ import { AppSettings, GameState, PromptModule, AIEndpointConfig, Confidant, Memo
 import { GoogleGenAI } from "@google/genai";
 import { 
     P_SYS_FORMAT, P_SYS_CORE, P_SYS_STATS, P_SYS_LEVELING, P_SYS_COMBAT,
-    P_WORLD_DUNGEON, P_WORLD_PHONE, P_WORLD_ECO, P_DYN_NPC, P_NPC_MEMORY, P_WORLD_NEWS, P_WORLD_DENATUS, P_WORLD_RUMORS, P_WORLD_EVENTS, P_DYN_MAP, P_MAP_DISCOVERY,
+    P_WORLD_DUNGEON, P_WORLD_PHONE, P_WORLD_ECO, P_WORLD_IF_BELL_NO_H, P_WORLD_IF_NO_BELL, P_WORLD_IF_DAY3, P_DYN_NPC, P_NPC_MEMORY, P_WORLD_NEWS, P_WORLD_DENATUS, P_WORLD_RUMORS, P_WORLD_EVENTS, P_DYN_MAP, P_MAP_DISCOVERY,
     P_COT_LOGIC, P_START_REQ, P_MEM_S2M, P_MEM_M2L, P_DATA_STRUCT,
     P_WRITING_REQ, P_WORLD_VALUES, P_LOOT_SYSTEM,
     P_PHYSIOLOGY_EASY, P_PHYSIOLOGY_NORMAL, P_PHYSIOLOGY_HARD, P_PHYSIOLOGY_HELL,
@@ -27,7 +27,10 @@ export const DEFAULT_PROMPT_MODULES: PromptModule[] = [
     { id: 'world_phone', name: '3. 魔石通讯终端', group: '世界观设定', usage: 'CORE', isActive: true, content: P_WORLD_PHONE, order: 22 },
     { id: 'world_eco_social', name: '4. 经济与社会', group: '世界观设定', usage: 'CORE', isActive: true, content: P_WORLD_ECO, order: 23 },
     { id: 'world_values', name: '5. 世界数值定义', group: '世界观设定', usage: 'CORE', isActive: true, content: P_WORLD_VALUES, order: 24 },
-    { id: 'sys_stats', name: '6. 能力值与精神力', group: '世界观设定', usage: 'CORE', isActive: true, content: P_SYS_STATS, order: 25 },
+    { id: 'world_if_no_h', name: '6. IF线-贝尔未加入赫斯缇雅', group: '世界观设定', usage: 'CORE', isActive: false, content: P_WORLD_IF_BELL_NO_H, order: 24.2 },
+    { id: 'world_if_no_bell', name: '7. IF线-本世界没有贝尔', group: '世界观设定', usage: 'CORE', isActive: false, content: P_WORLD_IF_NO_BELL, order: 24.3 },
+    { id: 'world_if_day3', name: '8. IF线-贝尔第三日登场', group: '世界观设定', usage: 'CORE', isActive: true, content: P_WORLD_IF_DAY3, order: 24.4 },
+        { id: 'sys_stats', name: '6. 能力值与精神力', group: '世界观设定', usage: 'CORE', isActive: true, content: P_SYS_STATS, order: 25 },
     { id: 'sys_leveling', name: '7. 升级仪式', group: '世界观设定', usage: 'CORE', isActive: true, content: P_SYS_LEVELING, order: 26 },
     { id: 'sys_combat_law', name: '8. 战斗法则与死亡', group: '世界观设定', usage: 'CORE', isActive: true, content: P_SYS_COMBAT, order: 27 },
     { id: 'sys_loot', name: '9. 战利品管理', group: '世界观设定', usage: 'CORE', isActive: true, content: P_LOOT_SYSTEM, order: 28 },
@@ -122,12 +125,15 @@ export const constructSocialContext = (confidants: Confidant[], params: any): st
             索引: index, 姓名: c.姓名, 称号: c.称号, 
             性别: c.性别, 种族: c.种族, 眷族: c.眷族, 身份: c.身份,
             等级: c.等级, 好感度: c.好感度, 关系: c.关系状态,
-            是否在场: c.是否在场, 坐标: c.坐标
+            是否在场: c.是否在场
         };
+
+        const coordInfo = c.坐标 ? { 坐标: c.坐标 } : {};
 
         if (c.是否队友) {
             const fullData = {
                 ...baseInfo,
+                ...coordInfo,
                 简介: c.简介, 外貌: c.外貌,
                 生存数值: c.生存数值 || "需生成",
                 能力值: c.能力值 || "需生成",
@@ -140,6 +146,7 @@ export const constructSocialContext = (confidants: Confidant[], params: any): st
             const isPresent = !!c.是否在场;
             const focusData = {
                 ...baseInfo,
+                ...coordInfo,
                 简介: c.简介, 外貌: c.外貌, 背景: c.背景,
                 位置详情: c.位置详情,
                 当前行动: c.当前行动,
@@ -149,6 +156,7 @@ export const constructSocialContext = (confidants: Confidant[], params: any): st
         } else if (c.是否在场) {
             const presentData = {
                 ...baseInfo,
+                ...coordInfo,
                 外貌: c.外貌,
                 当前行动: c.当前行动,
                 最近记忆: lastMemories
@@ -164,10 +172,10 @@ export const constructSocialContext = (confidants: Confidant[], params: any): st
         }
     });
 
-    if (teammates.length > 0) contextOutput += `\n>>> 【队友 (Teammates)】 (最优先):\n${teammates.join('\n')}\n`;
-    if (focusChars.length > 0) contextOutput += `\n>>> 【特别关注/强制 (Focus)】:\n${focusChars.join('\n')}\n`;
-    if (presentChars.length > 0) contextOutput += `\n>>> 【当前在场 (Present)】:\n${presentChars.join('\n')}\n`;
-    if (absentChars.length > 0) contextOutput += `\n>>> 【其他已知 (Known)】:\n${absentChars.join('\n')}\n`;
+    if (teammates.length > 0) contextOutput += `\n>>> 【队友】 (最优先):\n${teammates.join('\n')}\n`;
+    if (focusChars.length > 0) contextOutput += `\n>>> 【特别关注/强制】:\n${focusChars.join('\n')}\n`;
+    if (presentChars.length > 0) contextOutput += `\n>>> 【当前在场】:\n${presentChars.join('\n')}\n`;
+    if (absentChars.length > 0) contextOutput += `\n>>> 【已知但是不在场】:\n${absentChars.join('\n')}\n`;
 
     return contextOutput;
 };
@@ -181,27 +189,51 @@ export const constructMapContext = (gameState: GameState, params: any): string =
     output += `当前位置: ${gameState.当前地点} (Floor: ${floor})\n`;
     output += `坐标: X:${gameState.世界坐标?.x || 0} Y:${gameState.世界坐标?.y || 0}\n`;
 
-    // Map Data extraction
     const mapData = gameState.地图;
-    if (!mapData) return output + "(地图数据丢失)";
+    if (!mapData) return output + '(地图数据丢失)';
+
+    const surfaceLocations = Array.isArray(mapData.surfaceLocations) ? mapData.surfaceLocations : [];
+    const routes = Array.isArray(mapData.routes) ? mapData.routes : [];
+    const terrain = Array.isArray(mapData.terrain) ? mapData.terrain : [];
+    const territories = Array.isArray(mapData.territories) ? mapData.territories : [];
+    const factions = Array.isArray(mapData.factions) ? mapData.factions : [];
+    const filterByFloor = (items: any[]) => items.filter(item => (item?.floor ?? 0) === floor);
+
+    const floorLocations = filterByFloor(surfaceLocations);
+    const floorRoutes = filterByFloor(routes);
+    const floorTerrain = filterByFloor(terrain);
+    const floorTerritories = filterByFloor(territories);
+
+    if (mapData.config || factions.length > 0) {
+        const basePayload = {
+            config: mapData.config || undefined,
+            factions: factions.length > 0 ? factions : undefined
+        };
+        output += `【地图基础】\n${JSON.stringify(basePayload, null, 2)}\n`;
+    }
 
     if (floor === 0) {
-        // Surface: Send Full Surface Locations & Routes (Raw Data)
-        output += `【地表设施 (Surface)】:\n${JSON.stringify(mapData.surfaceLocations, null, 2)}\n`;
-        output += `【主要道路 (Routes)】:\n${JSON.stringify(mapData.routes, null, 2)}`;
+        output += `【地表节点 (Surface)】\n${JSON.stringify(floorLocations, null, 2)}\n`;
+        output += `【道路 (Routes)】\n${JSON.stringify(floorRoutes, null, 2)}\n`;
+        output += `【地形 (Terrain)】\n${JSON.stringify(floorTerrain, null, 2)}\n`;
+        output += `【势力范围 (Territories)】\n${JSON.stringify(floorTerritories, null, 2)}`;
     } else {
-        // Dungeon: Send Current Floor Locations & Layer Info
-        const floorLocations = mapData.surfaceLocations.filter(l => l.floor === floor);
-        const layerInfo = mapData.dungeonStructure?.find(l => floor >= l.floorStart && floor <= l.floorEnd);
-        
+        const layerInfo = Array.isArray(mapData.dungeonStructure)
+            ? mapData.dungeonStructure.find(l => floor >= l.floorStart && floor <= l.floorEnd)
+            : null;
+
         if (layerInfo) {
-            output += `【区域信息 (Layer)】: ${JSON.stringify(layerInfo)}\n`;
+            output += `【区域信息 (Layer)】${JSON.stringify(layerInfo)}\n`;
         }
-        
-        if (floorLocations.length > 0) {
-            output += `【已探明节点 (Nodes)】:\n${JSON.stringify(floorLocations, null, 2)}`;
+
+        if (floorLocations.length > 0 || floorRoutes.length > 0 || floorTerrain.length > 0 || floorTerritories.length > 0) {
+            if (floorLocations.length > 0) output += `【已探明节点 (Nodes)】\n${JSON.stringify(floorLocations, null, 2)}\n`;
+            if (floorRoutes.length > 0) output += `【道路 (Routes)】\n${JSON.stringify(floorRoutes, null, 2)}\n`;
+            if (floorTerrain.length > 0) output += `【地形 (Terrain)】\n${JSON.stringify(floorTerrain, null, 2)}\n`;
+            if (floorTerritories.length > 0) output += `【势力范围 (Territories)】\n${JSON.stringify(floorTerritories, null, 2)}`;
+            output = output.trimEnd();
         } else {
-            output += `【未知区域】: 本层尚未探索，请根据 <地图动态绘制> 规则生成节点。`;
+            output += `【未知区域】本层尚未探索，请根据 <地图动态绘制> 规则生成节点。`;
         }
     }
     return output;
