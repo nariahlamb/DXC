@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { CharacterStats, InventoryItem, BodyPartStats } from '../../types';
+import { CharacterStats, InventoryItem, BodyPartStats, Difficulty } from '../../types';
 import { Sword, Shield, Shirt, Footprints, Battery, Activity, Star, AlertTriangle, Sparkles, Skull, Coins, Zap, Heart, Droplets, Utensils, Hand, User, Scan } from 'lucide-react';
 import { VitalBar, StatRow } from './left/LeftPanelComponents';
 
@@ -9,6 +9,7 @@ interface LeftPanelProps {
   className?: string;
   inventory?: InventoryItem[]; 
   isHellMode?: boolean;
+  difficulty?: Difficulty;
 }
 
 const BodyPartRow = ({ label, data }: { label: string, data: BodyPartStats }) => {
@@ -55,7 +56,7 @@ const SimpleEquipSlot = ({ label, slotKey, stats, icon }: { label: string, slotK
     );
 };
 
-export const LeftPanel: React.FC<LeftPanelProps> = ({ stats, className = '', isHellMode }) => {
+export const LeftPanel: React.FC<LeftPanelProps> = ({ stats, className = '', isHellMode, difficulty }) => {
   // Theme Variables
   const borderColor = isHellMode ? 'border-red-600' : 'border-blue-600';
   const subBorderColor = isHellMode ? 'border-red-900' : 'border-blue-900';
@@ -63,6 +64,8 @@ export const LeftPanel: React.FC<LeftPanelProps> = ({ stats, className = '', isH
   const textSubColor = isHellMode ? 'text-red-300' : 'text-blue-300';
   const bgColor = isHellMode ? 'bg-red-900/50' : 'bg-blue-900/50';
   const gradientOverlay = isHellMode ? 'from-red-900/20' : 'from-blue-900/20';
+  const isNormalPlus = difficulty ? difficulty !== Difficulty.EASY : false;
+  const showPhysiology = isNormalPlus && !!stats.身体部位;
 
   return (
     <div className={`w-full lg:w-[22%] h-full bg-zinc-950 border-r-4 border-zinc-800 relative flex flex-col p-0 overflow-hidden shadow-2xl ${className}`}>
@@ -115,10 +118,35 @@ export const LeftPanel: React.FC<LeftPanelProps> = ({ stats, className = '', isH
           
           {/* Vitals - Localized */}
           <div className="space-y-3">
-              <VitalBar label="HP 生命" current={stats.生命值} max={stats.最大生命值} color="bg-green-600" icon={<Heart size={10} />} />
+              {!showPhysiology && (
+                  <VitalBar label="HP 生命" current={stats.生命值} max={stats.最大生命值} color="bg-green-600" icon={<Heart size={10} />} />
+              )}
               <VitalBar label="MP 精神" current={stats.精神力} max={stats.最大精神力} color="bg-purple-600" icon={<Zap size={10} />} />
               <VitalBar label="SP 体力" current={stats.体力} max={stats.最大体力} color="bg-yellow-600" icon={<Battery size={10} />} />
               
+              {/* Physiology (Normal+) */}
+              {showPhysiology && (
+                  <div className="mt-2 bg-black/60 p-2 border border-zinc-800 relative">
+                      <div className={`text-[9px] ${textColor} font-bold uppercase mb-2 flex items-center gap-1 border-b border-zinc-800 pb-1`}>
+                          <Scan size={10} /> 生理监测 (PHYSIOLOGY)
+                      </div>
+                      <div className="space-y-1.5">
+                          <BodyPartRow label="HEAD" data={stats.身体部位.头部} />
+                          <BodyPartRow label="CHEST" data={stats.身体部位.胸部} />
+                          <div className="flex gap-2">
+                              <div className="flex-1 space-y-1">
+                                  <BodyPartRow label="L.ARM" data={stats.身体部位.左臂} />
+                                  <BodyPartRow label="L.LEG" data={stats.身体部位.左腿} />
+                              </div>
+                              <div className="flex-1 space-y-1">
+                                  <BodyPartRow label="R.ARM" data={stats.身体部位.右臂} />
+                                  <BodyPartRow label="R.LEG" data={stats.身体部位.右腿} />
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+              )}
+
               {/* Survival Stats */}
               {stats.生存状态 && (
                   <div className="grid grid-cols-2 gap-2 pt-1">
@@ -137,8 +165,8 @@ export const LeftPanel: React.FC<LeftPanelProps> = ({ stats, className = '', isH
                   </div>
               )}
 
-              {/* Body Parts */}
-              {stats.身体部位 && (
+              {/* Body Parts (Easy Mode only) */}
+              {!showPhysiology && stats.身体部位 && (
                   <div className="mt-2 bg-black/60 p-2 border border-zinc-800 relative">
                       <div className={`text-[9px] ${textColor} font-bold uppercase mb-2 flex items-center gap-1 border-b border-zinc-800 pb-1`}>
                           <Scan size={10} /> 生理监测 (PHYSIOLOGY)

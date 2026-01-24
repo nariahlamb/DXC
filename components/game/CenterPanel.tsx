@@ -93,6 +93,8 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
   const actionIcon = isHellMode ? 'text-red-500' : 'text-blue-500';
   const actionChevron = isHellMode ? 'text-red-600' : 'text-blue-600';
   const actionBgHighlight = isHellMode ? 'bg-red-500/10' : 'bg-blue-500/10';
+  const marqueeTextClass = isHellMode ? 'text-red-200' : 'text-white';
+  const marqueeDuplicateClass = isHellMode ? 'text-red-300/70' : 'text-white/70';
   const logPaddingClass = actionOptions.length > 0 ? 'pb-48 md:pb-48' : 'pb-12 md:pb-16';
 
   // Scroll Logic
@@ -184,7 +186,7 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
       );
   };
 
-  if (combatState.isActive && showCombatUI && enableCombatUI) {
+  if (combatState.是否战斗中 && showCombatUI && enableCombatUI) {
       return (
           <div className={`w-full lg:w-[60%] h-full relative flex flex-col bg-zinc-900 md:border-r-4 md:border-black ${className}`}>
               <div className="absolute top-4 right-4 z-50">
@@ -283,7 +285,7 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
       </div>
 
       {/* Combat Entrance Button (Floating above Input) */}
-      {combatState.isActive && enableCombatUI && !isProcessing && (
+      {combatState.是否战斗中 && enableCombatUI && !isProcessing && (
           <div className="absolute bottom-32 md:bottom-28 left-0 w-full z-30 px-4 md:px-10 pb-4 flex justify-center pointer-events-none">
               <button 
                 type="button"
@@ -296,7 +298,7 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
       )}
 
       {/* Action Options Area - Enhanced for Mobile Visibility */}
-      {!isProcessing && !combatState.isActive && actionOptions.length > 0 && (
+      {!isProcessing && !combatState.是否战斗中 && actionOptions.length > 0 && (
           // Modified positioning: Increased bottom value significantly for mobile
           <div className="absolute bottom-[7rem] md:bottom-[95px] left-0 w-full z-50 pointer-events-none">
               <div className="w-full flex flex-col justify-end pointer-events-auto">
@@ -304,25 +306,47 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
                   <div className="w-full h-8 bg-gradient-to-t from-zinc-900/90 to-transparent pointer-events-none" />
                   
                   <div className="flex gap-3 overflow-x-auto px-4 pb-3 custom-scrollbar snap-x touch-pan-x items-end bg-zinc-900/80 backdrop-blur-sm">
-                      {actionOptions.map((opt, idx) => (
+                      {actionOptions.map((opt, idx) => {
+                          const shouldMarquee = opt.length > 12;
+                          return (
                           <button
                               key={idx}
                               onClick={() => {
-                                  onSendMessage(opt);
+                                  if (setDraftInput) setDraftInput(opt);
                               }}
-                              className={`flex-shrink-0 snap-start bg-zinc-950/95 border text-left p-3 min-w-[140px] max-w-[200px] group transition-all transform active:scale-95 relative overflow-hidden shadow-lg rounded-sm ${actionBorder}`}
+                              className={`flex-shrink-0 snap-start bg-zinc-950/95 border text-left p-3 min-w-[140px] max-w-[220px] group transition-all transform active:scale-95 relative overflow-hidden shadow-lg rounded-sm ${actionBorder}`}
                           >
                               <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity ${actionBgHighlight}`} />
                               <div className="flex items-center gap-2 mb-1">
                                   <MousePointer2 size={14} className={`${actionIcon} shrink-0`} />
-                                  <span className="text-white font-bold text-xs md:text-sm truncate leading-tight">{opt}</span>
+                                  <div className="relative overflow-hidden w-full">
+                                      <div className={`flex w-max items-center gap-6 ${shouldMarquee ? 'action-option-marquee' : ''}`}>
+                                          <span className={`font-bold text-xs md:text-sm whitespace-nowrap leading-tight ${marqueeTextClass}`}>
+                                              {opt}
+                                          </span>
+                                          {shouldMarquee && (
+                                              <span className={`font-bold text-xs md:text-sm whitespace-nowrap leading-tight ${marqueeDuplicateClass}`}>
+                                                  {opt}
+                                              </span>
+                                          )}
+                                      </div>
+                                  </div>
                               </div>
                               <ChevronRight size={14} className={`absolute bottom-1 right-1 opacity-50 group-hover:opacity-100 transition-all ${actionChevron}`} />
                           </button>
-                      ))}
+                      )})}
                       <div className="w-4 flex-shrink-0" />
                   </div>
               </div>
+              <style>{`
+                @keyframes actionOptionMarquee {
+                  0% { transform: translateX(0); }
+                  100% { transform: translateX(-50%); }
+                }
+                .action-option-marquee {
+                  animation: actionOptionMarquee 8s linear infinite;
+                }
+              `}</style>
           </div>
       )}
 

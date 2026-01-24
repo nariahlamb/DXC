@@ -110,7 +110,7 @@ export const GameInput: React.FC<GameInputProps> = ({
                             type="text"
                             value={input}
                             onChange={handleInputChange}
-                            placeholder={isProcessing ? "处理中..." : combatState.isActive ? (enableCombatUI ? "战斗中 | 输入文字进行自由行动..." : "战斗模式 | 请输入指令...") : "你打算做什么？"}
+                            placeholder={isProcessing ? "处理中..." : combatState.是否战斗中 ? (enableCombatUI ? "战斗中 | 输入文字进行自由行动..." : "战斗模式 | 请输入指令...") : "你打算做什么？"}
                             disabled={isProcessing}
                             className="flex-1 bg-transparent text-white font-display text-xl px-2 py-3 outline-none placeholder-zinc-700 transform skew-x-6 disabled:cursor-not-allowed"
                             autoFocus

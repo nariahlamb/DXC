@@ -65,8 +65,8 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                 hoverColorClass={`${primaryHover} group-hover:border-white`}
                 onClick={onOpenInventory}
             />
-             <MenuButton 
-                label="战利品" 
+            <MenuButton 
+                label="公共战利品" 
                 icon={<Gem className="w-5 h-5 lg:w-5 lg:h-5" />} 
                 delay={75} 
                 colorClass="bg-zinc-800"

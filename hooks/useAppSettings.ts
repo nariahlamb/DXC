@@ -8,7 +8,7 @@ const DEFAULT_CONTEXT_MODULES: ContextModuleConfig[] = [
     { id: 'm_player', type: 'PLAYER_DATA', name: '玩家数据', enabled: true, order: 1, params: {} },
     { id: 'm_map', type: 'MAP_CONTEXT', name: '地图环境', enabled: true, order: 2, params: { detailLevel: 'medium' } },
     { id: 'm_social', type: 'SOCIAL_CONTEXT', name: '周边NPC', enabled: true, order: 3, params: { includeAttributes: ['appearance', 'status'] } },
-    { id: 'm_inv', type: 'INVENTORY_CONTEXT', name: '背包/战利品', enabled: true, order: 4, params: { detailLevel: 'medium' } },
+    { id: 'm_inv', type: 'INVENTORY_CONTEXT', name: '背包/公共战利品', enabled: true, order: 4, params: { detailLevel: 'medium' } },
     { id: 'm_phone', type: 'PHONE_CONTEXT', name: '手机/消息', enabled: true, order: 5, params: { messageLimit: 5 } },
     { id: 'm_task', type: 'TASK_CONTEXT', name: '任务列表', enabled: true, order: 6, params: {} },
     { id: 'm_world', type: 'WORLD_CONTEXT', name: '世界动态', enabled: true, order: 7, params: {} },

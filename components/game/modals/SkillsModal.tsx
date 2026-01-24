@@ -38,11 +38,11 @@ export const SkillsModal: React.FC<SkillsModalProps> = ({ isOpen, onClose, skill
                         
                         <div className="relative z-10">
                             <div className="flex justify-between items-center mb-2">
-                                <h3 className="text-xl text-white font-bold group-hover:text-blue-500 transition-colors">{skill.name}</h3>
-                                <span className="text-xs font-mono text-cyan-400 border border-cyan-900 px-1">{skill.cost}</span>
+                                <h3 className="text-xl text-white font-bold group-hover:text-blue-500 transition-colors">{skill.名称}</h3>
+                                <span className="text-xs font-mono text-cyan-400 border border-cyan-900 px-1">{skill.消耗}</span>
                             </div>
-                            <div className="text-xs text-zinc-500 uppercase tracking-widest mb-2">{skill.element}</div>
-                            <p className="text-zinc-400 text-sm leading-relaxed">{skill.description}</p>
+                            <div className="text-xs text-zinc-500 uppercase tracking-widest mb-2">{skill.属性}</div>
+                            <p className="text-zinc-400 text-sm leading-relaxed">{skill.描述}</p>
                         </div>
                     </div>
                 )) : (

@@ -34,7 +34,8 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
     const isPlayer = senderName === 'player';
     
     const content = log.text || "";
-    const canEditAI = !isPlayer && !!log.rawResponse && !!onEditClick;
+    const isPrimaryAiLog = !!log.rawResponse;
+    const canEditAI = !isPlayer && isPrimaryAiLog && !!onEditClick;
     const canEditUser = isPlayer && !!onEditUserLog;
     const hasActions = !!onDelete || canEditAI || canEditUser;
 
@@ -49,6 +50,7 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
 
     const MobileActions = ({ align }: { align: 'left' | 'right' | 'center' }) => {
         if (!hasActions) return null;
+        if (!isPlayer && !isPrimaryAiLog) return null;
         const alignClass = align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start';
         return (
             <div className={`md:hidden mt-2 flex gap-2 ${alignClass}`}>

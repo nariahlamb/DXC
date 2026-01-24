@@ -298,8 +298,8 @@ export const constructMemoryContext = (memory: MemorySystem, logs: LogEntry[], c
     return output.trim();
 };
 
-export const constructInventoryContext = (inventory: InventoryItem[], loot: InventoryItem[], params: any): string => {
-    let invContent = `[背包物品 (Inventory)]\n${JSON.stringify(inventory, null, 2)}\n\n[战利品保管库 (Loot Storage)]\n${JSON.stringify(loot, null, 2)}`;
+export const constructInventoryContext = (inventory: InventoryItem[], publicLoot: InventoryItem[], carrier: string | undefined, params: any): string => {
+    let invContent = `[背包物品 (Inventory)]\n${JSON.stringify(inventory, null, 2)}\n\n[公共战利品背包 (Public Loot - Carrier: ${carrier || 'Unknown'})]\n${JSON.stringify(publicLoot || [], null, 2)}`;
     return invContent;
 };
 
@@ -356,18 +356,23 @@ export const generateSingleModuleContext = (mod: ContextModuleConfig, gameState:
 
         case 'PLAYER_DATA':
             // Optimization: Remove heavy avatar base64 data from context
-            const { 头像, ...cleanPlayerData } = gameState.角色;
-            return `[玩家数据 (Player Data)]\n${JSON.stringify(cleanPlayerData, null, 2)}`;
+            const difficultySetting = gameState.游戏难度 || Difficulty.NORMAL;
+            const { 头像, 生命值, 最大生命值, ...cleanPlayerData } = gameState.角色;
+            const filteredPlayerData = difficultySetting === Difficulty.EASY
+                ? { ...cleanPlayerData, 生命值, 最大生命值 }
+                : cleanPlayerData;
+            return `[玩家数据 (Player Data)]\n${JSON.stringify(filteredPlayerData, null, 2)}`;
         case 'MAP_CONTEXT':
             return constructMapContext(gameState, mod.params);
         case 'SOCIAL_CONTEXT':
             return constructSocialContext(gameState.社交, mod.params);
         case 'INVENTORY_CONTEXT':
-            let inv = constructInventoryContext(gameState.背包, gameState.战利品, mod.params);
-            if (gameState.公共战利品 && gameState.公共战利品.length > 0) {
-                inv += `\n\n[公共战利品背包 (Public Loot - Carrier: ${gameState.战利品背负者 || 'Unknown'})]\n${JSON.stringify(gameState.公共战利品, null, 2)}`;
-            }
-            return inv;
+            return constructInventoryContext(
+                gameState.背包,
+                gameState.公共战利品,
+                gameState.战利品背负者,
+                mod.params
+            );
         case 'PHONE_CONTEXT':
             return constructPhoneContext(gameState.短信, gameState.动态, mod.params);
         case 'TASK_CONTEXT':

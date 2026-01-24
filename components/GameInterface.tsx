@@ -29,6 +29,7 @@ import { PartyModal } from './game/modals/PartyModal';
 import { MapModal } from './game/modals/MapModal';
 import { MemoryModal } from './game/modals/MemoryModal';
 import { DynamicWorldModal } from './game/modals/DynamicWorldModal';
+import { MemorySummaryModal } from './game/modals/MemorySummaryModal';
 
 import { useGameLogic } from '../hooks/useGameLogic';
 
@@ -44,6 +45,7 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
       commandQueue, addToQueue, removeFromQueue,
       currentOptions, lastAIResponse, isProcessing, isStreaming,
       draftInput, setDraftInput,
+      memorySummaryState, confirmMemorySummary, applyMemorySummary, cancelMemorySummary,
       handlePlayerAction, handleSendMessage,
       stopInteraction, handleEditLog, handleDeleteLog, handleEditUserLog, handleUpdateLogText, handleUserRewrite,
       manualSave, loadGame, handleReroll, handleDeleteTask
@@ -84,7 +86,7 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
             
             <div className="flex-1 flex flex-col lg:flex-row relative overflow-hidden z-10">
                 <div className="contents animate-in fade-in slide-in-from-bottom-4 duration-700">
-                    <LeftPanel stats={gameState.角色} isHellMode={isHellMode} />
+                    <LeftPanel stats={gameState.角色} isHellMode={isHellMode} difficulty={gameState.游戏难度} />
                     
                     <CenterPanel 
                         logs={gameState.日志} 
@@ -193,7 +195,7 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
                  )}
                  {mobileActiveTab === 'CHAR' && (
                      <div className="h-full overflow-y-auto bg-zinc-950 p-4">
-                         <LeftPanel stats={gameState.角色} className="w-full border-none shadow-none" isHellMode={isHellMode} />
+                         <LeftPanel stats={gameState.角色} className="w-full border-none shadow-none" isHellMode={isHellMode} difficulty={gameState.游戏难度} />
                      </div>
                  )}
                  {mobileActiveTab === 'MAP' && (
@@ -301,7 +303,8 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
         <LootModal 
             isOpen={activeModal === 'LOOT'} 
             onClose={closeModal} 
-            items={gameState.战利品} 
+            items={gameState.公共战利品} 
+            carrier={gameState.战利品背负者}
         />
 
         <FamiliaModal 
@@ -345,6 +348,17 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
             isOpen={activeModal === 'WORLD'} 
             onClose={closeModal} 
             worldState={gameState.世界} 
+        />
+
+        <MemorySummaryModal
+            isOpen={!!memorySummaryState}
+            phase={memorySummaryState?.phase || 'preview'}
+            type={memorySummaryState?.type || 'S2M'}
+            entries={memorySummaryState?.entries || []}
+            summary={memorySummaryState?.summary}
+            onConfirm={confirmMemorySummary}
+            onApply={applyMemorySummary}
+            onCancel={cancelMemorySummary}
         />
         
         <SettingsModal 

@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useRef } from 'react';
-import { GameState, AppSettings, LogEntry, InventoryItem, TavernCommand, ActionOption, PhoneMessage, Confidant, MemorySystem, SaveSlot, Task, ContextModuleConfig } from '../types';
+import { GameState, AppSettings, LogEntry, InventoryItem, TavernCommand, ActionOption, PhoneMessage, Confidant, MemorySystem, MemoryEntry, SaveSlot, Task, ContextModuleConfig } from '../types';
 import { createNewGameState } from '../utils/dataMapper';
 import { generateDungeonMasterResponse, DEFAULT_PROMPT_MODULES, DEFAULT_MEMORY_CONFIG, dispatchAIRequest, generateMemorySummary } from '../utils/ai';
 import { P_MEM_S2M, P_MEM_M2L } from '../prompts';
@@ -11,6 +11,23 @@ interface CommandItem {
     text: string;
     undoAction?: () => void;
     dedupeKey?: string; 
+}
+
+type MemorySummaryPhase = 'preview' | 'processing' | 'result';
+type MemorySummaryType = 'S2M' | 'M2L';
+
+interface MemorySummaryState {
+    phase: MemorySummaryPhase;
+    type: MemorySummaryType;
+    entries: MemoryEntry[] | string[];
+    summary?: string;
+}
+
+interface PendingInteraction {
+    input: string;
+    contextType: 'ACTION' | 'PHONE';
+    commandsOverride?: string[];
+    stateOverride?: GameState;
 }
 
 const DEFAULT_AI_CONFIG = {
@@ -26,7 +43,7 @@ const DEFAULT_CONTEXT_MODULES: ContextModuleConfig[] = [
     { id: 'm_map', type: 'MAP_CONTEXT', name: '地图环境', enabled: true, order: 2, params: { detailLevel: 'medium' } },
     { id: 'm_player', type: 'PLAYER_DATA', name: '玩家数据', enabled: true, order: 3, params: {} },
     { id: 'm_social', type: 'SOCIAL_CONTEXT', name: '周边NPC', enabled: true, order: 4, params: { includeAttributes: ['appearance', 'status'], specialMemoryLimit: 5, normalMemoryLimit: 30 } },
-    { id: 'm_inv', type: 'INVENTORY_CONTEXT', name: '背包/战利品', enabled: true, order: 5, params: { detailLevel: 'medium' } },
+    { id: 'm_inv', type: 'INVENTORY_CONTEXT', name: '背包/公共战利品', enabled: true, order: 5, params: { detailLevel: 'medium' } },
     { id: 'm_phone', type: 'PHONE_CONTEXT', name: '手机/消息', enabled: true, order: 6, params: { messageLimit: 5 } },
     { id: 'm_combat', type: 'COMBAT_CONTEXT', name: '战斗数据', enabled: true, order: 6, params: {} }, 
     { id: 'm_task', type: 'TASK_CONTEXT', name: '任务列表', enabled: true, order: 7, params: {} },
@@ -119,6 +136,8 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
     const [isStreaming, setIsStreaming] = useState(false);
     const [draftInput, setDraftInput] = useState<string>('');
     const [snapshotState, setSnapshotState] = useState<GameState | null>(null);
+    const [memorySummaryState, setMemorySummaryState] = useState<MemorySummaryState | null>(null);
+    const [pendingInteraction, setPendingInteraction] = useState<PendingInteraction | null>(null);
 
     useEffect(() => {
         const savedSettings = localStorage.getItem('danmachi_settings');
@@ -270,71 +289,38 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         return { newState: nextState, logs: systemLogs };
     };
 
-    // Refactored Compression: Only Short -> Medium -> Long
-    const compressMemory = async (currentState: GameState): Promise<GameState> => {
-        const memory = { ...currentState.记忆 };
-        const config = settings.memoryConfig;
-        
-        const instantLimit = config.instantLimit || 10;
-        const shortTermLimit = config.shortTermLimit || 30;
-        const mediumTermLimit = config.mediumTermLimit || 100;
+    const getMemorySummaryRequest = (currentState: GameState): MemorySummaryState | null => {
+        const config = settings.memoryConfig || DEFAULT_MEMORY_CONFIG;
+        const shortTermLimit = config.shortTermLimit || 0;
+        const mediumTermLimit = config.mediumTermLimit || 0;
 
-        // Buffer = Short Limit + Instant Limit (because Instant Turns also produce ShortTerm entries kept in reserve)
-        const safetyBuffer = instantLimit; 
-        const maxShortTermLength = shortTermLimit + safetyBuffer;
-
-        let hasUpdates = false;
-
-        // --- Step 1: Compress Short -> Medium Term ---
-        if (memory.shortTerm.length > maxShortTermLength) {
-            // Compress the excess old entries
-            // Calculate how many to compress. We want to be back at shortTermLimit.
-            // But we actually need to keep 'safetyBuffer' too? No, shortTermLimit implies "Visible Short Term".
-            // The buffer is just "invisible short term that corresponds to Instant logs".
-            // So if total > M+N, we compress.
-            const overflowCount = memory.shortTerm.length - maxShortTermLength;
-            // Batch at least 5 items for meaningful summary, or just overflow
-            const batchSize = Math.max(overflowCount, 5); 
-            
-            const chunkToCompress = memory.shortTerm.slice(0, batchSize);
-            setLastAIResponse(`(System: Compressing Short Term Memories to Medium Term...)`);
-            
-            const fakeLogs = chunkToCompress.map(m => ({ 
-                text: m.content, 
-                sender: 'Memory', 
-                id: '', 
-                timestamp: 0 
-            } as LogEntry));
-            
-            const summaryText = await generateMemorySummary(fakeLogs, 'S2M', settings);
-            memory.mediumTerm.push(summaryText);
-            
-            // Remove the compressed entries
-            memory.shortTerm = memory.shortTerm.slice(batchSize);
-            hasUpdates = true;
+        if (shortTermLimit > 0 && currentState.记忆.shortTerm.length >= shortTermLimit) {
+            return { phase: 'preview', type: 'S2M', entries: [...currentState.记忆.shortTerm] };
         }
-
-        // --- Step 2: Compress Medium -> Long Term ---
-        if (memory.mediumTerm.length > mediumTermLimit) {
-            const batchSize = 5; 
-            const chunkToCompress = memory.mediumTerm.slice(0, batchSize);
-            setLastAIResponse(`(System: Archiving Medium Term Memories...)`);
-            const fakeLogs = chunkToCompress.map(m => ({ text: m, sender: 'Memory', id: '', timestamp: 0 } as LogEntry));
-            const summaryText = await generateMemorySummary(fakeLogs, 'M2L', settings);
-            memory.longTerm.push(summaryText);
-            memory.mediumTerm = memory.mediumTerm.slice(batchSize);
-            hasUpdates = true;
+        if (mediumTermLimit > 0 && currentState.记忆.mediumTerm.length >= mediumTermLimit) {
+            return { phase: 'preview', type: 'M2L', entries: [...currentState.记忆.mediumTerm] };
         }
-
-        if (hasUpdates) {
-            return { ...currentState, 记忆: memory };
-        }
-        return currentState;
+        return null;
     };
 
-    const handleAIInteraction = async (input: string, contextType: 'ACTION'|'PHONE'='ACTION', commandsOverride?: string[], stateOverride?: GameState) => {
-        if (!stateOverride) setSnapshotState(JSON.parse(JSON.stringify(gameState)));
+    const handleAIInteraction = async (input: string, contextType: 'ACTION'|'PHONE'='ACTION', commandsOverride?: string[], stateOverride?: GameState, skipMemoryCheck: boolean = false) => {
         const baseState = stateOverride || gameState;
+
+        if (!skipMemoryCheck) {
+            if (memorySummaryState) {
+                setTimeout(() => setDraftInput(input), 0);
+                return;
+            }
+            const summaryRequest = getMemorySummaryRequest(baseState);
+            if (summaryRequest) {
+                setPendingInteraction({ input, contextType, commandsOverride, stateOverride });
+                setMemorySummaryState(summaryRequest);
+                setTimeout(() => setDraftInput(input), 0);
+                return;
+            }
+        }
+
+        if (!stateOverride) setSnapshotState(JSON.parse(JSON.stringify(gameState)));
         const turnIndex = (baseState.回合数 || 1);
         
         setIsProcessing(true);
@@ -360,17 +346,12 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         setGameState(stateWithUserLog);
         
         try {
-            // Run memory compression (Short->Medium, etc) BEFORE sending to AI
-            const compressedState = await compressMemory(stateWithUserLog);
-            if (compressedState !== stateWithUserLog) {
-                setGameState(compressedState);
-            }
 
             const onStreamChunk = (chunk: string) => setLastAIResponse(chunk);
 
             const aiResponse = await generateDungeonMasterResponse(
                 input, 
-                compressedState, 
+                stateWithUserLog, 
                 settings, 
                 "", 
                 commandsOverride || [],
@@ -458,6 +439,80 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         }
     };
 
+    const confirmMemorySummary = async () => {
+        if (!memorySummaryState || memorySummaryState.phase !== 'preview') return;
+        setMemorySummaryState({ ...memorySummaryState, phase: 'processing' });
+
+        try {
+            let fakeLogs: LogEntry[] = [];
+            if (memorySummaryState.type === 'S2M') {
+                fakeLogs = (memorySummaryState.entries as MemoryEntry[]).map(m => ({
+                    text: m.content,
+                    sender: 'Memory',
+                    id: '',
+                    timestamp: 0
+                } as LogEntry));
+            } else {
+                fakeLogs = (memorySummaryState.entries as string[]).map(text => ({
+                    text,
+                    sender: 'Memory',
+                    id: '',
+                    timestamp: 0
+                } as LogEntry));
+            }
+
+            const summaryText = await generateMemorySummary(fakeLogs, memorySummaryState.type, settings);
+            setMemorySummaryState({ ...memorySummaryState, phase: 'result', summary: summaryText });
+        } catch (e) {
+            setMemorySummaryState({ ...memorySummaryState, phase: 'result', summary: '总结失败，请重试或手动编辑。' });
+        }
+    };
+
+    const applyMemorySummary = (summaryText: string) => {
+        if (!memorySummaryState) return;
+
+        let nextState: GameState | null = null;
+        setGameState(prev => {
+            const nextMemory = { ...prev.记忆 };
+            if (memorySummaryState.type === 'S2M') {
+                nextMemory.shortTerm = [];
+                nextMemory.mediumTerm = [...nextMemory.mediumTerm, summaryText];
+            } else {
+                nextMemory.mediumTerm = [];
+                nextMemory.longTerm = [...nextMemory.longTerm, summaryText];
+            }
+            nextState = { ...prev, 记忆: nextMemory };
+            return nextState;
+        });
+
+        if (!nextState) return;
+
+        const followup = getMemorySummaryRequest(nextState);
+        if (followup) {
+            setMemorySummaryState(followup);
+            return;
+        }
+
+        setMemorySummaryState(null);
+        const pending = pendingInteraction;
+        setPendingInteraction(null);
+        if (pending) {
+            setDraftInput('');
+            handleAIInteraction(
+                pending.input,
+                pending.contextType,
+                pending.commandsOverride,
+                nextState,
+                true
+            );
+        }
+    };
+
+    const cancelMemorySummary = () => {
+        setMemorySummaryState(null);
+        setPendingInteraction(null);
+    };
+
     const updateConfidant = (id: string, updates: Partial<Confidant>) => {
         setGameState(prev => ({ ...prev, 社交: prev.社交.map(c => c.id === id ? { ...c, ...updates } : c) }));
     };
@@ -517,6 +572,7 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
     return {
         gameState, setGameState, settings, setSettings,
         commandQueue, addToQueue, removeFromQueue, currentOptions, lastAIResponse, isProcessing, isStreaming, draftInput, setDraftInput,
+        memorySummaryState, confirmMemorySummary, applyMemorySummary, cancelMemorySummary,
         handleAIInteraction, stopInteraction, handlePlayerAction, handleSendMessage, saveSettings, manualSave, loadGame, updateConfidant, updateMemory,
         handleReroll, handleEditLog, handleDeleteLog, handleEditUserLog, handleUpdateLogText, handleUserRewrite, handleDeleteTask
     };

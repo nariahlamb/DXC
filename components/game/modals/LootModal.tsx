@@ -7,9 +7,10 @@ interface LootModalProps {
   isOpen: boolean;
   onClose: () => void;
   items: InventoryItem[];
+  carrier?: string;
 }
 
-export const LootModal: React.FC<LootModalProps> = ({ isOpen, onClose, items }) => {
+export const LootModal: React.FC<LootModalProps> = ({ isOpen, onClose, items, carrier }) => {
   if (!isOpen) return null;
 
   return (
@@ -21,8 +22,11 @@ export const LootModal: React.FC<LootModalProps> = ({ isOpen, onClose, items }) 
              <div className="flex items-center gap-4 text-[#d4af37]">
                 <Archive size={32} />
                 <div>
-                    <h2 className="text-3xl font-display uppercase tracking-widest text-shadow-gold">战利品保管库</h2>
-                    <div className="text-xs font-mono text-[#a8a29e]">LOOT STORAGE</div>
+                    <h2 className="text-3xl font-display uppercase tracking-widest text-shadow-gold">公共战利品</h2>
+                    <div className="text-xs font-mono text-[#a8a29e]">PUBLIC LOOT</div>
+                    {carrier && (
+                        <div className="text-[10px] font-mono text-[#d4af37] mt-1">背负者: {carrier}</div>
+                    )}
                 </div>
              </div>
              <button onClick={onClose} className="hover:text-white text-[#d4af37] transition-colors border border-[#d4af37] p-2">
@@ -62,7 +66,7 @@ export const LootModal: React.FC<LootModalProps> = ({ isOpen, onClose, items }) 
                 )) : (
                     <div className="col-span-full flex flex-col items-center justify-center py-20 text-[#57534e]">
                         <Box size={64} className="mb-4 opacity-50" />
-                        <span className="font-display text-2xl uppercase tracking-widest">保管库为空</span>
+                        <span className="font-display text-2xl uppercase tracking-widest">公共战利品为空</span>
                     </div>
                 )}
             </div>
