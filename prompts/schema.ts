@@ -4,9 +4,7 @@ export const P_DATA_STRUCT = `# 【数据结构定义】DanMachi SaveData (V3.1 
 > 所有的 Key 必须使用**中文**。禁止删除、精简或臆造字段。
 
 ## 1. 全局环境与元数据 (gameState)
-- \`gameState.当前界面\`: Screen ("HOME" | "CHAR_CREATION" | "GAME" | "SETTINGS")
 - \`gameState.游戏难度\`: Difficulty ("Easy" | "Normal" | "Hard" | "Hell")
-- \`gameState.处理中\`: Boolean
 - \`gameState.回合数\`: Number
 - \`gameState.游戏时间\`: String (格式 "第X日 HH:MM")
 - \`gameState.当前日期\`: String ("1000-01-01")
@@ -14,19 +12,7 @@ export const P_DATA_STRUCT = `# 【数据结构定义】DanMachi SaveData (V3.1 
 - \`gameState.当前楼层\`: Number (0=地表, 1+=地下层数)
 - \`gameState.天气\`: String ("晴朗", "小雨" 等)
 - \`gameState.世界坐标\`: { "x": Number, "y": Number } (绝对坐标)
-- \`gameState.日志\`: Array<LogEntry> (只读, 由 \`logs\` 输出驱动)
-- \`gameState.historyArchive\`: Array<LogEntry> (可选, 历史归档)
 
-**LogEntry 结构**
-- \`id\`: String
-- \`text\`: String
-- \`sender\`: String
-- \`timestamp\`: Number
-- \`turnIndex?\`: Number
-- \`rawResponse?\`: String
-- \`snapshot?\`: String
-- \`isRaw?\`: Boolean
-- \`gameTime?\`: String ("第X日 HH:MM")
 
 ## 2. 玩家状态核心 (gameState.角色)
 **基础信息**
@@ -40,11 +26,10 @@ export const P_DATA_STRUCT = `# 【数据结构定义】DanMachi SaveData (V3.1 
 - \`gameState.角色.性别\`: String ("男性" / "女性")
 - \`gameState.角色.年龄\`: Number
 - \`gameState.角色.生日\`: String ("MM-DD")
-- \`gameState.角色.头像\`: String (URL/Base64)
 
 **核心数值 (Vitals)**
-- \`gameState.角色.生命值\`: Number (当前 HP)
-- \`gameState.角色.最大生命值\`: Number
+- \`gameState.角色.生命值\`: Number (当前 HP 普通及以上难度不启用)
+- \`gameState.角色.最大生命值\`: Number(普通及以上难度不启用)
 - \`gameState.角色.精神力\`: Number (当前 MP/Mind)
 - \`gameState.角色.最大精神力\`: Number
 - \`gameState.角色.体力\`: Number (当前 Stamina)
@@ -56,7 +41,7 @@ export const P_DATA_STRUCT = `# 【数据结构定义】DanMachi SaveData (V3.1 
 - \`gameState.角色.生存状态.水分\`: Number (0-100)
 - \`gameState.角色.生存状态.最大水分\`: Number
 
-**身体部位 (Body Parts)**
+**身体部位 (Body Parts)**普通及以上难度启用
 *每个部位包含 { "当前": Number, "最大": Number }*
 - \`gameState.角色.身体部位.头部\`
 - \`gameState.角色.身体部位.胸部\`
@@ -147,14 +132,11 @@ export const P_DATA_STRUCT = `# 【数据结构定义】DanMachi SaveData (V3.1 
 - \`是否队友\`: Boolean
 - \`已交换联系方式\`: Boolean
 - \`特别关注\`: Boolean
-- \`强制包含上下文\`: Boolean
 - \`当前行动\`: String (如 "正在擦拭酒杯")
 - \`位置详情\`: String
 - \`坐标\`: { "x": Number, "y": Number }
 - \`记忆\`: Array<{ "内容": String, "时间戳": String }>
 - \`简介\`, \`外貌\`, \`性格\`, \`背景\`: String
-- \`头像\`: String
-- \`排除提示词\`: Boolean
 - \`已知能力\`: String
 - **队友/敌对数据** (仅战斗相关NPC拥有):
   - \`生存数值\`: { "当前生命", "最大生命", "当前精神", "最大精神", "当前体力", "最大体力" }
@@ -177,8 +159,7 @@ export const P_DATA_STRUCT = `# 【数据结构定义】DanMachi SaveData (V3.1 
 - \`当前精神MP\`: Number
 - \`技能\`: String[]
 - \`描述\`: String
-- \`等级\`: Number (可选)
-- \`图片\`: String (可选)
+- \`等级\`: Number
 
 ## 7. 任务系统 (gameState.任务)
 *Array<Task>*
@@ -246,10 +227,5 @@ export const P_DATA_STRUCT = `# 【数据结构定义】DanMachi SaveData (V3.1 
 ## 14. 技能池 (gameState.技能)
 - \`gameState.技能\`: Array<Skill>
 
-## 15. 记忆系统 (gameState.记忆)
-- \`gameState.记忆.lastLogIndex\`: Number
-- \`gameState.记忆.instant\`: Array<LogEntry> (可选, 兼容旧版)
-- \`gameState.记忆.shortTerm\`: Array<{ "content", "timestamp", "turnIndex" }>
-- \`gameState.记忆.mediumTerm\`: String[]
-- \`gameState.记忆.longTerm\`: String[]
+
 `;

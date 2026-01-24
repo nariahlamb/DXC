@@ -101,22 +101,43 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
   const marqueeDuplicateClass = isHellMode ? 'text-red-300/70' : 'text-white/70';
   const logPaddingClass = actionOptions.length > 0 ? 'pb-48 md:pb-48' : 'pb-12 md:pb-16';
 
-  const totalLogs = logs.length;
+  const turnIndices = logs
+      .map(l => (typeof l.turnIndex === 'number' ? l.turnIndex : null))
+      .filter((t): t is number => t !== null);
+  const uniqueTurns = Array.from(new Set(turnIndices)).sort((a, b) => a - b);
+  const playableTurns = uniqueTurns.filter(t => t > 0);
+  const orderedTurns = playableTurns.length > 0 ? playableTurns : uniqueTurns;
+  const totalTurns = orderedTurns.length;
   const limit = chatLogLimit === null ? null : (typeof chatLogLimit === 'number' ? chatLogLimit : 30);
-  const startIndex = limit ? Math.max(0, totalLogs - limit) : 0;
-  const visibleLogs = logs.slice(startIndex);
+  const startTurnIndex = limit ? Math.max(0, totalTurns - limit) : 0;
+  const visibleTurns = orderedTurns.slice(startTurnIndex);
+  const visibleTurnSet = new Set(visibleTurns);
+  const visibleLogs = logs.filter(l => {
+      const t = typeof l.turnIndex === 'number' ? l.turnIndex : null;
+      if (t === null) return limit === null;
+      if (t === 0) return true;
+      return visibleTurnSet.has(t);
+  });
+  const logIndexMap = new Map<string, number>();
+  logs.forEach((log, idx) => logIndexMap.set(log.id, idx));
 
   const handleJump = () => {
       const target = parseInt(jumpTarget, 10);
-      if (!target || target < 1 || target > totalLogs) {
-          setJumpHint(`范围: 1-${totalLogs || 1}`);
+      const maxTurn = totalTurns > 0 ? orderedTurns[orderedTurns.length - 1] : 0;
+      const minTurn = totalTurns > 0 ? orderedTurns[0] : 0;
+      if (Number.isNaN(target) || target < minTurn || target > maxTurn) {
+          setJumpHint(`范围: ${minTurn}-${maxTurn || minTurn}`);
           return;
       }
-      if (target <= startIndex) {
+      if (!visibleTurnSet.has(target)) {
           setJumpHint('目标楼层未渲染');
           return;
       }
-      const targetLog = logs[target - 1];
+      const targetLog = logs.find(l => l.turnIndex === target);
+      if (!targetLog) {
+          setJumpHint('目标楼层不存在');
+          return;
+      }
       const el = logRefs.current.get(targetLog.id);
       if (el) {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -264,17 +285,19 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
           </div>
       )}
 
-      {totalLogs > 0 && (
+      {totalTurns > 0 && (
           <div className="absolute top-4 right-4 z-30 flex flex-col gap-2 bg-black/80 border border-zinc-700 px-3 py-2 text-[10px] text-zinc-300">
               <div className="flex items-center gap-2">
                   <span className="uppercase tracking-widest">楼层跳转</span>
-                  <span className="text-zinc-500">{startIndex + 1}-{totalLogs}/{totalLogs}</span>
+                  <span className="text-zinc-500">
+                      {visibleTurns[0]}-{visibleTurns[visibleTurns.length - 1]}/{orderedTurns[orderedTurns.length - 1]}
+                  </span>
               </div>
               <div className="flex items-center gap-2">
                   <input
                       type="number"
-                      min="1"
-                      max={totalLogs}
+                      min={orderedTurns[0] ?? 0}
+                      max={orderedTurns[orderedTurns.length - 1] ?? 0}
                       value={jumpTarget}
                       onChange={(e) => setJumpTarget(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleJump()}
@@ -297,8 +320,8 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
         ref={containerRef}
         className={`flex-1 overflow-y-auto p-4 md:p-10 z-10 custom-scrollbar scroll-smooth ${logPaddingClass}`}
       >
-        {visibleLogs.map((log, index) => {
-            const globalIndex = startIndex + index;
+        {visibleLogs.map((log) => {
+            const globalIndex = logIndexMap.get(log.id) ?? 0;
             const prevLog = logs[globalIndex - 1];
             const isNewTurn = log.turnIndex !== undefined && log.turnIndex > 0 && (!prevLog || log.turnIndex !== prevLog.turnIndex);
             

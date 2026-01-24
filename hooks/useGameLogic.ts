@@ -425,41 +425,32 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                 }
 
                 if (logs.length > 0) {
-                    let rawToAttach = aiResponse.rawResponse;
-                    let timestampOffset = 0;
-                    const splitLogText = (text: string) => text.split('\n').map(s => s.trim()).filter(Boolean);
                     logs.forEach((l, idx) => {
                         let sender = l.sender;
                         if (sender === 'narrative' || sender === '旁白' || sender === 'narrator') sender = '旁白';
-                        const lines = splitLogText(l.text || "");
-                        const outputLines = lines.length > 0 ? lines : [l.text || ""];
-                        outputLines.forEach((line) => {
-                            newLogs.push({ 
-                                id: generateLegacyId(), 
-                                text: line, 
-                                sender: sender, 
-                                timestamp: Date.now() + timestampOffset++, 
-                                turnIndex, 
-                                gameTime: aiLogGameTime,
-                                rawResponse: rawToAttach || undefined
-                            });
-                            rawToAttach = undefined;
+                        
+                        const rawData = idx === 0 ? aiResponse.rawResponse : undefined;
+
+                        newLogs.push({ 
+                            id: generateLegacyId(), 
+                            text: l.text, 
+                            sender: sender, 
+                            timestamp: Date.now() + idx, 
+                            turnIndex, 
+                            gameTime: aiLogGameTime,
+                            rawResponse: rawData
                         });
                     });
                 } else if (narrative) {
-                    const lines = narrative.split('\n').map(s => s.trim()).filter(Boolean);
-                    const outputLines = lines.length > 0 ? lines : [narrative];
-                    outputLines.forEach((line, lineIndex) => {
-                        newLogs.push({ 
-                            id: generateLegacyId(), 
-                            text: line, 
-                            sender: '旁白', 
-                            timestamp: Date.now() + lineIndex, 
-                            turnIndex, 
-                            gameTime: aiLogGameTime,
-                            rawResponse: lineIndex === 0 ? aiResponse.rawResponse : undefined
-                        });
-                    });
+                     newLogs.push({ 
+                         id: generateLegacyId(), 
+                         text: narrative, 
+                         sender: '旁白', 
+                         timestamp: Date.now(), 
+                         turnIndex, 
+                         gameTime: aiLogGameTime,
+                         rawResponse: aiResponse.rawResponse 
+                     });
                 }
                 
                 newState.日志 = [...newState.日志, ...newLogs];
