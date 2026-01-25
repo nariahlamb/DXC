@@ -3,37 +3,62 @@
 export interface FalnaAbility {
     名称: string;
     等级: string; // I, H, G... S, SS
-    数值?: number; // 0-999+
+    类型?: '战斗' | '生产' | '侦察' | '防御' | '魔法' | '成长' | string;
     描述?: string;
+    效果?: string;
+    解锁条件?: string;
+    备注?: string;
+}
+
+export interface MagicCost {
+    精神?: number | string;
+    体力?: number | string;
+    代价?: string;
 }
 
 export interface MagicSpell {
+    id: string;
     名称: string;
     咏唱: string;
-    描述: string;
-    消耗?: number;
+    类别: '攻击' | '支援' | '治愈' | '强化' | '弱化' | '领域' | '特殊' | string;
+    属性?: string;
+    描述?: string;
+    效果?: string;
+    范围?: string;
+    射程?: string;
+    冷却?: string;
+    消耗?: MagicCost | string | number;
+    施放条件?: string;
+    备注?: string;
+    稀有?: boolean;
+    标签?: string[] | string;
+}
+
+export interface SkillCost {
+  精神?: number | string;
+  体力?: number | string;
+  代价?: string;
 }
 
 export interface Skill {
   id: string;
   名称: string;
-  描述: string;
-  消耗?: string | number;
-  属性?: string;
-  类型?: string;
-  冷却?: string | number;
-  范围?: string;
-  持续?: string;
-  触发?: string;
+  类别: '主动' | '被动' | '支援' | '特化' | '反转' | string;
+  描述?: string;
   效果?: string;
-  备注?: string;
+  触发?: string;
+  持续?: string;
+  冷却?: string;
+  消耗?: SkillCost | string | number;
+  范围?: string;
+  命中?: string;
+  适用?: string;
   等级?: string | number;
-  指令?: string;
-  前置?: string;
+  关联发展能力?: string[] | string;
   限制?: string;
+  备注?: string;
   标签?: string[] | string;
   稀有?: boolean;
-  [key: string]: any;
 }
 
 export interface SurvivalStats {

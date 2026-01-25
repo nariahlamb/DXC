@@ -39,6 +39,7 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
     const canEditUser = isPlayer && !!onEditUserLog;
     const canDelete = !!onDelete && (isPrimaryAiLog || isPlayer);
     const hasActions = canEditAI || canEditUser || canDelete;
+    const shouldShowThinking = !!log.thinking && !isPlayer;
 
     const getTextSize = () => {
         switch(fontSize) {
@@ -75,6 +76,23 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
                         </div>
                     );
                 })}
+            </div>
+        );
+    };
+
+    const ThinkingBlock = ({ align }: { align: 'left' | 'right' | 'center' }) => {
+        if (!shouldShowThinking) return null;
+        const alignClass = align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start';
+        return (
+            <div className={`mt-2 flex ${alignClass}`}>
+                <details className="max-w-[90%] bg-emerald-950/40 border border-emerald-700/60 px-3 py-2 rounded">
+                    <summary className="cursor-pointer text-[10px] uppercase tracking-widest text-emerald-300 flex items-center gap-2">
+                        <Info size={12} className="text-emerald-400" /> AI 思考
+                    </summary>
+                    <div className="mt-2 text-[11px] text-emerald-100 font-mono whitespace-pre-wrap leading-relaxed">
+                        {log.thinking}
+                    </div>
+                </details>
             </div>
         );
     };
@@ -192,6 +210,7 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
                         </div>
                     </div>
                     <MobileActions align="center" />
+                    <ThinkingBlock align="center" />
                 </div>
             </div>
         );
@@ -209,6 +228,7 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
                     {renderDecoratedText(content, `font-serif text-zinc-200 text-justify tracking-wide text-sm md:text-base leading-relaxed`)}
                 </div>
                 <MobileActions align="left" />
+                <ThinkingBlock align="left" />
             </div>
         );
     }
@@ -221,11 +241,11 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
 
                 <div className="flex items-end gap-3 max-w-full">
                     <div className="flex flex-col items-end">
-                        <div className="bg-black border border-zinc-700 text-white px-4 py-3 rounded-2xl rounded-tr-none shadow-[0_4px_10px_rgba(0,0,0,0.5)] relative min-w-[60px] group-hover:border-blue-500 transition-colors">
-                            {renderDecoratedText(content, `font-display tracking-wide ${textSizeClass}`)}
-                        </div>
-                        <MobileActions align="right" />
+                    <div className="bg-black border border-zinc-700 text-white px-4 py-3 rounded-2xl rounded-tr-none shadow-[0_4px_10px_rgba(0,0,0,0.5)] relative min-w-[60px] group-hover:border-blue-500 transition-colors">
+                        {renderDecoratedText(content, `font-display tracking-wide ${textSizeClass}`)}
                     </div>
+                    <MobileActions align="right" />
+                </div>
                     
                     <div className="w-10 h-10 md:w-12 md:h-12 shrink-0 rounded-full border-2 border-zinc-600 overflow-hidden bg-black shadow-lg">
                         <img src={playerStats.头像 || "https://picsum.photos/200"} alt="You" className="w-full h-full object-cover" />
@@ -271,6 +291,7 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
                         {renderDecoratedText(content, `font-display font-bold drop-shadow-sm ${textSizeClass}`)}
                     </div>
                     <MobileActions align="left" />
+                    <ThinkingBlock align="left" />
                 </div>
             </div>
         </div>

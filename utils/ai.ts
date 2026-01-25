@@ -1,4 +1,4 @@
-
+﻿
 import { AppSettings, GameState, PromptModule, AIEndpointConfig, Confidant, MemoryEntry, LogEntry, AIResponse, ContextModuleConfig, InventoryItem, Task, MemoryConfig, PhoneMessage, MemorySystem, MomentPost, WorldMapData } from "../types";
 import { GoogleGenAI } from "@google/genai";
 import { 
@@ -82,6 +82,28 @@ export const DEFAULT_MEMORY_CONFIG: MemoryConfig = {
     shortTermLimit: 30,
     mediumTermLimit: 100,
     longTermLimit: 0 
+};
+
+const isCotModule = (mod: PromptModule) => mod.id === 'cot_logic' || mod.group === 'COT思维链';
+
+const buildCotPrompt = (settings: AppSettings): string => {
+    const modules = settings.promptModules
+        .filter(m => isCotModule(m) && m.isActive)
+        .sort((a, b) => a.order - b.order);
+    if (modules.length === 0) return "";
+    return modules.map(m => m.content).join('\n\n');
+};
+
+const extractThinkingBlocks = (rawText: string): { cleaned: string; thinking?: string } => {
+    if (!rawText) return { cleaned: rawText };
+    const matches = Array.from(rawText.matchAll(/<thinking>([\s\S]*?)<\/thinking>/gi));
+    if (matches.length === 0) return { cleaned: rawText };
+    const thinking = matches
+        .map(m => (m[1] || "").trim())
+        .filter(Boolean)
+        .join('\n\n');
+    const cleaned = rawText.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').trim();
+    return { cleaned, thinking };
 };
 
 /**
@@ -561,7 +583,8 @@ export const generateSingleModuleContext = (mod: ContextModuleConfig, gameState:
                 return false;
             });
             
-            const sorted = [...activePromptModules].sort((a, b) => a.order - b.order);
+            const filteredModules = activePromptModules.filter(m => !isCotModule(m));
+            const sorted = [...filteredModules].sort((a, b) => a.order - b.order);
             let content = sorted.map(m => m.content).join('\n\n');
             if (settings.enableActionOptions) content += "\n\n" + P_ACTION_OPTIONS;
             return content;
@@ -632,12 +655,23 @@ export const assembleFullPrompt = (
         .filter(m => m.enabled)
         .sort((a, b) => a.order - b.order);
 
+    const cotContent = buildCotPrompt(settings);
+    let cotInjected = false;
+
     sortedContextModules.forEach(mod => {
+        if (!cotInjected && cotContent && (mod.type === 'COMMAND_HISTORY' || mod.type === 'USER_INPUT')) {
+            fullContent += cotContent + "\n\n";
+            cotInjected = true;
+        }
         const modContent = generateSingleModuleContext(mod, gameState, settings, commandHistory, playerInput);
         if (modContent) {
             fullContent += modContent + "\n\n";
         }
     });
+
+    if (!cotInjected && cotContent) {
+        fullContent += cotContent + "\n\n";
+    }
 
     return fullContent.trim();
 };
@@ -781,8 +815,11 @@ export const generateDungeonMasterResponse = async (
 
         if (!rawText || !rawText.trim()) throw new Error("AI returned empty response.");
 
+        const { cleaned, thinking } = extractThinkingBlocks(rawText);
+        const rawTextForParsing = cleaned || rawText;
+
         // Robust JSON extraction
-        let cleanJson = rawText.trim();
+        let cleanJson = rawTextForParsing.trim();
         
         // 1. Try regex to match outermost braces
         // Find the FIRST '{' and the LAST '}'
@@ -799,7 +836,7 @@ export const generateDungeonMasterResponse = async (
 
         try {
             const parsed = JSON.parse(cleanJson);
-            return { ...parsed, rawResponse: rawText };
+            return { ...parsed, rawResponse: rawTextForParsing, thinking };
         } catch (parseError: any) {
             console.error("AI JSON Parse Error", parseError);
             return {
@@ -809,7 +846,8 @@ export const generateDungeonMasterResponse = async (
                     text: `JSON解析失败: ${parseError.message}\n请在“原文”中修正后重试。\n\n【原始AI消息】\n${rawText}`
                 }],
                 shortTerm: "Error occurred.",
-                rawResponse: rawText
+                rawResponse: rawTextForParsing,
+                thinking
             };
         }
     } catch (error: any) {
@@ -818,7 +856,7 @@ export const generateDungeonMasterResponse = async (
         return {
             tavern_commands: [],
             logs: [{ sender: "system", text: `系统错误: ${error.message}${rawBlock}` }],
-            shortTerm: "Error occurred.", 
+            shortTerm: "Error occurred.",
             rawResponse: rawText || error.message
         };
     }

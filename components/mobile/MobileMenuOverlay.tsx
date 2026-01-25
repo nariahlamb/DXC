@@ -32,7 +32,7 @@ export const MobileMenuOverlay: React.FC<MobileMenuOverlayProps> = ({ isOpen, on
     const menuItems = [
         // Removed Inventory (Briefcase) and Map (Navigation) as they are in bottom bar
         { label: "装备", icon: <Shield />, action: actions.onOpenEquipment, color: "bg-orange-900/80 border-orange-700" },
-        { label: "技能", icon: <Zap />, action: actions.onOpenSkills, color: "bg-yellow-800/80 border-yellow-600" },
+        { label: "技能/魔法", icon: <Zap />, action: actions.onOpenSkills, color: "bg-yellow-800/80 border-yellow-600" },
         { label: "战利品仓库", icon: <Archive />, action: actions.onOpenLootVault, color: "bg-amber-800/80 border-amber-600" },
         { label: "公共战利品", icon: <Gem />, action: actions.onOpenLoot, color: "bg-amber-900/80 border-amber-700" },
         

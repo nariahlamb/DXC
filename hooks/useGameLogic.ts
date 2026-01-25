@@ -1,4 +1,4 @@
-
+﻿
 import { useState, useEffect, useRef } from 'react';
 import { GameState, AppSettings, LogEntry, InventoryItem, TavernCommand, ActionOption, PhoneMessage, Confidant, MemorySystem, MemoryEntry, SaveSlot, Task, ContextModuleConfig } from '../types';
 import { createNewGameState } from '../utils/dataMapper';
@@ -447,6 +447,7 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                         if (sender === 'narrative' || sender === '旁白' || sender === 'narrator') sender = '旁白';
                         
                         const rawData = idx === 0 ? aiResponse.rawResponse : undefined;
+                        const thinking = idx === 0 ? aiResponse.thinking : undefined;
 
                         newLogs.push({ 
                             id: generateLegacyId(), 
@@ -455,7 +456,8 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                             timestamp: Date.now() + idx, 
                             turnIndex, 
                             gameTime: aiLogGameTime,
-                            rawResponse: rawData
+                            rawResponse: rawData,
+                            thinking
                         });
                     });
                 } else if (narrative) {
@@ -466,7 +468,8 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                          timestamp: Date.now(), 
                          turnIndex, 
                          gameTime: aiLogGameTime,
-                         rawResponse: aiResponse.rawResponse 
+                         rawResponse: aiResponse.rawResponse,
+                         thinking: aiResponse.thinking 
                      });
                 }
                 
@@ -487,6 +490,37 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
             setIsStreaming(false);
             clearPendingCommands();
         }
+    };
+
+    const normalizeSummaryText = (summaryText: string): string => {
+        if (!summaryText) return summaryText;
+        let cleaned = summaryText.trim();
+        if (!cleaned) return summaryText;
+        if (cleaned.includes('```')) {
+            cleaned = cleaned.replace(/```json/gi, '').replace(/```/g, '').trim();
+        }
+        const tryParse = (value: string) => {
+            try { return JSON.parse(value); } catch { return null; }
+        };
+        const parsed = /^[\[{]/.test(cleaned) ? tryParse(cleaned) : null;
+        if (parsed) {
+            if (typeof parsed === 'string') return parsed.trim();
+            if (Array.isArray(parsed)) {
+                const joined = parsed.filter(v => typeof v === 'string').join('\n').trim();
+                if (joined) return joined;
+            }
+            if (typeof parsed === 'object') {
+                const candidates = ['summary', 'content', 'text', 'result', 'value'];
+                for (const key of candidates) {
+                    const val = (parsed as any)[key];
+                    if (typeof val === 'string' && val.trim()) return val.trim();
+                }
+                const values = Object.values(parsed).filter(v => typeof v === 'string') as string[];
+                const joined = values.join('\n').trim();
+                if (joined) return joined;
+            }
+        }
+        return cleaned;
     };
 
     const confirmMemorySummary = async () => {
@@ -512,7 +546,8 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
             }
 
             const summaryText = await generateMemorySummary(fakeLogs, memorySummaryState.type, settings);
-            setMemorySummaryState({ ...memorySummaryState, phase: 'result', summary: summaryText });
+            const normalizedSummary = normalizeSummaryText(summaryText);
+            setMemorySummaryState({ ...memorySummaryState, phase: 'result', summary: normalizedSummary });
         } catch (e) {
             setMemorySummaryState({ ...memorySummaryState, phase: 'result', summary: '总结失败，请重试或手动编辑。' });
         }
@@ -520,16 +555,17 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
 
     const applyMemorySummary = (summaryText: string) => {
         if (!memorySummaryState) return;
+        const finalSummary = normalizeSummaryText(summaryText);
 
         let nextState: GameState | null = null;
         setGameState(prev => {
             const nextMemory = { ...prev.记忆 };
             if (memorySummaryState.type === 'S2M') {
                 nextMemory.shortTerm = [];
-                nextMemory.mediumTerm = [...nextMemory.mediumTerm, summaryText];
+                nextMemory.mediumTerm = [...nextMemory.mediumTerm, finalSummary];
             } else {
                 nextMemory.mediumTerm = [];
-                nextMemory.longTerm = [...nextMemory.longTerm, summaryText];
+                nextMemory.longTerm = [...nextMemory.longTerm, finalSummary];
             }
             nextState = { ...prev, 记忆: nextMemory };
             return nextState;
@@ -616,6 +652,18 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         else if (channel === 'private' && target && target !== 'Player') fullText = `[私信: ${target}] ${text}`;
         handleAIInteraction(fullText, 'PHONE');
     };
+    const handleEditPhoneMessage = (id: string, content: string) => {
+        setGameState(prev => ({
+            ...prev,
+            短信: prev.短信.map(m => m.id === id ? { ...m, 内容: content } : m)
+        }));
+    };
+    const handleDeletePhoneMessage = (id: string) => {
+        setGameState(prev => ({
+            ...prev,
+            短信: prev.短信.filter(m => m.id !== id)
+        }));
+    };
 
     const handlePlayerInput = (text: string) => {
         if (isProcessing) return;
@@ -701,7 +749,12 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
             case 'guard': input = targetName ? `我对${targetName}保持防御姿态。` : "我采取防御姿态。"; break;
             case 'escape': input = "我尝试逃跑！"; break;
             case 'talk': input = `(自由行动) ${payload}`; break;
-            case 'skill': input = `我使用技能【${payload?.名称 || 'Unknown'}】${targetName ? `，目标${targetName}` : ""}。`; break;
+            case 'skill': {
+                const isMagic = payload?.__kind === 'MAGIC';
+                const actionLabel = isMagic ? '魔法' : '技能';
+                input = `我发动${actionLabel}【${payload?.名称 || 'Unknown'}】${targetName ? `，目标${targetName}` : ""}。`;
+                break;
+            }
             case 'item': input = `我使用道具【${payload?.名称 || 'Unknown'}】。`; break;
         }
         if (input) handleAIInteraction(input, 'ACTION');
@@ -741,6 +794,7 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         commandQueue, pendingCommands, addToQueue, removeFromQueue, currentOptions, lastAIResponse, isProcessing, isStreaming, draftInput, setDraftInput,
         memorySummaryState, confirmMemorySummary, applyMemorySummary, cancelMemorySummary,
         handleAIInteraction, stopInteraction, handlePlayerAction, handlePlayerInput, handleSendMessage, handleCreateMoment, handleSilentWorldUpdate, saveSettings, manualSave, loadGame, updateConfidant, updateMemory,
-        handleReroll, handleEditLog, handleDeleteLog, handleEditUserLog, handleUpdateLogText, handleUserRewrite, handleDeleteTask
+        handleReroll, handleEditLog, handleDeleteLog, handleEditUserLog, handleUpdateLogText, handleUserRewrite, handleDeleteTask,
+        handleEditPhoneMessage, handleDeletePhoneMessage
     };
 };

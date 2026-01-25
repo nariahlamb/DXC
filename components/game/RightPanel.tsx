@@ -96,7 +96,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                 onClick={onOpenEquipment}
             />
             <MenuButton 
-                label="技能" 
+                label="技能/魔法" 
                 icon={<Zap className="w-5 h-5 lg:w-5 lg:h-5" />} 
                 delay={150} 
                 colorClass="bg-zinc-800"

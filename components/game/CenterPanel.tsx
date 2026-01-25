@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
-import { LogEntry, CombatState, CharacterStats, Skill, InventoryItem, Confidant, ActionOption } from '../../types';
+import { LogEntry, CombatState, CharacterStats, Skill, MagicSpell, InventoryItem, Confidant, ActionOption } from '../../types';
 import { MessageSquare, Sword, Eye, Loader2, ChevronRight, MousePointer2, Terminal, Layers, ChevronUp } from 'lucide-react';
 import { CombatPanel } from './CombatPanel';
 import { LogEntryItem } from './center/LogEntry';
@@ -12,6 +12,7 @@ interface CenterPanelProps {
   combatState: CombatState;
   playerStats: CharacterStats;
   skills: Skill[];
+  magic: MagicSpell[];
   inventory?: InventoryItem[];
   confidants: Confidant[];
   onSendMessage: (msg: string) => void;
@@ -45,6 +46,7 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
     combatState,
     playerStats,
     skills,
+    magic,
     inventory,
     confidants = [],
     onSendMessage, 
@@ -278,6 +280,7 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
                   combatState={combatState} 
                   playerStats={playerStats} 
                   skills={skills}
+                  magic={magic}
                   inventory={inventory || []}
                   onPlayerAction={(action, payload) => {
                       onPlayerAction(action, payload);
@@ -433,8 +436,7 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
 
                   {showQuickActions && (
                       <>
-                          <div className="w-full h-8 bg-gradient-to-t from-zinc-900/90 to-transparent pointer-events-none" />
-                          <div className="flex gap-3 overflow-x-auto px-4 pb-3 custom-scrollbar snap-x touch-pan-x items-end bg-zinc-900/80 backdrop-blur-sm">
+                          <div className="flex gap-3 overflow-x-auto px-4 pb-3 custom-scrollbar snap-x touch-pan-x items-end">
                               {actionOptions.map((opt, idx) => {
                                   const shouldMarquee = opt.length > 12;
                                   return (

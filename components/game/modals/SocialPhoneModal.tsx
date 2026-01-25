@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { X, MessageCircle, Users, Send, BookUser, Camera, ChevronRight, Heart, MessageSquare, ArrowLeft, Plus, Check, Image as ImageIcon, RotateCcw, Lock, Battery, Signal } from 'lucide-react';
+import { X, MessageCircle, Users, Send, BookUser, Camera, ChevronRight, Heart, MessageSquare, ArrowLeft, Plus, Check, Image as ImageIcon, RotateCcw, Lock, Battery, Signal, Edit2, Trash2 } from 'lucide-react';
 import { PhoneMessage, Confidant, MomentPost } from '../../../types';
 import { getAvatarColor } from '../../../utils/uiUtils';
 
@@ -14,6 +14,8 @@ interface SocialPhoneModalProps {
   hasPhone?: boolean;
   initialTab?: 'CHAT' | 'CONTACTS' | 'MOMENTS';
   onSendMessage: (text: string, channel: 'private' | 'group', target?: string) => void;
+  onEditMessage?: (id: string, content: string) => void;
+  onDeleteMessage?: (id: string) => void;
   onCreateGroup: (name: string, members: string[]) => void;
   onCreateMoment?: (content: string, imageDesc?: string) => void;
   onReroll?: () => void;
@@ -51,6 +53,7 @@ export const SocialPhoneModal: React.FC<SocialPhoneModalProps> = ({
   const [inputText, setInputText] = useState('');
   const [momentText, setMomentText] = useState('');
   const [momentImage, setMomentImage] = useState('');
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -65,6 +68,13 @@ export const SocialPhoneModal: React.FC<SocialPhoneModalProps> = ({
         setActiveTab(initialTab);
     }
   }, [isOpen, initialTab]);
+
+  useEffect(() => {
+      if (!viewingChatTarget) {
+          setEditingMessageId(null);
+          setInputText('');
+      }
+  }, [viewingChatTarget, chatType]);
 
   if (!isOpen) return null;
   const phoneLocked = !hasPhone;
@@ -99,8 +109,27 @@ export const SocialPhoneModal: React.FC<SocialPhoneModalProps> = ({
 
   const handleSend = () => {
       if (!inputText.trim() || !viewingChatTarget) return;
+      if (editingMessageId && onEditMessage) {
+          onEditMessage(editingMessageId, inputText.trim());
+          setEditingMessageId(null);
+          setInputText('');
+          return;
+      }
       onSendMessage(inputText, chatType === 'PRIVATE' ? 'private' : 'group', viewingChatTarget);
       setInputText('');
+  };
+
+  const handleStartEdit = (msg: PhoneMessage) => {
+      if (!onEditMessage) return;
+      setEditingMessageId(msg.id);
+      setInputText(msg.内容 || '');
+  };
+
+  const handleDelete = (msg: PhoneMessage) => {
+      if (!onDeleteMessage) return;
+      if (window.confirm('确定要删除这条消息吗？')) {
+          onDeleteMessage(msg.id);
+      }
   };
 
   const getFilteredMessages = () => {
@@ -222,6 +251,28 @@ export const SocialPhoneModal: React.FC<SocialPhoneModalProps> = ({
                           <div className={`mt-1 text-[9px] ${isMe ? 'text-zinc-400' : 'text-zinc-500'} font-mono text-right`}>
                               {timeLabel}
                           </div>
+                          {isMe && (onEditMessage || onDeleteMessage) && (
+                              <div className="mt-1 flex justify-end gap-2 text-[9px]">
+                                  {onEditMessage && (
+                                      <button
+                                          type="button"
+                                          onClick={() => handleStartEdit(msg)}
+                                          className="flex items-center gap-1 text-zinc-300 hover:text-emerald-400"
+                                      >
+                                          <Edit2 size={10} /> 编辑
+                                      </button>
+                                  )}
+                                  {onDeleteMessage && (
+                                      <button
+                                          type="button"
+                                          onClick={() => handleDelete(msg)}
+                                          className="flex items-center gap-1 text-zinc-300 hover:text-red-400"
+                                      >
+                                          <Trash2 size={10} /> 删除
+                                      </button>
+                                  )}
+                              </div>
+                          )}
                       </div>
                   </div>
               </React.Fragment>
@@ -494,9 +545,9 @@ export const SocialPhoneModal: React.FC<SocialPhoneModalProps> = ({
                                      <div className={`w-8 h-8 border border-black flex items-center justify-center font-bold text-white text-xs shrink-0 ${getAvatarColor(post.发布者 || 'Unknown')}`}>
                                          {(post.发布者 || 'U')[0]}
                                      </div>
-                                     <div>
-                                         <div className="font-bold text-sm leading-none">{post.发布者}</div>
-                                         <div className="text-[10px] text-zinc-400 font-mono uppercase">{post.时间戳 || '未知'}</div>
+                                         <div>
+                                         <div className="font-bold text-sm leading-none text-zinc-900">{post.发布者}</div>
+                                         <div className="text-[10px] text-zinc-500 font-mono uppercase">{post.时间戳 || '未知'}</div>
                                      </div>
                                  </div>
                                  
@@ -528,20 +579,32 @@ export const SocialPhoneModal: React.FC<SocialPhoneModalProps> = ({
 
         {activeTab === 'CHAT' && viewingChatTarget && !isCreatingGroup && (
              <div className="p-3 bg-zinc-100 border-t border-zinc-300 shrink-0 pb-safe">
+                {editingMessageId && (
+                    <div className="mb-2 flex items-center justify-between text-[10px] text-zinc-500">
+                        <span className="uppercase tracking-widest">正在编辑消息</span>
+                        <button
+                            type="button"
+                            onClick={() => { setEditingMessageId(null); setInputText(''); }}
+                            className="text-blue-600 hover:text-blue-800 font-bold"
+                        >
+                            取消
+                        </button>
+                    </div>
+                )}
                 <div className="flex gap-2">
                     <input 
                         type="text"
                         value={inputText}
                         onChange={(e) => setInputText(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                        placeholder={`Message ${chatType === 'GROUP' ? 'Group' : viewingChatTarget}...`}
+                        placeholder={editingMessageId ? '编辑内容...' : `Message ${chatType === 'GROUP' ? 'Group' : viewingChatTarget}...`}
                         className="flex-1 bg-white border border-zinc-300 px-3 py-2 text-xs text-black outline-none focus:border-blue-600 rounded"
                     />
                     <button 
                         onClick={handleSend}
                         className="bg-black text-white px-3 py-2 font-bold uppercase hover:bg-blue-600 transition-colors rounded"
                     >
-                        <Send size={16} />
+                        {editingMessageId ? '保存' : <Send size={16} />}
                     </button>
                 </div>
             </div>

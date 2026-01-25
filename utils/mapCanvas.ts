@@ -151,6 +151,20 @@ export const drawWorldMapCanvas = (
         ctx.fill();
         ctx.stroke();
         ctx.restore();
+
+        if (showLabels && loc.name) {
+            ctx.save();
+            ctx.font = "bold 120px 'Noto Serif SC', serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "top";
+            ctx.lineWidth = 18;
+            ctx.strokeStyle = "rgba(0, 0, 0, 0.8)";
+            ctx.fillStyle = "#f8fafc";
+            const labelY = loc.coordinates.y + loc.radius + 70;
+            ctx.strokeText(loc.name, loc.coordinates.x, labelY);
+            ctx.fillText(loc.name, loc.coordinates.x, labelY);
+            ctx.restore();
+        }
     });
 
     // NPCs

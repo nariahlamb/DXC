@@ -1,4 +1,4 @@
-export const P_DATA_STRUCT = `# 【数据结构定义】DanMachi SaveData (V3.1 Chinese Native)
+﻿export const P_DATA_STRUCT = `# 【数据结构定义】DanMachi SaveData (V3.1 Chinese Native)
 
 > 本文档定义了游戏状态树的**完整**结构。AI 在生成 \`tavern_commands\` 时必须**严格遵守**此路径和字段定义。
 > 所有的 Key 必须使用**中文**。禁止删除、精简或臆造字段。
@@ -68,9 +68,9 @@ export const P_DATA_STRUCT = `# 【数据结构定义】DanMachi SaveData (V3.1 
 - \`gameState.角色.公会评级\`: String ("I" 到 "S")
 
 **技能与魔法**
-- \`gameState.角色.技能\`: Array<{ "id", "名称", "描述", "消耗", "属性", "稀有"(Bool) }>
-- \`gameState.角色.魔法\`: Array<{ "名称", "咏唱", "描述", "消耗" }>
-- \`gameState.角色.发展能力\`: Array<{ "名称", "等级", "描述" }>
+- \`gameState.角色.发展能力\`: Array<{ "名称", "等级", "类型", "描述", "效果", "解锁条件", "备注" }>
+- \`gameState.角色.技能\`: Array<{ "id", "名称", "类别", "描述", "效果", "触发", "持续", "冷却", "消耗", "范围", "命中", "适用", "等级", "关联发展能力", "限制", "标签", "稀有"(Bool), "备注" }>
+- \`gameState.角色.魔法\`: Array<{ "id", "名称", "咏唱", "类别", "属性", "描述", "效果", "范围", "射程", "冷却", "消耗", "施放条件", "标签", "稀有"(Bool), "备注" }>
 - \`gameState.角色.状态\`: Array<{ "名称", "类型": "Buff" | "DeBuff", "效果", "持续时间" }>
 - \`gameState.角色.诅咒\`: Array<{ "名称", "类型": "Buff" | "DeBuff", "效果", "持续时间" }>
 

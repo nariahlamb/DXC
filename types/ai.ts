@@ -1,4 +1,4 @@
-
+﻿
 export type AIProvider = 'gemini' | 'openai' | 'deepseek' | 'custom';
 
 export interface AIEndpointConfig {
@@ -26,6 +26,7 @@ export interface LogEntry {
   timestamp: number;
   turnIndex?: number; // 楼层号/回合数
   rawResponse?: string; // 原始 JSON 响应，用于编辑
+  thinking?: string; // AI思考内容（<thinking>解析结果）
   snapshot?: string; // 状态快照 (JSON string of GameState BEFORE this log), 用于回滚
   isRaw?: boolean; // 标记是否为原始流式数据
   gameTime?: string; // NEW: 游戏内完整时间 "YYYY-MM-DD HH:MM"
@@ -140,5 +141,6 @@ export interface AIResponse {
   action_options?: ActionOption[];
   shortTerm?: string; // NEW: Replaces 'summary'. Represents the memory entry for this turn.
   rawResponse?: string;
+  thinking?: string; // AI思考内容（<thinking>解析结果）
   narrative?: string; // Optional for legacy support
 }

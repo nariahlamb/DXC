@@ -145,11 +145,11 @@ export const SaveManagerModal: React.FC<SaveManagerModalProps> = ({
               <h4 className="font-bold text-sm uppercase text-zinc-500 border-b border-zinc-300 pb-1 mb-2">自动存档</h4>
               {autoSlots.length > 0 ? (
                 autoSlots.map((slot) => (
-                  <div key={slot.id} className="flex items-center gap-2 bg-zinc-50 border border-zinc-300 p-3 text-xs opacity-80 hover:opacity-100 hover:border-blue-500 transition-all">
+                  <div key={slot.id} className="flex items-center gap-2 bg-zinc-50 border border-zinc-300 p-3 text-xs text-zinc-900 opacity-80 hover:opacity-100 hover:border-blue-500 transition-all">
                     <Clock size={16} className="text-zinc-400" />
                     <div className="flex-1 min-w-0">
-                      <div className="font-bold truncate">{slot.summary}</div>
-                      <div className="text-zinc-400">{new Date(slot.timestamp).toLocaleString()}</div>
+                      <div className="font-bold truncate text-black">{slot.summary}</div>
+                      <div className="text-zinc-600">{new Date(slot.timestamp).toLocaleString()}</div>
                     </div>
                     <button onClick={() => { onLoadGame(slot.id); onClose(); }} className="text-blue-600 hover:underline font-bold">读取</button>
                   </div>

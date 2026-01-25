@@ -1,12 +1,13 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { CombatState, CharacterStats, Skill, InventoryItem, Enemy } from '../../types';
+import { CombatState, CharacterStats, Skill, MagicSpell, InventoryItem, Enemy } from '../../types';
 import { Sword, Shield, Zap, Skull, MessageSquare, Crosshair, Package, Activity, AlertTriangle, X, Target, Swords } from 'lucide-react';
 
 interface CombatPanelProps {
   combatState: CombatState;
   playerStats: CharacterStats;
   skills: Skill[];
+  magic: MagicSpell[];
   inventory?: InventoryItem[];
   onPlayerAction: (action: 'attack' | 'skill' | 'guard' | 'escape' | 'talk' | 'item', payload?: any) => void;
 }
@@ -15,6 +16,7 @@ export const CombatPanel: React.FC<CombatPanelProps> = ({
   combatState, 
   playerStats, 
   skills,
+  magic,
   inventory = [],
   onPlayerAction 
 }) => {
@@ -26,6 +28,18 @@ export const CombatPanel: React.FC<CombatPanelProps> = ({
       return Array.isArray(raw) ? raw.filter(Boolean) : [raw];
   }, [combatState]);
   const [selectedEnemyId, setSelectedEnemyId] = useState<string | null>(enemies[0]?.id ?? null);
+
+  const formatCost = (cost: any) => {
+      if (!cost) return "";
+      if (typeof cost === 'object') {
+          const parts: string[] = [];
+          if (cost.精神 !== undefined && cost.精神 !== null && cost.精神 !== '') parts.push(`MP ${cost.精神}`);
+          if (cost.体力 !== undefined && cost.体力 !== null && cost.体力 !== '') parts.push(`体力 ${cost.体力}`);
+          if (cost.代价) parts.push(`代价 ${cost.代价}`);
+          return parts.join(' / ');
+      }
+      return String(cost);
+  };
 
   useEffect(() => {
       if (enemies.length === 0) {
@@ -252,20 +266,54 @@ export const CombatPanel: React.FC<CombatPanelProps> = ({
              ) : menuLevel === 'SKILLS' ? (
                  <div className="h-full flex flex-col">
                      <SubMenuHeader title="选择技能 / 魔法" onBack={() => setMenuLevel('MAIN')} />
-                     <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-                         {skills.length > 0 ? skills.map(skill => (
-                             <button 
-                                key={skill.id}
-                                onClick={() => handleTargetedAction('skill', skill)}
-                                className="w-full flex justify-between items-center bg-zinc-800 p-3 border-l-4 border-blue-600 hover:bg-zinc-700 transition-colors text-left"
-                             >
-                                 <div>
-                                     <div className="text-white font-bold text-sm">{skill.名称}</div>
-                                     <div className="text-zinc-500 text-xs">{skill.属性}</div>
-                                 </div>
-                                 <span className="text-blue-400 font-mono text-xs">{skill.消耗}</span>
-                             </button>
-                         )) : <div className="text-zinc-500 text-center py-4">暂无可用技能</div>}
+                     <div className="flex-1 overflow-y-auto space-y-3 pr-2">
+                         {skills.length > 0 && (
+                             <div className="space-y-2">
+                                 <div className="text-[10px] uppercase tracking-[0.35em] text-blue-400">技能</div>
+                                 {skills.map(skill => (
+                                     <button 
+                                        key={skill.id}
+                                        onClick={() => handleTargetedAction('skill', { ...skill, __kind: 'SKILL' })}
+                                        className="w-full flex justify-between items-center bg-zinc-800 p-3 border-l-4 border-blue-600 hover:bg-zinc-700 transition-colors text-left"
+                                     >
+                                         <div>
+                                             <div className="text-white font-bold text-sm">{skill.名称}</div>
+                                             <div className="text-zinc-500 text-xs">{skill.类别 || skill.触发 || '技能'}</div>
+                                         </div>
+                                         {skill.消耗 && (
+                                             <span className="text-blue-400 font-mono text-xs">
+                                                 {formatCost(skill.消耗)}
+                                             </span>
+                                         )}
+                                     </button>
+                                 ))}
+                             </div>
+                         )}
+                         {magic.length > 0 && (
+                             <div className="space-y-2">
+                                 <div className="text-[10px] uppercase tracking-[0.35em] text-cyan-400">魔法</div>
+                                 {magic.map(spell => (
+                                     <button 
+                                        key={spell.id}
+                                        onClick={() => handleTargetedAction('skill', { ...spell, __kind: 'MAGIC' })}
+                                        className="w-full flex justify-between items-center bg-zinc-800 p-3 border-l-4 border-cyan-600 hover:bg-zinc-700 transition-colors text-left"
+                                     >
+                                         <div>
+                                             <div className="text-white font-bold text-sm">{spell.名称}</div>
+                                             <div className="text-zinc-500 text-xs">{spell.类别 || spell.属性 || '魔法'}</div>
+                                         </div>
+                                         {spell.消耗 && (
+                                             <span className="text-cyan-300 font-mono text-xs">
+                                                 {formatCost(spell.消耗)}
+                                             </span>
+                                         )}
+                                     </button>
+                                 ))}
+                             </div>
+                         )}
+                         {skills.length === 0 && magic.length === 0 && (
+                             <div className="text-zinc-500 text-center py-4">暂无可用技能/魔法</div>
+                         )}
                      </div>
                  </div>
              ) : menuLevel === 'ITEMS' ? (

@@ -50,7 +50,8 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
       memorySummaryState, confirmMemorySummary, applyMemorySummary, cancelMemorySummary,
       handlePlayerAction, handlePlayerInput, handleSendMessage, handleCreateMoment, handleSilentWorldUpdate,
       stopInteraction, handleEditLog, handleDeleteLog, handleEditUserLog, handleUpdateLogText, handleUserRewrite,
-      manualSave, loadGame, handleReroll, handleDeleteTask
+      manualSave, loadGame, handleReroll, handleDeleteTask,
+      handleEditPhoneMessage, handleDeletePhoneMessage
   } = useGameLogic(initialState, onExit);
 
   // Modal States
@@ -191,6 +192,7 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
                         combatState={gameState.战斗}
                         playerStats={previewState.角色}
                         skills={gameState.角色.技能}
+                        magic={gameState.角色.魔法}
                         inventory={previewState.背包} 
                         confidants={gameState.社交} 
                         onSendMessage={handlePlayerInput}
@@ -261,6 +263,7 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
                         combatState={gameState.战斗}
                         playerStats={previewState.角色}
                         skills={gameState.角色.技能}
+                        magic={gameState.角色.魔法}
                         inventory={previewState.背包}
                         confidants={gameState.社交} 
                         onSendMessage={handlePlayerInput}
@@ -377,6 +380,8 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
             phoneState={gameState.魔石通讯终端}
             hasPhone={hasMagicPhone}
             onSendMessage={(text, channel, target) => handleSendMessage(`[短信/${channel}] To ${target || 'Anyone'}: ${text}`)}
+            onEditMessage={handleEditPhoneMessage}
+            onDeleteMessage={handleDeletePhoneMessage}
             onCreateGroup={(name, members) => addToQueue(`创建群组: ${name}, 成员: ${members.join(',')}`)}
             onCreateMoment={(content, imageDesc) => handleCreateMoment(content, imageDesc)}
             onReroll={handleReroll}
@@ -394,6 +399,7 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
             isOpen={activeModal === 'SKILLS'} 
             onClose={closeModal} 
             skills={gameState.角色.技能} 
+            magic={gameState.角色.魔法}
         />
 
         <StoryModal 

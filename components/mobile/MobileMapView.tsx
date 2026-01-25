@@ -30,6 +30,14 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
   const [showLegend, setShowLegend] = useState(false);
   const [showFloorSelect, setShowFloorSelect] = useState(false);
   const [viewingFloor, setViewingFloor] = useState(floor);
+  const [selectedLocation, setSelectedLocation] = useState<{
+    name: string;
+    type?: string;
+    description?: string;
+    coordinates: GeoPoint;
+    floor?: number;
+  } | null>(null);
+  const [touchMoved, setTouchMoved] = useState(false);
   
   // Layers State
   const [showTerritories, setShowTerritories] = useState(true);
@@ -37,6 +45,7 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const touchStartRef = useRef({ x: 0, y: 0 });
 
   // Initial Data (Fallback if undefined)
   const mapData = worldMap || { 
@@ -49,6 +58,10 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
       setViewingFloor(floor);
       setTimeout(() => centerOnPlayer(), 100);
   }, [currentPos, floor]); 
+
+  useEffect(() => {
+      setSelectedLocation(null);
+  }, [viewingFloor]);
 
   useEffect(() => {
       const draw = () => {
@@ -65,7 +78,7 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
               showTerritories,
               showNPCs,
               showPlayer: viewingFloor === floor,
-              showLabels: false,
+              showLabels: true,
               currentPos,
               confidants
           });
@@ -114,14 +127,64 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
   const handleTouchStart = (e: React.TouchEvent) => {
       if(e.touches.length === 1) {
           setIsDragging(true);
+          setTouchMoved(false);
+          touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
           setDragStart({ x: e.touches[0].clientX - offset.x, y: e.touches[0].clientY - offset.y });
       }
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
       if (isDragging && e.touches.length === 1) {
+          const dx = e.touches[0].clientX - touchStartRef.current.x;
+          const dy = e.touches[0].clientY - touchStartRef.current.y;
+          if (!touchMoved && Math.hypot(dx, dy) > 6) setTouchMoved(true);
           setOffset({ x: e.touches[0].clientX - dragStart.x, y: e.touches[0].clientY - dragStart.y });
       }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+      setIsDragging(false);
+      if (touchMoved) {
+          setTouchMoved(false);
+          return;
+      }
+      const touch = e.changedTouches[0];
+      if (!touch) return;
+      const loc = findLocationAt(touch.clientX, touch.clientY);
+      if (loc) {
+          setSelectedLocation({
+              name: loc.name,
+              type: loc.type,
+              description: loc.description,
+              coordinates: loc.coordinates,
+              floor: loc.floor
+          });
+      } else {
+          setSelectedLocation(null);
+      }
+  };
+
+  const findLocationAt = (clientX: number, clientY: number) => {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return null;
+      const mapX = (clientX - rect.left - offset.x) / scale;
+      const mapY = (clientY - rect.top - offset.y) / scale;
+      return mapData.surfaceLocations
+          .filter(l => (l.floor || 0) === viewingFloor)
+          .find(l => {
+              const dx = mapX - l.coordinates.x;
+              const dy = mapY - l.coordinates.y;
+              return Math.hypot(dx, dy) <= l.radius;
+          }) || null;
+  };
+
+  const getLocationTypeLabel = (type?: string) => {
+      if (!type) return '地点';
+      if (type === 'GUILD') return '公会';
+      if (type === 'SHOP') return '商店';
+      if (type === 'FAMILIA_HOME') return '眷族据点';
+      if (type === 'DUNGEON_GATE') return '入口';
+      return '地点';
   };
 
   return (
@@ -133,7 +196,7 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
             className="flex-1 w-full h-full touch-none"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
-            onTouchEnd={() => setIsDragging(false)}
+            onTouchEnd={handleTouchEnd}
         >
             <canvas ref={canvasRef} className="w-full h-full" />
         </div>
@@ -243,6 +306,37 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
                     </div>
                 </div>
             </>
+        )}
+
+        {selectedLocation && (
+            <div className="absolute bottom-0 left-0 w-full z-30 p-4 pb-safe">
+                <div className="bg-black/90 border border-blue-600 rounded-xl p-4 shadow-2xl">
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <div className="text-[10px] uppercase tracking-widest text-blue-400">地点详情</div>
+                            <div className="text-lg font-display text-white">{selectedLocation.name}</div>
+                            <div className="text-[10px] text-blue-200 font-mono uppercase">
+                                {getLocationTypeLabel(selectedLocation.type)} · {selectedLocation.floor ? `地下 ${selectedLocation.floor} 层` : '地表'}
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setSelectedLocation(null)}
+                            className="text-zinc-400 hover:text-white transition-colors"
+                            aria-label="关闭地点详情"
+                        >
+                            <X size={16} />
+                        </button>
+                    </div>
+                    {selectedLocation.description && (
+                        <p className="mt-2 text-xs text-zinc-300 leading-relaxed">
+                            {selectedLocation.description}
+                        </p>
+                    )}
+                    <div className="mt-2 text-[10px] text-zinc-400 font-mono">
+                        坐标: {Math.round(selectedLocation.coordinates.x)}, {Math.round(selectedLocation.coordinates.y)}
+                    </div>
+                </div>
+            </div>
         )}
     </div>
   );
