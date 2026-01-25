@@ -1,8 +1,8 @@
 ﻿
 export const P_COT_LOGIC =`
-# **[以下是你需要预思考的内容，请按照以下步骤逐步思考，把思考结果放到<thinking>标签内]**
+# **[以下是你需要预思考的内容，请按照以下步骤逐步思考，把思考结果放到 JSON 的 thinking 字段内，并使用<thinking>标签包裹]**
 # [按照顺序，逐步进行思考，每个问题都必须给出你的思考过程]
-# [必须使用<thinking>进行思考]
+# [必须使用<thinking>进行思考，并置于 JSON thinking 字段]
 # <thinking>标签必须闭合
 <thinkform> 
 

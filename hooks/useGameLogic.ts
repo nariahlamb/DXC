@@ -399,8 +399,8 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         try {
 
             const onStreamChunk = (chunk: string) => {
-                const { cleaned, thinking } = extractThinkingBlocks(chunk);
-                setLastAIResponse(cleaned || chunk);
+                const { thinking } = extractThinkingBlocks(chunk);
+                setLastAIResponse(chunk);
                 if (thinking) setLastAIThinking(thinking);
             };
 

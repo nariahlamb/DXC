@@ -679,26 +679,34 @@ export const assembleFullPrompt = (
     return fullContent.trim();
 };
 
+export interface AIRequestOptions {
+    responseFormat?: 'json' | 'text';
+}
+
 export const dispatchAIRequest = async (
     config: AIEndpointConfig, 
     systemPrompt: string, 
     userContent: string, 
-    onStream?: (chunk: string) => void
+    onStream?: (chunk: string) => void,
+    options: AIRequestOptions = {}
 ): Promise<string> => {
     if (!config.apiKey) throw new Error(`Missing API Key for ${config.provider}`);
+    const responseFormat = options.responseFormat ?? 'json';
+    const forceJson = responseFormat === 'json';
 
     if (config.provider === 'gemini') {
         const ai = new GoogleGenAI({ apiKey: config.apiKey });
         const modelId = config.modelId || 'gemini-3-flash-preview';
         
         try {
-            const responseStream = await ai.models.generateContentStream({
+            const requestPayload: any = {
                 model: modelId,
                 contents: [
                     { role: 'user', parts: [{ text: systemPrompt + "\n\n" + userContent }] }
-                ],
-                config: { responseMimeType: "application/json" }
-            });
+                ]
+            };
+            if (forceJson) requestPayload.config = { responseMimeType: "application/json" };
+            const responseStream = await ai.models.generateContentStream(requestPayload);
 
             let fullText = "";
             for await (const chunk of responseStream) {
@@ -727,8 +735,8 @@ export const dispatchAIRequest = async (
                 body: JSON.stringify({
                     model: model,
                     messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userContent }],
-                    response_format: { type: "json_object" },
-                    stream: true
+                    stream: true,
+                    ...(forceJson ? { response_format: { type: "json_object" } } : {})
                 })
             });
             if (!response.ok) {
@@ -786,7 +794,9 @@ export const generateMemorySummary = async (
         const raw = await dispatchAIRequest(
             settings.aiConfig.unified, 
             "你是一个专业的记录员。请根据以下要求进行总结。",
-            `${promptTemplate}\n\n【待总结内容】:\n${content}`
+            `${promptTemplate}\n\n【待总结内容】:\n${content}`,
+            undefined,
+            { responseFormat: 'text' }
         );
         try {
             const parsed = JSON.parse(raw);
@@ -814,15 +824,20 @@ export const generateDungeonMasterResponse = async (
     let rawText = "";
     try {
         const streamCallback = settings.enableStreaming ? onStream : undefined;
-        rawText = await dispatchAIRequest(settings.aiConfig.unified, systemPrompt, userContent, streamCallback);
+        rawText = await dispatchAIRequest(
+            settings.aiConfig.unified,
+            systemPrompt,
+            userContent,
+            streamCallback,
+            { responseFormat: 'json' }
+        );
 
         if (!rawText || !rawText.trim()) throw new Error("AI returned empty response.");
 
-        const { cleaned, thinking } = extractThinkingBlocks(rawText);
-        const rawTextForParsing = cleaned || rawText;
+        const extractedThinking = extractThinkingBlocks(rawText).thinking;
 
         // Robust JSON extraction
-        let cleanJson = rawTextForParsing.trim();
+        let cleanJson = rawText.trim();
         
         // 1. Try regex to match outermost braces
         // Find the FIRST '{' and the LAST '}'
@@ -839,7 +854,15 @@ export const generateDungeonMasterResponse = async (
 
         try {
             const parsed = JSON.parse(cleanJson);
-            return { ...parsed, rawResponse: rawTextForParsing, thinking };
+            const rawThinking = typeof parsed.thinking === 'string' ? parsed.thinking : '';
+            const parsedThinking = rawThinking
+                ? (extractThinkingBlocks(rawThinking).thinking || rawThinking)
+                : '';
+            return {
+                ...parsed,
+                rawResponse: rawText,
+                thinking: parsedThinking || extractedThinking
+            };
         } catch (parseError: any) {
             console.error("AI JSON Parse Error", parseError);
             return {
@@ -849,8 +872,8 @@ export const generateDungeonMasterResponse = async (
                     text: `JSON解析失败: ${parseError.message}\n请在“原文”中修正后重试。\n\n【原始AI消息】\n${rawText}`
                 }],
                 shortTerm: "Error occurred.",
-                rawResponse: rawTextForParsing,
-                thinking
+                rawResponse: rawText,
+                thinking: extractedThinking
             };
         }
     } catch (error: any) {
