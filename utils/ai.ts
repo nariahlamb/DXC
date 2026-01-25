@@ -106,6 +106,127 @@ export const extractThinkingBlocks = (rawText: string): { cleaned: string; think
     return { cleaned, thinking };
 };
 
+const extractJsonFromFence = (rawText: string): string | null => {
+    const match = rawText.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    return match ? match[1].trim() : null;
+};
+
+const extractFirstJsonObject = (rawText: string): string | null => {
+    const start = rawText.indexOf('{');
+    if (start === -1) return null;
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    for (let i = start; i < rawText.length; i++) {
+        const ch = rawText[i];
+        if (escaped) {
+            escaped = false;
+            continue;
+        }
+        if (ch === '\\') {
+            if (inString) escaped = true;
+            continue;
+        }
+        if (ch === '"') {
+            inString = !inString;
+            continue;
+        }
+        if (!inString) {
+            if (ch === '{') depth += 1;
+            if (ch === '}') {
+                depth -= 1;
+                if (depth === 0) return rawText.slice(start, i + 1);
+            }
+        }
+    }
+    return null;
+};
+
+const balanceJsonBraces = (rawText: string): { text: string; changed: boolean } => {
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    for (let i = 0; i < rawText.length; i++) {
+        const ch = rawText[i];
+        if (escaped) {
+            escaped = false;
+            continue;
+        }
+        if (ch === '\\') {
+            if (inString) escaped = true;
+            continue;
+        }
+        if (ch === '"') {
+            inString = !inString;
+            continue;
+        }
+        if (!inString) {
+            if (ch === '{') depth += 1;
+            if (ch === '}') depth = Math.max(0, depth - 1);
+        }
+    }
+    if (depth <= 0) return { text: rawText, changed: false };
+    return { text: rawText + '}'.repeat(depth), changed: true };
+};
+
+const removeTrailingCommas = (rawText: string): { text: string; changed: boolean } => {
+    const repaired = rawText.replace(/,\s*([}\]])/g, '$1');
+    return { text: repaired, changed: repaired !== rawText };
+};
+
+export const parseAIResponseText = (
+    rawText: string
+): { response?: AIResponse; repaired: boolean; repairNote?: string; error?: string } => {
+    const cleaned = rawText.trim();
+    const candidates: { text: string; note?: string }[] = [];
+
+    const fenced = extractJsonFromFence(cleaned);
+    if (fenced) candidates.push({ text: fenced, note: "已移除代码块包裹" });
+
+    const firstObject = extractFirstJsonObject(cleaned);
+    if (firstObject && firstObject !== cleaned) {
+        candidates.push({ text: firstObject, note: "已截断JSON之外内容" });
+    }
+
+    if (candidates.length === 0) candidates.push({ text: cleaned });
+
+    let lastError: any = null;
+    for (const candidate of candidates) {
+        try {
+            const parsed = JSON.parse(candidate.text);
+            return {
+                response: parsed as AIResponse,
+                repaired: !!candidate.note,
+                repairNote: candidate.note
+            };
+        } catch (err: any) {
+            lastError = err;
+        }
+    }
+
+    const baseCandidate = candidates[0]?.text ?? cleaned;
+    const repairNotes: string[] = [];
+
+    const trimmed = baseCandidate.trim();
+    let repairedText = trimmed;
+
+    const commaRepair = removeTrailingCommas(repairedText);
+    repairedText = commaRepair.text;
+    if (commaRepair.changed) repairNotes.push("已移除尾随逗号");
+
+    const braceRepair = balanceJsonBraces(repairedText);
+    repairedText = braceRepair.text;
+    if (braceRepair.changed) repairNotes.push("已补齐缺失括号");
+
+    try {
+        const parsed = JSON.parse(repairedText);
+        const note = repairNotes.length > 0 ? repairNotes.join("，") : "已自动修复JSON结构";
+        return { response: parsed as AIResponse, repaired: true, repairNote: note };
+    } catch (err: any) {
+        return { repaired: false, error: lastError?.message || err?.message || "JSON解析失败" };
+    }
+};
+
 /**
  * 社交与NPC上下文构建
  */
@@ -914,47 +1035,32 @@ export const generateDungeonMasterResponse = async (
         if (!rawText || !rawText.trim()) throw new Error("AI returned empty response.");
 
         const extractedThinking = extractThinkingBlocks(rawText).thinking;
-
-        // Robust JSON extraction
-        let cleanJson = rawText.trim();
-        
-        // 1. Try regex to match outermost braces
-        // Find the FIRST '{' and the LAST '}'
-        const firstBrace = cleanJson.indexOf('{');
-        const lastBrace = cleanJson.lastIndexOf('}');
-        
-        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-            cleanJson = cleanJson.substring(firstBrace, lastBrace + 1);
-        } else {
-            // Fallback: Remove markdown blocks if regex failed
-            if (cleanJson.includes('```json')) cleanJson = cleanJson.split('```json')[1].split('```')[0];
-            else if (cleanJson.includes('```')) cleanJson = cleanJson.split('```')[1].split('```')[0];
-        }
-
-        try {
-            const parsed = JSON.parse(cleanJson);
-            const rawThinking = typeof parsed.thinking === 'string' ? parsed.thinking : '';
+        const parsedResult = parseAIResponseText(rawText);
+        if (parsedResult.response) {
+            const parsed = parsedResult.response as AIResponse;
+            const rawThinking = typeof (parsed as any).thinking === 'string' ? (parsed as any).thinking : '';
             const parsedThinking = rawThinking
                 ? (extractThinkingBlocks(rawThinking).thinking || rawThinking)
                 : '';
             return {
                 ...parsed,
                 rawResponse: rawText,
-                thinking: parsedThinking || extractedThinking
-            };
-        } catch (parseError: any) {
-            console.error("AI JSON Parse Error", parseError);
-            return {
-                tavern_commands: [],
-                logs: [{
-                    sender: "system",
-                    text: `JSON解析失败: ${parseError.message}\n请在“原文”中修正后重试。\n\n【原始AI消息】\n${rawText}`
-                }],
-                shortTerm: "Error occurred.",
-                rawResponse: rawText,
-                thinking: extractedThinking
+                thinking: parsedThinking || extractedThinking,
+                ...(parsedResult.repairNote ? { repairNote: parsedResult.repairNote } : {})
             };
         }
+
+        console.error("AI JSON Parse Error", parsedResult.error);
+        return {
+            tavern_commands: [],
+            logs: [{
+                sender: "system",
+                text: `JSON解析失败: ${parsedResult.error || "未知错误"}\n请在“原文”中修正后重试。\n\n【原始AI消息】\n${rawText}`
+            }],
+            shortTerm: "Error occurred.",
+            rawResponse: rawText,
+            thinking: extractedThinking
+        };
     } catch (error: any) {
         if (error?.name === 'AbortError' || /abort/i.test(error?.message || '')) {
             throw error;

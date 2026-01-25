@@ -131,6 +131,7 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
       if (t === 0) return true;
       return visibleTurnSet.has(t);
   });
+  const aiActionSeen = new Set<string>();
   const logIndexMap = new Map<string, number>();
   logs.forEach((log, idx) => logIndexMap.set(log.id, idx));
 
@@ -383,6 +384,9 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
             const isNewTurn = log.turnIndex !== undefined && log.turnIndex > 0 && (!prevLog || log.turnIndex !== prevLog.turnIndex);
             
             const showAiToolbar = !!log.rawResponse;
+            const aiActionKey = log.responseId || (log.rawResponse ? `${log.rawResponse}::${log.turnIndex ?? 0}` : '');
+            const aiActionAnchor = !!log.rawResponse && !!aiActionKey && !aiActionSeen.has(aiActionKey);
+            if (aiActionAnchor) aiActionSeen.add(aiActionKey);
 
             return (
                 <div key={log.id} ref={(el) => setLogRef(log.id, el)}>
@@ -395,6 +399,7 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
                         onEditClick={handleEditAIClick}
                         onDelete={onDeleteLog}
                         onEditUserLog={handleEditUserClick}
+                        aiActionAnchor={aiActionAnchor}
                         fontSize={fontSize} 
                         showAiToolbar={showAiToolbar}
                     />

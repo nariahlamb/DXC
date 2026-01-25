@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { GameState, AppSettings, LogEntry, InventoryItem, TavernCommand, ActionOption, PhoneMessage, Confidant, MemorySystem, MemoryEntry, SaveSlot, Task, ContextModuleConfig } from '../types';
 import { createNewGameState } from '../utils/dataMapper';
-import { generateDungeonMasterResponse, DEFAULT_PROMPT_MODULES, DEFAULT_MEMORY_CONFIG, dispatchAIRequest, generateMemorySummary, extractThinkingBlocks } from '../utils/ai';
+import { generateDungeonMasterResponse, DEFAULT_PROMPT_MODULES, DEFAULT_MEMORY_CONFIG, dispatchAIRequest, generateMemorySummary, extractThinkingBlocks, parseAIResponseText } from '../utils/ai';
 import { P_MEM_S2M, P_MEM_M2L } from '../prompts';
 import { Difficulty } from '../types/enums';
 
@@ -432,6 +432,8 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                 if (aiResponse.rawResponse) setLastAIResponse(aiResponse.rawResponse);
                 if (aiResponse.action_options) setCurrentOptions(aiResponse.action_options || []);
 
+                const responseId = generateLegacyId();
+                const responseSnapshot = JSON.stringify(createStorageSnapshot(stateWithUserLog));
                 const commands = Array.isArray(aiResponse.tavern_commands) ? aiResponse.tavern_commands : [];
                 let logs = Array.isArray(aiResponse.logs) ? aiResponse.logs : [];
                 const narrative = aiResponse.narrative || "";
@@ -467,8 +469,9 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                         let sender = l.sender;
                         if (sender === 'narrative' || sender === '旁白' || sender === 'narrator') sender = '旁白';
                         
-                        const rawData = idx === 0 ? aiResponse.rawResponse : undefined;
+                        const rawData = aiResponse.rawResponse;
                         const thinking = idx === 0 ? aiResponse.thinking : undefined;
+                        const repairNote = idx === 0 ? aiResponse.repairNote : undefined;
 
                         newLogs.push({ 
                             id: generateLegacyId(), 
@@ -478,7 +481,10 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                             turnIndex, 
                             gameTime: aiLogGameTime,
                             rawResponse: rawData,
-                            thinking
+                            thinking,
+                            repairNote,
+                            responseId,
+                            snapshot: responseSnapshot
                         });
                     });
                 } else if (narrative) {
@@ -490,7 +496,10 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                          turnIndex, 
                          gameTime: aiLogGameTime,
                          rawResponse: aiResponse.rawResponse,
-                         thinking: aiResponse.thinking 
+                         thinking: aiResponse.thinking,
+                         repairNote: aiResponse.repairNote,
+                         responseId,
+                         snapshot: responseSnapshot
                      });
                 }
                 
@@ -809,7 +818,144 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         else { stateToUse = { ...gameState, 日志: logs.slice(0, lastPlayerIndex) }; }
         handleAIInteraction(lastLog.text, 'ACTION', [], stateToUse);
     };
-    const handleEditLog = (logId: string, newRawResponse: string) => setGameState(prev => ({ ...prev, 日志: prev.日志.map(l => l.id === logId ? { ...l, rawResponse: newRawResponse } : l) }));
+    const applyAiResponseToState = (
+        state: GameState,
+        response: any,
+        turnIndex: number,
+        logsForResponse: LogEntry[]
+    ) => {
+        const commands = Array.isArray(response?.tavern_commands) ? response.tavern_commands : [];
+        const { newState } = processTavernCommands(state, commands);
+        const aiLogGameTime = newState.游戏时间;
+
+        if (!newState.记忆.shortTerm) newState.记忆.shortTerm = [];
+        if (response?.shortTerm) {
+            newState.记忆.shortTerm.push({
+                content: response.shortTerm,
+                timestamp: aiLogGameTime,
+                turnIndex
+            });
+        } else {
+            const fallbackSummary = logsForResponse.map(l => l.text).join(' ').substring(0, 100) + "...";
+            newState.记忆.shortTerm.push({
+                content: `[Auto-Gen] ${fallbackSummary}`,
+                timestamp: aiLogGameTime,
+                turnIndex
+            });
+        }
+
+        newState.处理中 = false;
+        newState.回合数 = (state.回合数 || 1) + 1;
+        return newState;
+    };
+
+    const handleEditLog = (logId: string, newRawResponse: string) => {
+        setGameState(prev => {
+            const targetIndex = prev.日志.findIndex(l => l.id === logId);
+            if (targetIndex === -1) return prev;
+            const targetLog = prev.日志[targetIndex];
+            const responseId = targetLog.responseId;
+            const snapshot = targetLog.snapshot;
+
+            if (!responseId || !snapshot) {
+                return { 
+                    ...prev, 
+                    日志: prev.日志.map(l => l.id === logId ? { ...l, rawResponse: newRawResponse } : l) 
+                };
+            }
+
+            const parsedResult = parseAIResponseText(newRawResponse);
+            if (!parsedResult.response) {
+                console.error("AI JSON Parse Error (Edit)", parsedResult.error);
+                return { 
+                    ...prev, 
+                    日志: prev.日志.map(l => l.id === logId ? { ...l, rawResponse: newRawResponse } : l) 
+                };
+            }
+
+            let baseState: GameState;
+            try {
+                baseState = JSON.parse(snapshot);
+            } catch (e) {
+                console.warn("Invalid snapshot for log edit.");
+                return { 
+                    ...prev, 
+                    日志: prev.日志.map(l => l.id === logId ? { ...l, rawResponse: newRawResponse } : l) 
+                };
+            }
+
+            const groupIndices = prev.日志
+                .map((l, idx) => (l.responseId === responseId ? idx : -1))
+                .filter(idx => idx >= 0);
+            if (groupIndices.length === 0) {
+                return { 
+                    ...prev, 
+                    日志: prev.日志.map(l => l.id === logId ? { ...l, rawResponse: newRawResponse } : l) 
+                };
+            }
+
+            const start = groupIndices[0];
+            const end = groupIndices[groupIndices.length - 1];
+            const beforeLogs = prev.日志.slice(0, start);
+            const afterLogs = prev.日志.slice(end + 1);
+
+            const normalizedLogs = Array.isArray(parsedResult.response.logs) ? parsedResult.response.logs : [];
+            const narrative = parsedResult.response.narrative || "";
+            const fallbackLogs = prev.日志.slice(start, end + 1);
+            const sourceLogs = normalizedLogs.length > 0
+                ? normalizedLogs
+                : (narrative ? [{ sender: '旁白', text: narrative }] : fallbackLogs.map(l => ({ sender: l.sender, text: l.text })));
+
+            const turnIndex = typeof targetLog.turnIndex === 'number' ? targetLog.turnIndex : (baseState.回合数 || 0);
+            const aiLogGameTime = baseState.游戏时间;
+            const rawThinking = typeof parsedResult.response.thinking === 'string' ? parsedResult.response.thinking : '';
+            const parsedThinking = rawThinking ? (extractThinkingBlocks(rawThinking).thinking || rawThinking) : undefined;
+            const parsedRepairNote = parsedResult.repairNote;
+            const newLogsForResponse: LogEntry[] = sourceLogs.map((l, idx) => {
+                let sender = l.sender;
+                if (sender === 'narrative' || sender === '旁白' || sender === 'narrator') sender = '旁白';
+                return {
+                    id: generateLegacyId(),
+                    text: l.text,
+                    sender,
+                    timestamp: Date.now() + idx,
+                    turnIndex,
+                    gameTime: aiLogGameTime,
+                    rawResponse: newRawResponse,
+                    thinking: idx === 0 ? parsedThinking : undefined,
+                    repairNote: idx === 0 ? parsedRepairNote : undefined,
+                    responseId,
+                    snapshot,
+                };
+            });
+
+            const updatedLogs = [...beforeLogs, ...newLogsForResponse, ...afterLogs];
+
+            const responseOrder: string[] = [];
+            for (let i = beforeLogs.length; i < updatedLogs.length; i++) {
+                const rid = updatedLogs[i].responseId;
+                if (rid && !responseOrder.includes(rid)) responseOrder.push(rid);
+            }
+
+            let recalculatedState = { ...baseState };
+            responseOrder.forEach((rid) => {
+                const groupLogs = updatedLogs.filter(l => l.responseId === rid);
+                const raw = groupLogs[0]?.rawResponse || "";
+                if (!raw) return;
+                const parsed = parseAIResponseText(raw);
+                if (!parsed.response) return;
+                const responseTurn = typeof groupLogs[0]?.turnIndex === 'number'
+                    ? groupLogs[0].turnIndex as number
+                    : (recalculatedState.回合数 || 0);
+                recalculatedState = applyAiResponseToState(recalculatedState, parsed.response, responseTurn, groupLogs);
+            });
+
+            recalculatedState.日志 = updatedLogs;
+            recalculatedState.处理中 = false;
+
+            return recalculatedState;
+        });
+    };
     const handleDeleteLog = (logId: string) => setGameState(prev => ({ ...prev, 日志: prev.日志.filter(l => l.id !== logId) }));
     const handleUpdateLogText = (logId: string, newText: string) => setGameState(prev => ({ ...prev, 日志: prev.日志.map(l => l.id === logId ? { ...l, text: newText } : l) }));
     const handleEditUserLog = handleUpdateLogText;

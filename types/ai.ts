@@ -1,4 +1,4 @@
-﻿
+
 export type AIProvider = 'gemini' | 'openai' | 'deepseek' | 'custom';
 
 export interface AIEndpointConfig {
@@ -29,6 +29,8 @@ export interface LogEntry {
   thinking?: string; // AI思考内容（<thinking>解析结果）
   snapshot?: string; // 状态快照 (JSON string of GameState BEFORE this log), 用于回滚
   isRaw?: boolean; // 标记是否为原始流式数据
+  responseId?: string; // AI响应分组ID
+  repairNote?: string; // 本地修复提示
   gameTime?: string; // NEW: 游戏内完整时间 "YYYY-MM-DD HH:MM"
 }
 
@@ -143,4 +145,5 @@ export interface AIResponse {
   rawResponse?: string;
   thinking?: string; // AI思考内容（<thinking>解析结果）
   narrative?: string; // Optional for legacy support
+  repairNote?: string; // 本地修复提示
 }

@@ -12,6 +12,7 @@ interface LogEntryProps {
   onEditClick: (log: LogEntry) => void;
   onDelete?: (logId: string) => void;
   onEditUserLog?: (logId: string) => void;
+  aiActionAnchor?: boolean;
   fontSize?: 'small' | 'medium' | 'large';
   showAiToolbar?: boolean; 
 }
@@ -24,6 +25,7 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
     onEditClick, 
     onDelete,
     onEditUserLog,
+    aiActionAnchor = false,
     fontSize = 'medium',
     showAiToolbar = false
 }) => {
@@ -35,10 +37,14 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
     
     const content = log.text || "";
     const isPrimaryAiLog = !!log.rawResponse;
-    const canEditAI = !isPlayer && isPrimaryAiLog && !!onEditClick;
+    const isAiLog = !isPlayer && isPrimaryAiLog;
+    const showAiActions = isAiLog && aiActionAnchor;
+    const canEditAI = showAiActions && !!onEditClick;
+    const canDeleteAI = showAiActions && !!onDelete;
     const canEditUser = isPlayer && !!onEditUserLog;
-    const canDelete = !!onDelete && (isPrimaryAiLog || isPlayer);
-    const hasActions = canEditAI || canEditUser || canDelete;
+    const canDeleteUser = isPlayer && !!onDelete;
+    const hasInlineActions = canEditUser || canDeleteUser;
+    const hasActions = showAiActions || hasInlineActions;
     const shouldShowThinking = !!log.thinking && !isPlayer;
 
     const getTextSize = () => {
@@ -97,12 +103,23 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
         );
     };
 
-    const MobileActions = ({ align }: { align: 'left' | 'right' | 'center' }) => {
-        if (!hasActions) return null;
-        if (!isPlayer && !isPrimaryAiLog) return null;
+    const RepairHint = ({ align }: { align: 'left' | 'right' | 'center' }) => {
+        if (!log.repairNote) return null;
         const alignClass = align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start';
         return (
-            <div className={`md:hidden mt-2 flex gap-2 ${alignClass}`}>
+            <div className={`mt-2 flex ${alignClass}`}>
+                <div className="max-w-[90%] px-2 py-1 text-[10px] text-amber-200 border border-amber-700/60 bg-amber-900/30 uppercase tracking-wider">
+                    本条消息已自动修复：{log.repairNote}
+                </div>
+            </div>
+        );
+    };
+
+    const AiActionHeader = ({ align }: { align: 'left' | 'right' | 'center' }) => {
+        if (!showAiActions) return null;
+        const alignClass = align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start';
+        return (
+            <div className={`mb-2 flex gap-2 ${alignClass}`}>
                 {canEditAI && (
                     <button
                         type="button"
@@ -110,11 +127,36 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
                             e.stopPropagation();
                             onEditClick(log);
                         }}
-                        className="flex items-center gap-1 px-2 py-1 text-[10px] uppercase tracking-wider border border-zinc-700 text-zinc-300 bg-black/70 hover:text-white hover:border-green-500"
+                        className="flex items-center justify-center w-7 h-7 border border-zinc-700 text-zinc-300 bg-black/70 hover:text-white hover:border-green-500"
+                        title="查看原文"
+                        aria-label="查看原文"
                     >
-                        <Terminal size={12} /> 原文
+                        <Terminal size={12} />
                     </button>
                 )}
+                {canDeleteAI && (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onDelete?.(log.id);
+                        }}
+                        className="flex items-center justify-center w-7 h-7 border border-zinc-700 text-zinc-300 bg-black/70 hover:text-white hover:border-red-500"
+                        title="删除消息"
+                        aria-label="删除消息"
+                    >
+                        <Trash2 size={12} />
+                    </button>
+                )}
+            </div>
+        );
+    };
+
+    const MobileActions = ({ align }: { align: 'left' | 'right' | 'center' }) => {
+        if (!hasInlineActions) return null;
+        const alignClass = align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start';
+        return (
+            <div className={`md:hidden mt-2 flex gap-2 ${alignClass}`}>
                 {canEditUser && (
                     <button
                         type="button"
@@ -127,12 +169,12 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
                         <Edit2 size={12} /> 编辑
                     </button>
                 )}
-                {canDelete && (
+                {canDeleteUser && (
                     <button
                         type="button"
                         onClick={(e) => {
                             e.stopPropagation();
-                            onDelete(log.id);
+                            onDelete?.(log.id);
                         }}
                         className="flex items-center gap-1 px-2 py-1 text-[10px] uppercase tracking-wider border border-zinc-700 text-zinc-300 bg-black/70 hover:text-white hover:border-red-500"
                     >
@@ -145,7 +187,7 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
 
     // Unified Action Menu - Desktop Only
     const ActionMenu = () => {
-        if (!hasActions) return null;
+        if (!hasInlineActions) return null;
 
         return (
             <div className="hidden md:block absolute z-30" style={{ top: '-1.5rem', right: isPlayer ? 'auto' : '0', left: isPlayer ? '-0.5rem' : 'auto' }}>
@@ -157,12 +199,11 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
                         opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto
                     `}>
                         {/* Edit Action */}
-                        {(canEditAI || canEditUser) && (
+                        {canEditUser && (
                             <button 
                                 onClick={(e) => { 
                                     e.stopPropagation(); 
-                                    if (isPlayer) onEditUserLog!(log.id); 
-                                    else onEditClick!(log); 
+                                    onEditUserLog!(log.id); 
                                 }}
                                 className="flex items-center gap-2 px-2 py-1.5 text-xs text-zinc-300 hover:text-white hover:bg-blue-600 rounded transition-colors whitespace-nowrap"
                                 title="编辑内容"
@@ -172,11 +213,11 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
                         )}
 
                         {/* Delete Action */}
-                        {canDelete && (
+                        {canDeleteUser && (
                             <button 
                                 onClick={(e) => { 
                                     e.stopPropagation(); 
-                                    onDelete(log.id); 
+                                    onDelete?.(log.id); 
                                 }}
                                 className="flex items-center gap-2 px-2 py-1.5 text-xs text-zinc-300 hover:text-white hover:bg-red-600 rounded transition-colors whitespace-nowrap"
                                 title="删除消息"
@@ -196,6 +237,7 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
             <div className="group relative flex w-full justify-center my-4 animate-in fade-in duration-300">
                 <ActionMenu />
                 <div className="flex flex-col items-center">
+                    <AiActionHeader align="center" />
                     <div className="relative max-w-[90%] bg-zinc-900/80 border-x-4 border-zinc-700 px-6 py-2 shadow-sm backdrop-blur-sm">
                         <div className="absolute inset-0 bg-stripes opacity-5 pointer-events-none" />
                         <div className="flex items-center gap-3 text-center">
@@ -210,6 +252,7 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
                         </div>
                     </div>
                     <MobileActions align="center" />
+                    <RepairHint align="center" />
                     <ThinkingBlock align="center" />
                 </div>
             </div>
@@ -223,11 +266,13 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
                 <div className="flex justify-end pr-4 mb-[-10px] relative z-20">
                     <ActionMenu />
                 </div>
+                <AiActionHeader align="left" />
                 <div className="relative bg-zinc-950/70 border border-blue-900/60 px-5 py-4 shadow-[0_8px_24px_rgba(0,0,0,0.4)] backdrop-blur-sm">
                     <div className="absolute inset-1 border border-blue-900/30 pointer-events-none" />
                     {renderDecoratedText(content, `font-serif text-zinc-200 text-justify tracking-wide text-sm md:text-base leading-relaxed`)}
                 </div>
                 <MobileActions align="left" />
+                <RepairHint align="left" />
                 <ThinkingBlock align="left" />
             </div>
         );
@@ -245,6 +290,7 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
                         {renderDecoratedText(content, `font-display tracking-wide ${textSizeClass}`)}
                     </div>
                     <MobileActions align="right" />
+                    <RepairHint align="right" />
                 </div>
                     
                     <div className="w-10 h-10 md:w-12 md:h-12 shrink-0 rounded-full border-2 border-zinc-600 overflow-hidden bg-black shadow-lg">
@@ -283,6 +329,7 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
                 </div>
 
                 <div className="flex flex-col items-start relative">
+                    <AiActionHeader align="left" />
                     <div className="bg-zinc-950 border border-zinc-700 text-zinc-400 px-3 py-0.5 text-[10px] md:text-xs font-bold uppercase tracking-wider mb-1 transform -skew-x-12 ml-1 shadow-sm">
                         {senderName}
                     </div>
@@ -291,6 +338,7 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
                         {renderDecoratedText(content, `font-display font-bold drop-shadow-sm ${textSizeClass}`)}
                     </div>
                     <MobileActions align="left" />
+                    <RepairHint align="left" />
                     <ThinkingBlock align="left" />
                 </div>
             </div>
