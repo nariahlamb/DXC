@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { P5Button } from './ui/P5Button';
 import { GameState } from '../types';
 import { createNewGameState } from '../utils/dataMapper';
-import { User, ArrowRight, Dna, Shield, Calendar, Clock, Edit3, Skull, AlertTriangle } from 'lucide-react';
+import { User, ArrowRight, Dna, Shield, Calendar, Clock, Edit3, Skull, AlertTriangle, Package } from 'lucide-react';
 import { Difficulty } from '../types/enums';
 
 interface CharacterCreationProps {
@@ -21,6 +21,7 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onComplete
   const [appearance, setAppearance] = useState('');
   const [background, setBackground] = useState('');
   const [difficulty, setDifficulty] = useState<Difficulty>(Difficulty.NORMAL);
+  const [initialPackage, setInitialPackage] = useState<'standard' | 'combat' | 'survival' | 'wealth'>('standard');
 
   const races = [
       { id: 'Human', label: '人类 ' },
@@ -35,7 +36,8 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onComplete
       e.preventDefault();
       if (!name.trim()) return;
       const birthday = `${birthMonth}-${birthDay}`;
-      const newState = createNewGameState(name, gender, race, age, birthday, appearance, background, difficulty);
+      // @ts-ignore - Argument count mismatch if types not updated yet, but logic is ready
+      const newState = createNewGameState(name, gender, race, age, birthday, appearance, background, difficulty, initialPackage);
       onComplete(newState);
   };
 
@@ -217,6 +219,36 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onComplete
                                     `}
                                 >
                                     {d}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Initial Resource Package */}
+                    <div className="space-y-2">
+                        <label className="text-zinc-400 font-bold uppercase text-xs tracking-widest flex items-center gap-2">
+                            <Package size={14} /> 初始资源包
+                        </label>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            {[
+                                { id: 'standard', label: '标准', desc: '基础物资' },
+                                { id: 'combat', label: '战斗', desc: '回复药与磨刀石' },
+                                { id: 'survival', label: '生存', desc: '干粮与水' },
+                                { id: 'wealth', label: '财富', desc: '额外资金' }
+                            ].map(p => (
+                                <button
+                                    key={p.id}
+                                    type="button"
+                                    onClick={() => setInitialPackage(p.id as any)}
+                                    className={`p-2 border-2 transition-all text-left flex flex-col
+                                        ${initialPackage === p.id 
+                                            ? (isHell ? 'bg-red-900/30 border-red-600 text-red-100' : 'bg-blue-900/30 border-blue-600 text-blue-100')
+                                            : 'bg-black border-zinc-800 text-zinc-500 hover:border-zinc-600'
+                                        }
+                                    `}
+                                >
+                                    <span className="font-display uppercase text-sm font-bold">{p.label}</span>
+                                    <span className="text-[10px] opacity-70">{p.desc}</span>
                                 </button>
                             ))}
                         </div>

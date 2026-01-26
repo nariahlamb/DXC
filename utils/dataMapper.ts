@@ -10,7 +10,8 @@ export const createNewGameState = (
     birthday: string = "01-01",
     appearance: string = "",
     background: string = "",
-    difficulty: Difficulty = Difficulty.NORMAL
+    difficulty: Difficulty = Difficulty.NORMAL,
+    initialPackage: 'standard' | 'combat' | 'survival' | 'wealth' = 'standard'
 ): GameState => {
     // 1. 种族映射与基础属性
     const raceNameMap: {[key:string]: string} = {
@@ -135,9 +136,9 @@ export const createNewGameState = (
     } else if (difficulty === Difficulty.HARD) {
         // Hard: 资金紧张，装备老旧
         startValis = 150;
-        totalHp = 300;
-        startMind = 50;
-        maxMind = 50;
+        totalHp = 320; // 优化开局状态：满血
+        startMind = 60; // 优化开局状态：满精神
+        maxMind = 60;
         phoneBattery = 70;
         phoneSignal = 3;
 
@@ -168,9 +169,9 @@ export const createNewGameState = (
     } else if (difficulty === Difficulty.HELL) {
         // Hell: 近乎赤贫，设备损坏
         startValis = 0;
-        totalHp = 220;
-        startMind = 40;
-        maxMind = 40;
+        totalHp = 320; // 优化开局状态：满血
+        startMind = 60; // 优化开局状态：满精神
+        maxMind = 60;
         phoneBattery = 5;
         phoneSignal = 2;
 
@@ -195,6 +196,21 @@ export const createNewGameState = (
 
         initialTasks.push({ id: 'Tsk_001', 标题: '活下去', 描述: '你几乎一无所有，必须先解决饥饿与栖身之所。', 状态: 'active', 奖励: '？？？', 评级: 'SS', 接取时间: '第1日 07:00' });
         initialTasks.push({ id: 'Tsk_002', 标题: '寻找落脚处', 描述: '在贫民区或公会周边寻找最低限度的容身处。', 状态: 'active', 奖励: '生存', 评级: 'S', 接取时间: '第1日 07:05' });
+    }
+
+    // 3. 初始资源包逻辑 (Initial Resource Selection)
+    if (initialPackage === 'combat') {
+        initialInventory.push(
+             { id: 'Itm_Pot_L_Ex', 名称: '备用回复药', 描述: '额外的低级回复药。', 数量: 2, 类型: 'consumable', 恢复量: 50, 品质: 'Common', 价值: 500 },
+             { id: 'Itm_Whetstone', 名称: '简易磨刀石', 描述: '用于维护武器耐久。', 数量: 1, 类型: 'consumable', 品质: 'Common', 价值: 100 }
+        );
+    } else if (initialPackage === 'survival') {
+         initialInventory.push(
+             { id: 'Itm_Food_Ex', 名称: '旅行干粮', 描述: '便于携带的口粮。', 数量: 4, 类型: 'consumable', 恢复量: 15, 品质: 'Common', 价值: 50 },
+             { id: 'Itm_Water_Ex', 名称: '过滤水', 描述: '干净的饮用水。', 数量: 3, 类型: 'consumable', 恢复量: 10, 品质: 'Common', 价值: 20 }
+        );
+    } else if (initialPackage === 'wealth') {
+        startValis += 2000;
     }
 
 
@@ -229,22 +245,23 @@ export const createNewGameState = (
     };
     
     // Hell 模式开局状态 (疲劳与饥饿，而非受伤)
+    // 优化：所有难度开局状态均为最佳，不再带病上阵
     let fatigue = 0;
-    if (difficulty === Difficulty.HELL) {
-        fatigue = 60; // 旅途劳顿
-    } else if (difficulty === Difficulty.HARD) {
-        fatigue = 30;
-    }
+    // if (difficulty === Difficulty.HELL) {
+    //     fatigue = 60; // 旅途劳顿
+    // } else if (difficulty === Difficulty.HARD) {
+    //     fatigue = 30;
+    // }
 
     // 生存状态
     let survival = { 饱腹度: 100, 最大饱腹度: 100, 水分: 100, 最大水分: 100 };
-    if (difficulty === Difficulty.HARD) {
-        survival.饱腹度 = 80; 
-        survival.水分 = 80;
-    } else if (difficulty === Difficulty.HELL) {
-        survival.饱腹度 = 40; // 饥饿
-        survival.水分 = 50;   // 口渴
-    }
+    // if (difficulty === Difficulty.HARD) {
+    //     survival.饱腹度 = 80; 
+    //     survival.水分 = 80;
+    // } else if (difficulty === Difficulty.HELL) {
+    //     survival.饱腹度 = 40; // 饥饿
+    //     survival.水分 = 50;   // 口渴
+    // }
 
     // 5. 构造最终状态
     

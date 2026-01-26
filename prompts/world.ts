@@ -275,6 +275,8 @@ export const P_DYN_MAP = `【地图动态绘制 (Dynamic Dungeon Generation)】
 export const P_MAP_DISCOVERY = `【新地点发现与绘制 (Map Discovery Protocol)】
 当玩家在探索过程中，发现了一个当前地图(\`gameState.地图\`)中不存在的重要地点时，**必须**生成指令将其永久记录到地图上。
 
+### 0. 地图比例：坐标5:1米
+
 ### 1. 触发条件
 玩家到达了一个有名字、有功能或有剧情意义的新地点（如黑市入口、隐藏的武器店、未记录的遗迹）。
 
