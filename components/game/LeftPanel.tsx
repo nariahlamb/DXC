@@ -125,6 +125,9 @@ export const LeftPanel: React.FC<LeftPanelProps> = ({ stats, className = '', isH
              <div className="w-24 h-24 shrink-0 relative group">
                  <div className="absolute inset-0 border-2 border-white transform rotate-3 transition-transform group-hover:rotate-0" />
                  <div className={`absolute inset-0 border-2 ${borderColor} transform -rotate-3 transition-transform group-hover:rotate-0`} />
+                 <div className="absolute -top-2 -left-2 w-6 h-6 bg-black border border-white text-[10px] font-bold text-yellow-400 flex items-center justify-center z-20">
+                     {stats.公会评级 || 'I'}
+                 </div>
                  <img 
                    src={stats.头像 || "https://picsum.photos/200/200"} 
                    alt="Avatar"

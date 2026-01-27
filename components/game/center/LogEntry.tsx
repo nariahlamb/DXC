@@ -264,9 +264,6 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
 
     // --- 2. NARRATOR (旁白/环境描写) ---
     if (isNarrator) {
-        const accentGradient = isHellMode 
-            ? 'from-transparent via-red-900 to-transparent' 
-            : 'from-transparent via-blue-900 to-transparent';
         const bgGlow = isHellMode ? 'via-red-950/10' : 'via-blue-950/10';
 
         return (
@@ -280,17 +277,12 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
                     <AiActionHeader align="center" />
                     
                     <div className="relative w-full md:w-[96%] px-4 md:px-4 py-3">
-                        {/* Top Decorative Line */}
-                        <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-[98%] h-px bg-gradient-to-r ${accentGradient} opacity-60`} />
-                        
                         {/* Ambient Background Glow */}
                         <div className={`absolute inset-0 bg-gradient-to-b from-transparent ${bgGlow} to-transparent -z-10`} />
 
-                        {/* Content */}
-                        {renderDecoratedText(content, `font-serif text-zinc-300 text-justify tracking-wide text-sm md:text-base leading-relaxed drop-shadow-md`)}
-                        
-                        {/* Bottom Decorative Line */}
-                        <div className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-[98%] h-px bg-gradient-to-r ${accentGradient} opacity-60`} />
+                        <div className={`relative border ${isHellMode ? 'border-red-900/60' : 'border-blue-900/60'} bg-black/40 px-4 md:px-6 py-4 shadow-sm`}>
+                            {renderDecoratedText(content, `font-serif text-zinc-300 text-justify tracking-wide text-sm md:text-base leading-relaxed drop-shadow-md`)}
+                        </div>
                     </div>
 
                     <MobileActions align="center" />
