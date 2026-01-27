@@ -224,6 +224,11 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                                             x{item.数量}
                                         </span>
                                         <span className="text-[10px] font-mono uppercase text-zinc-500">{item.类型}</span>
+                                        {item.魔剑 && (
+                                            <span className="text-[9px] font-mono uppercase text-purple-300 border border-purple-700/60 px-1.5 py-0.5">
+                                                魔剑
+                                            </span>
+                                        )}
                                     </div>
                                     {item.价值 && (
                                         <div className="mt-1 text-[10px] text-yellow-500 font-mono">
@@ -238,6 +243,11 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                                     {item.攻击力 !== undefined && <span className="text-red-400">攻击 {item.攻击力}</span>}
                                     {item.防御力 !== undefined && <span className="text-blue-400">防御 {item.防御力}</span>}
                                     {item.恢复量 !== undefined && <span className="text-green-400">恢复 {item.恢复量}</span>}
+                                    {item.魔剑 && (
+                                        <span className="text-purple-300 col-span-2">
+                                            魔剑 {item.魔剑.剩余次数 ?? "?"}/{item.魔剑.最大次数 ?? "?"}
+                                        </span>
+                                    )}
                                     
                                     {item.附加属性 && item.附加属性.map((s, i) => (
                                         <span key={i} className="col-span-2 text-[10px] text-cyan-300 flex items-center gap-1">

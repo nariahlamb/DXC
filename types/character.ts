@@ -96,23 +96,11 @@ export interface MagicSlotState {
   扩展来源?: string[];
 }
 
-export interface GuildRegistrationState {
-  状态: '未登记' | '登记中' | '已登记' | string;
-  专属顾问?: string;
-  公会卡?: string;
-  讲习会?: {
-    状态: '未参加' | '进行中' | '已完成' | string;
-    时间?: string;
-    备注?: string;
-  };
-}
-
 export interface CharacterStats {
   姓名: string;
   种族: string;
   称号: string;
   所属眷族: string;
-  恩惠状态?: '未授予' | '已授予' | string;
   等级: number;
   头像: string;
   性别: string; 
@@ -144,7 +132,6 @@ export interface CharacterStats {
   // Status
   疲劳度: number; 
   公会评级: string;
-  公会登记?: GuildRegistrationState;
   魔法栏位?: MagicSlotState;
   
   // Falna Basic Abilities (0-999+)

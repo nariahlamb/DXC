@@ -1,7 +1,7 @@
 
 
 import React, { useState } from 'react';
-import { X, Globe, Crown, Mic2, AlertTriangle, Scroll, Clock, Radar, ListChecks, Swords, Skull, Flag } from 'lucide-react';
+import { X, Globe, Crown, Mic2, AlertTriangle, Scroll, Clock, Radar, ListChecks, Swords, Flag } from 'lucide-react';
 import { WorldState } from '../../../types';
 
 interface DynamicWorldModalProps {
@@ -13,7 +13,7 @@ interface DynamicWorldModalProps {
   onSilentWorldUpdate?: () => void;
 }
 
-type WorldTab = 'GUILD' | 'DENATUS' | 'RUMORS' | 'TRACKING' | 'FACTIONS' | 'WAR_GAME' | 'XENOS';
+type WorldTab = 'GUILD' | 'DENATUS' | 'RUMORS' | 'TRACKING' | 'FACTIONS' | 'WAR_GAME';
 
 export const DynamicWorldModal: React.FC<DynamicWorldModalProps> = ({ 
     isOpen, 
@@ -50,7 +50,6 @@ export const DynamicWorldModal: React.FC<DynamicWorldModalProps> = ({
       NPC后台跟踪: [],
       派阀格局: { S级: [], A级: [], B级至I级: [], 备注: "未设定" },
       战争游戏: { 状态: "未开始", 参战眷族: [], 形式: "", 赌注: "", 举办时间: "", 结束时间: "", 结果: "", 备注: "" },
-      异端儿情报: { 记录: [], 通缉状态: "未公开" },
       下次更新: "未知"
   };
 
@@ -113,12 +112,6 @@ export const DynamicWorldModal: React.FC<DynamicWorldModalProps> = ({
                     onClick={() => setActiveTab('WAR_GAME')} 
                 />
                 <TabButton 
-                    label="异端儿情报" 
-                    icon={<Skull size={18}/>} 
-                    active={activeTab === 'XENOS'} 
-                    onClick={() => setActiveTab('XENOS')} 
-                />
-                <TabButton 
                     label="后台跟踪" 
                     icon={<Radar size={18}/>} 
                     active={activeTab === 'TRACKING'} 
@@ -154,7 +147,6 @@ export const DynamicWorldModal: React.FC<DynamicWorldModalProps> = ({
                 {activeTab === 'RUMORS' && <RumorsPanel world={safeWorldState} />}
                 {activeTab === 'FACTIONS' && <FactionsPanel world={safeWorldState} />}
                 {activeTab === 'WAR_GAME' && <WarGamePanel world={safeWorldState} />}
-                {activeTab === 'XENOS' && <XenosPanel world={safeWorldState} />}
                 {activeTab === 'TRACKING' && <TrackingPanel world={safeWorldState} />}
             </div>
         </div>
@@ -383,34 +375,6 @@ const WarGamePanel = ({ world }: { world: WorldState }) => {
                     参战眷族：{(war.参战眷族 || []).length > 0 ? war.参战眷族.join('、') : "暂无记录"}
                 </div>
                 {war.备注 && <div className="mt-2 text-[10px] text-zinc-500 italic">{war.备注}</div>}
-            </div>
-        </div>
-    );
-};
-
-const XenosPanel = ({ world }: { world: WorldState }) => {
-    const xenos = world.异端儿情报 || { 记录: [], 通缉状态: "未公开" };
-    return (
-        <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
-            <div className="border-b border-cyan-900 pb-2 mb-6">
-                <h3 className="text-cyan-400 font-display text-2xl uppercase tracking-widest">异端儿情报 (Xenos)</h3>
-            </div>
-            <div className="text-xs text-zinc-400 mb-2">通缉状态：<span className="text-cyan-300">{xenos.通缉状态 || "未公开"}</span></div>
-            <div className="grid grid-cols-1 gap-4">
-                {(xenos.记录 || []).length > 0 ? (
-                    xenos.记录.map((rec, i) => (
-                        <div key={i} className="bg-[#020617] p-4 border border-cyan-900/40">
-                            <div className="text-cyan-300 font-bold">{rec.名称}</div>
-                            <div className="text-zinc-400 text-xs">种类: {rec.种类} | 立场: {rec.立场} | 等级: {rec.情报等级}</div>
-                            <div className="text-zinc-400 text-xs">状态: {rec.状态}</div>
-                            {rec.备注 && <div className="text-[10px] text-zinc-500 mt-1">{rec.备注}</div>}
-                        </div>
-                    ))
-                ) : (
-                    <div className="text-center py-10 text-zinc-600 border border-dashed border-zinc-800">
-                        <p>暂无异端儿记录。</p>
-                    </div>
-                )}
             </div>
         </div>
     );

@@ -1,16 +1,44 @@
 
+export interface StoryTrigger {
+  预计触发: string; // "第N日 HH:MM"
+  内容: string;
+  类型?: '主线' | '支线' | '世界' | '危机' | '人物' | string;
+  触发条件?: string;
+  重要度?: '低' | '中' | '高' | '关键' | string;
+  状态?: '待触发' | '已触发' | '已取消' | string;
+}
+
+export interface StoryMilestone {
+  时间: string;
+  事件: string;
+  影响?: string;
+}
+
 export interface StoryState {
-  当前卷数: number; // currentVolume
-  当前篇章: string; // currentPeriod
-  关键节点: string; // keyNode
-  节点状态: string; // nodeStatus
-  预定日期: string; // scheduledDate
-  
-  // Enhanced Story Guide
-  是否正史: boolean; // canonPath
-  下一触发: string; // nextTrigger
-  描述: string; // description
-  偏移度: number; // deviation 0-100
+  主线: {
+    当前卷数: number;
+    当前篇章: string;
+    当前阶段: string;
+    关键节点: string;
+    节点状态: string;
+  };
+  引导: {
+    当前目标: string;
+    下一触发: string;
+    行动提示: string;
+  };
+  时间轴: {
+    预定日期: string;
+    下一关键时间?: string;
+  };
+  路线: {
+    是否正史: boolean;
+    偏移度: number;
+    分歧说明?: string;
+  };
+  待触发: StoryTrigger[]; // 最多 3 条
+  里程碑?: StoryMilestone[];
+  备注?: string;
 }
 
 export interface Contract {

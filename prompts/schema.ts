@@ -20,7 +20,6 @@
 - \`gameState.角色.称号\`: String
 - \`gameState.角色.种族\`: String ("人类", "精灵", "矮人", "小人族", "亚马逊", "兽人")
 - \`gameState.角色.所属眷族\`: String
-- \`gameState.角色.恩惠状态\`: String ("未授予" | "已授予")
 - \`gameState.角色.等级\`: Number (Level)
 - \`gameState.角色.外貌\`: String
 - \`gameState.角色.背景\`: String
@@ -68,14 +67,6 @@
 - \`gameState.角色.疲劳度\`: Number (0-100)
 - \`gameState.角色.公会评级\`: String ("I" 到 "S")
 
-**公会与登记**
-- \`gameState.角色.公会登记.状态\`: String ("未登记" | "登记中" | "已登记")
-- \`gameState.角色.公会登记.专属顾问\`: String
-- \`gameState.角色.公会登记.公会卡\`: String
-- \`gameState.角色.公会登记.讲习会.状态\`: String ("未参加" | "进行中" | "已完成")
-- \`gameState.角色.公会登记.讲习会.时间\`: String
-- \`gameState.角色.公会登记.讲习会.备注\`: String
-
 **技能与魔法**
 - \`gameState.角色.魔法栏位.上限\`: Number
 - \`gameState.角色.魔法栏位.已使用\`: Number
@@ -106,7 +97,14 @@
 - \`描述\`: String
 - \`数量\`: Number
 - \`类型\`: String ("consumable" | "weapon" | "armor" | "material" | "key_item" | "loot")
+- \`获取途径\`: String ("dungeon" | "public")
 - \`品质\`: String ("Broken" | "Common" | "Rare" | "Epic" | "Legendary")
+- \`标签\`: String[] | String
+- \`来源\`: String
+- \`制作者\`: String
+- \`材质\`: String
+- \`堆叠上限\`: Number
+- \`是否绑定\`: Boolean
 - \`已装备\`: Boolean
 - \`装备槽位\`: String (可选, 如 "主手")
 - \`攻击力\`: Number (可选)
@@ -121,6 +119,11 @@
 - \`附加属性\`: Array<{ "名称": String, "数值": String }>
 - \`重量\`: Number (可选)
 - \`等级需求\`: Number (可选)
+- \`武器\`: { "类型", "伤害类型", "射程", "攻速", "双手", "特性" }
+- \`防具\`: { "类型", "部位", "护甲等级", "抗性" }
+- \`消耗\`: { "类别", "持续", "冷却", "副作用" }
+- \`材料\`: { "来源", "用途", "处理" }
+- \`魔剑\`: { "魔法名称", "属性", "威力", "触发方式", "冷却", "剩余次数", "最大次数", "破损率", "过载惩罚", "备注" }
 
 ## 4. 战利品相关
 - \`gameState.战利品\`: Array<InventoryItem> (已归档战利品)
@@ -209,7 +212,6 @@
 - \`gameState.世界.NPC后台跟踪\`: Array<{ "NPC": String, "当前行动": String, "位置?": String, "进度?": String, "预计完成?": String }>
 - \`gameState.世界.派阀格局\`: { "S级": String[], "A级": String[], "B级至I级": String[], "备注": String }
 - \`gameState.世界.战争游戏\`: { "状态": String, "参战眷族": String[], "形式": String, "赌注": String, "举办时间": String, "结束时间": String, "结果": String, "备注": String }
-- \`gameState.世界.异端儿情报\`: { "记录": Array<{ "名称": String, "种类": String, "立场": String, "情报等级": String, "状态": String, "备注": String }>, "通缉状态": String }
 - \`gameState.世界.下次更新\`: String（每回合需确认是否已经抵达下次更新时间，若抵达则更具体的日期如：第一日 18:00）
 
 ## 10. 地图系统 (gameState.地图)
@@ -222,15 +224,13 @@
 - \`gameState.地图.dungeonStructure\`: Array<{ "floorStart", "floorEnd", "name", "description", "dangerLevel", "landmarks" }>
 
 ## 11. 剧情进度 (gameState.剧情)
-- \`gameState.剧情.当前卷数\`: Number
-- \`gameState.剧情.当前篇章\`: String
-- \`gameState.剧情.关键节点\`: String
-- \`gameState.剧情.节点状态\`: String
-- \`gameState.剧情.预定日期\`: String
-- \`gameState.剧情.是否正史\`: Boolean
-- \`gameState.剧情.下一触发\`: String
-- \`gameState.剧情.描述\`: String
-- \`gameState.剧情.偏移度\`: Number
+- \`gameState.剧情.主线\`: { "当前卷数": Number, "当前篇章": String, "当前阶段": String, "关键节点": String, "节点状态": String }
+- \`gameState.剧情.引导\`: { "当前目标": String, "下一触发": String, "行动提示": String }
+- \`gameState.剧情.时间轴\`: { "预定日期": String, "下一关键时间?": String }
+- \`gameState.剧情.路线\`: { "是否正史": Boolean, "偏移度": Number, "分歧说明?": String }
+- \`gameState.剧情.待触发\`: Array<{ "预计触发": String, "内容": String, "类型?": String, "触发条件?": String, "重要度?": String, "状态?": String }> (最多 3 条)
+- \`gameState.剧情.里程碑\`: Array<{ "时间": String, "事件": String, "影响?": String }>
+- \`gameState.剧情.备注\`: String
 
 ## 12. 契约系统 (gameState.契约)
 - \`gameState.契约\`: Array<{ "id", "名称", "描述", "状态", "条款" }>
@@ -244,3 +244,7 @@
 - \`gameState.眷族.仓库\`: Array<InventoryItem>
 
 `;
+
+
+
+

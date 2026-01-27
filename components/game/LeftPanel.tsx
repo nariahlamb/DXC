@@ -267,22 +267,19 @@ export const LeftPanel: React.FC<LeftPanelProps> = ({ stats, className = '', isH
               <span className="text-white font-mono">{stats.伟业} / {stats.升级所需伟业}</span>
           </div>
 
-          {/* Guild Registration & Magic Slots */}
+          {/* Magic Slots */}
           <div className="bg-black border border-zinc-800 p-2 text-[10px] space-y-1">
-              <div className="flex justify-between">
-                  <span className="text-zinc-500 uppercase">恩惠状态</span>
-                  <span className="text-emerald-300">{stats.恩惠状态 || '未知'}</span>
-              </div>
-              <div className="flex justify-between">
-                  <span className="text-zinc-500 uppercase">公会登记</span>
-                  <span className="text-blue-300">{stats.公会登记?.状态 || '未知'}</span>
-              </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                   <span className="text-zinc-500 uppercase">魔法栏位</span>
                   <span className="text-purple-300 font-mono">
                       {(stats.魔法栏位?.已使用 ?? 0)}/{stats.魔法栏位?.上限 ?? 0}
                   </span>
               </div>
+              {(stats.魔法栏位?.扩展来源 && stats.魔法栏位.扩展来源.length > 0) && (
+                  <div className="text-[9px] text-zinc-500">
+                      扩展来源: {stats.魔法栏位.扩展来源.join('、')}
+                  </div>
+              )}
           </div>
 
           {/* Status (Falna) - Bilingual Restore */}
@@ -305,11 +302,31 @@ export const LeftPanel: React.FC<LeftPanelProps> = ({ stats, className = '', isH
           <div className="space-y-2">
               <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest border-b border-zinc-800 pb-1">发展能力</h3>
               {stats.发展能力 && stats.发展能力.length > 0 ? (
-                  <div className="grid grid-cols-1 gap-1">
+                  <div className="space-y-2">
                       {stats.发展能力.map((da, i) => (
-                          <div key={i} className="text-xs bg-zinc-900 border border-zinc-700 px-2 py-1 text-zinc-300 truncate flex justify-between items-center group hover:border-purple-500 transition-colors">
-                              <span>{da.名称 || "Unknown"}</span>
-                              <span className="font-mono text-yellow-600 font-bold">{da.等级 || 'I'}</span>
+                          <div key={i} className="bg-zinc-900 border border-zinc-700 px-3 py-2 text-zinc-300 group hover:border-purple-500 transition-colors">
+                              <div className="flex items-center justify-between">
+                                  <span className="text-sm font-bold truncate">{da.名称 || "Unknown"}</span>
+                                  <span className="font-mono text-yellow-600 font-bold">{da.等级 || 'I'}</span>
+                              </div>
+                              <div className="text-[10px] text-zinc-500 mt-1">
+                                  类型: {da.类型 || '未分类'}
+                              </div>
+                              {da.效果 && (
+                                  <div className="text-[10px] text-purple-200 mt-1">
+                                      效果: {da.效果}
+                                  </div>
+                              )}
+                              {da.描述 && (
+                                  <div className="text-[10px] text-zinc-400 mt-1">
+                                      {da.描述}
+                                  </div>
+                              )}
+                              {da.解锁条件 && (
+                                  <div className="text-[9px] text-zinc-500 mt-1">
+                                      解锁条件: {da.解锁条件}
+                                  </div>
+                              )}
                           </div>
                       ))}
                   </div>

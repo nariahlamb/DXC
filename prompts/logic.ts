@@ -42,7 +42,7 @@ export const P_COT_LOGIC = `
     - gameState.角色.生存状态.饱腹度 / 水分
     - gameState.角色.身体部位（普通及以上难度）
     - gameState.角色.状态 / 诅咒 / 疲劳度
-    - gameState.角色.恩惠状态 / 公会登记 / 魔法栏位
+    - gameState.角色.魔法栏位
   - 库存审计：
     - 个人库存：
       - gameState.角色.装备（主手/副手/护甲/饰品）
@@ -57,7 +57,7 @@ export const P_COT_LOGIC = `
       - 若容器变量为空或未提供，则视为空容器。
   - 情报扫描：
     - gameState.任务.日志 / gameState.剧情 / gameState.契约
-    - gameState.世界（头条新闻/街头传闻/诸神神会/NPC后台跟踪/派阀格局/战争游戏/异端儿情报）
+    - gameState.世界（头条新闻/街头传闻/诸神神会/NPC后台跟踪/派阀格局/战争游戏）
     - gameState.短信 / gameState.动态
     - gameState.地图（当前位置与已知节点）
 - 指令解析：
@@ -125,7 +125,7 @@ export const P_COT_LOGIC = `
     - 明确分配/归档 → push gameState.战利品 或 gameState.背包（需完整 InventoryItem 结构）。
   - 发展能力/技能/魔法：仅在叙事明确习得/觉醒时 push；字段必须完整。
   - 社交与在场：set 是否在场/位置详情/当前行动；好感度 add；新增 NPC 用 push。
-  - 任务/剧情/契约：按叙事 set 状态、关键节点与触发条件。
+  - 任务/剧情/契约：按叙事 set 主线/引导/待触发/里程碑与触发条件。
   - 手机与动态：仅在叙事发生时 push 短信/动态。
   - 数值的限制：当前值不可超过最大值。
 - 强制注释：为每一条拟生成的 tavern_commands 在 thinking 内附一句原因。

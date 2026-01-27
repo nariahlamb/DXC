@@ -34,6 +34,28 @@ export const LootModal: React.FC<LootModalProps> = ({ isOpen, onClose, items, ca
       }
   };
 
+  const getTypeLabel = (type: string) => {
+      switch (type) {
+          case 'weapon': return '武器';
+          case 'armor': return '防具';
+          case 'consumable': return '消耗品';
+          case 'material': return '材料';
+          case 'key_item': return '关键';
+          case 'loot': return '战利品';
+          default: return type || '未知';
+      }
+  };
+
+  const getQualityLabel = (quality: string = 'Common') => {
+      switch (quality) {
+          case 'Legendary': return '传说';
+          case 'Epic': return '史诗';
+          case 'Rare': return '稀有';
+          case 'Broken': return '破损';
+          default: return '普通';
+      }
+  };
+
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-200">
       <div className="w-full max-w-5xl bg-[#1c1917] border-4 border-[#d4af37] relative flex flex-col shadow-[0_0_50px_rgba(212,175,55,0.2)] max-h-[85vh]">
@@ -64,7 +86,6 @@ export const LootModal: React.FC<LootModalProps> = ({ isOpen, onClose, items, ca
                     const durCurrent = item.耐久 ?? null;
                     const durMax = item.最大耐久 ?? null;
                     const durPercent = durCurrent !== null && durMax ? Math.min(100, (durCurrent / durMax) * 100) : null;
-                    const fullData = JSON.stringify(item, null, 2);
                     return (
                     <div key={item.id} className={`relative bg-[#0c0a09] border-2 ${style.border} p-4 flex flex-col gap-3 hover:bg-[#1c1917] transition-all group ${style.glow}`}>
                         
@@ -79,7 +100,7 @@ export const LootModal: React.FC<LootModalProps> = ({ isOpen, onClose, items, ca
                                     <h3 className={`font-bold text-lg truncate group-hover:text-[#d4af37] transition-colors ${style.text}`}>{item.名称}</h3>
                                     <span className="text-[#a8a29e] font-mono text-sm bg-[#292524] px-2 py-0.5 rounded">x{item.数量}</span>
                                 </div>
-                                <div className="text-[10px] text-[#a8a29e] uppercase tracking-widest">{item.类型} | {quality}</div>
+                                <div className="text-[10px] text-[#a8a29e] uppercase tracking-widest">{getTypeLabel(item.类型)} | {getQualityLabel(quality)}</div>
                                 <p className="text-[#78716c] text-xs line-clamp-2 leading-relaxed mt-1">{item.描述}</p>
                                 
                                 <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -121,6 +142,17 @@ export const LootModal: React.FC<LootModalProps> = ({ isOpen, onClose, items, ca
                             </div>
                         )}
 
+                        {item.魔剑 && (
+                            <div className="text-[10px] text-purple-200 border border-purple-900/60 bg-purple-950/30 p-2 space-y-1">
+                                <div className="uppercase text-purple-300 text-[9px]">魔剑术式</div>
+                                <div>名称: {item.魔剑.魔法名称 || item.名称}</div>
+                                <div>属性: {item.魔剑.属性 || "未标注"} · 威力: {item.魔剑.威力 || "未标注"}</div>
+                                {(item.魔剑.剩余次数 !== undefined || item.魔剑.最大次数 !== undefined) && (
+                                    <div>剩余次数: {item.魔剑.剩余次数 ?? "?"}/{item.魔剑.最大次数 ?? "?"}</div>
+                                )}
+                            </div>
+                        )}
+
                         {durPercent !== null && (
                             <div>
                                 <div className="flex justify-between text-[9px] text-[#a8a29e] uppercase mb-1">
@@ -132,11 +164,6 @@ export const LootModal: React.FC<LootModalProps> = ({ isOpen, onClose, items, ca
                                 </div>
                             </div>
                         )}
-
-                        <details className="text-[10px] text-[#a8a29e] border border-[#78350f] bg-black/40 p-2">
-                            <summary className="cursor-pointer text-[9px] uppercase tracking-widest text-[#d4af37]">完整数据</summary>
-                            <pre className="mt-2 whitespace-pre-wrap break-words font-mono text-[9px] text-[#e7e5e4]">{fullData}</pre>
-                        </details>
 
                         {/* Corner Accents */}
                         <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-[#78350f] group-hover:border-[#d4af37]" />

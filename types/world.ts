@@ -124,20 +124,6 @@ export interface WarGameState {
   备注?: string;
 }
 
-export interface XenosIntel {
-  名称: string;
-  种类: string;
-  立场: string;
-  情报等级: string;
-  状态: string;
-  备注?: string;
-}
-
-export interface XenosState {
-  记录: XenosIntel[];
-  通缉状态?: string;
-}
-
 // Refactor Business States to Chinese
 export interface WorldState {
   异常指数: number; // tensionLevel
@@ -148,7 +134,6 @@ export interface WorldState {
   NPC后台跟踪: NpcBackgroundTracking[];
   派阀格局?: FactionTierState;
   战争游戏?: WarGameState;
-  异端儿情报?: XenosState;
   下次更新?: string; // nextUpdate
 }
 

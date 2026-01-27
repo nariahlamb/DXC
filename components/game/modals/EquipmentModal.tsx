@@ -182,6 +182,41 @@ export const EquipmentModal: React.FC<EquipmentModalProps> = ({
                                 )}
                             </div>
 
+                            {(slotItem.item.武器 || slotItem.item.防具 || slotItem.item.魔剑 || slotItem.item.制作者 || slotItem.item.材质) && (
+                                <div className="bg-zinc-900/60 border border-zinc-800 p-3 space-y-2 text-[10px] text-zinc-300">
+                                    {slotItem.item.武器 && (
+                                        <div>
+                                            <div className="text-[10px] text-zinc-500 uppercase">武器信息</div>
+                                            <div>类型: {slotItem.item.武器.类型 || "未知"} · 伤害: {slotItem.item.武器.伤害类型 || "未标注"} · 射程: {slotItem.item.武器.射程 || "近战"}</div>
+                                            {slotItem.item.武器.双手 !== undefined && <div>双手: {slotItem.item.武器.双手 ? "是" : "否"}</div>}
+                                        </div>
+                                    )}
+                                    {slotItem.item.防具 && (
+                                        <div>
+                                            <div className="text-[10px] text-zinc-500 uppercase">防具信息</div>
+                                            <div>类型: {slotItem.item.防具.类型 || "未知"} · 部位: {slotItem.item.防具.部位 || "未标注"} · 护甲: {slotItem.item.防具.护甲等级 || "未标注"}</div>
+                                        </div>
+                                    )}
+                                    {slotItem.item.魔剑 && (
+                                        <div className="border border-purple-900/60 bg-purple-950/30 p-2">
+                                            <div className="text-[10px] text-purple-300 uppercase">魔剑术式</div>
+                                            <div>名称: {slotItem.item.魔剑.魔法名称 || slotItem.item.名称}</div>
+                                            <div>属性: {slotItem.item.魔剑.属性 || "未标注"} · 威力: {slotItem.item.魔剑.威力 || "未标注"}</div>
+                                            {(slotItem.item.魔剑.剩余次数 !== undefined || slotItem.item.魔剑.最大次数 !== undefined) && (
+                                                <div>剩余次数: {slotItem.item.魔剑.剩余次数 ?? "?"}/{slotItem.item.魔剑.最大次数 ?? "?"}</div>
+                                            )}
+                                            {slotItem.item.魔剑.触发方式 && <div>触发方式: {slotItem.item.魔剑.触发方式}</div>}
+                                        </div>
+                                    )}
+                                    {(slotItem.item.制作者 || slotItem.item.材质) && (
+                                        <div className="text-[10px] text-zinc-500">
+                                            {slotItem.item.制作者 && <span>制作者: {slotItem.item.制作者} </span>}
+                                            {slotItem.item.材质 && <span>材质: {slotItem.item.材质}</span>}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             {slotItem.item.耐久 !== undefined && (
                                 <div>
                                     <div className="flex justify-between text-[10px] text-zinc-500 uppercase mb-1">

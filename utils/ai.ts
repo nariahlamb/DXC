@@ -442,7 +442,6 @@ export const constructWorldContext = (world: any, params: any): string => {
            `NPC后台跟踪: ${JSON.stringify(world.NPC后台跟踪 || [])}\n` +
            `派阀格局: ${JSON.stringify(world.派阀格局 || {}, null, 0)}\n` +
            `战争游戏: ${JSON.stringify(world.战争游戏 || {}, null, 0)}\n` +
-           `异端儿情报: ${JSON.stringify(world.异端儿情报 || {}, null, 0)}\n` +
            `下次更新: ${world.下次更新 || "待定"}`;
 };
 

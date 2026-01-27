@@ -40,6 +40,28 @@ const getItemIcon = (type: string) => {
   }
 };
 
+const getTypeLabel = (type: string) => {
+  switch (type) {
+    case 'weapon': return '武器';
+    case 'armor': return '防具';
+    case 'consumable': return '消耗品';
+    case 'material': return '材料';
+    case 'key_item': return '关键';
+    case 'loot': return '战利品';
+    default: return type || '未知';
+  }
+};
+
+const getQualityLabel = (quality: string = 'Common') => {
+  switch (quality) {
+    case 'Legendary': return '传说';
+    case 'Epic': return '史诗';
+    case 'Rare': return '稀有';
+    case 'Broken': return '破损';
+    default: return '普通';
+  }
+};
+
 export const LootVaultModal: React.FC<LootVaultModalProps> = ({ isOpen, onClose, items }) => {
   if (!isOpen) return null;
 
@@ -67,8 +89,6 @@ export const LootVaultModal: React.FC<LootVaultModalProps> = ({ isOpen, onClose,
               const durCurrent = item.耐久 ?? null;
               const durMax = item.最大耐久 ?? null;
               const durPercent = durCurrent !== null && durMax ? Math.min(100, (durCurrent / durMax) * 100) : null;
-              const fullData = JSON.stringify(item, null, 2);
-
               return (
                 <div key={item.id} className={`relative bg-black/70 border-2 ${style.border} p-4 flex flex-col gap-3 ${style.glow}`}>
                   <div className="flex items-start gap-3">
@@ -81,7 +101,7 @@ export const LootVaultModal: React.FC<LootVaultModalProps> = ({ isOpen, onClose,
                         <span className="text-xs font-mono text-zinc-400 bg-zinc-900 px-2 py-0.5 border border-zinc-700">x{item.数量}</span>
                       </div>
                       <div className="text-[10px] text-zinc-400 uppercase tracking-widest mt-1">
-                        {item.类型} | {quality}
+                        {getTypeLabel(item.类型)} | {getQualityLabel(quality)}
                       </div>
                       {item.价值 !== undefined && (
                         <div className="text-[10px] text-amber-300 font-mono mt-1">价值: {item.价值}</div>
@@ -119,6 +139,17 @@ export const LootVaultModal: React.FC<LootVaultModalProps> = ({ isOpen, onClose,
                     </div>
                   )}
 
+                  {item.魔剑 && (
+                    <div className="text-[10px] text-purple-200 border border-purple-900/60 bg-purple-950/30 p-2 space-y-1">
+                      <div className="uppercase text-purple-300 text-[9px]">魔剑术式</div>
+                      <div>名称: {item.魔剑.魔法名称 || item.名称}</div>
+                      <div>属性: {item.魔剑.属性 || "未标注"} · 威力: {item.魔剑.威力 || "未标注"}</div>
+                      {(item.魔剑.剩余次数 !== undefined || item.魔剑.最大次数 !== undefined) && (
+                        <div>剩余次数: {item.魔剑.剩余次数 ?? "?"}/{item.魔剑.最大次数 ?? "?"}</div>
+                      )}
+                    </div>
+                  )}
+
                   {durPercent !== null && (
                     <div className="mt-1">
                       <div className="flex justify-between text-[9px] text-zinc-500 uppercase mb-1">
@@ -133,10 +164,6 @@ export const LootVaultModal: React.FC<LootVaultModalProps> = ({ isOpen, onClose,
                     </div>
                   )}
 
-                  <details className="text-[10px] text-zinc-400 border border-zinc-800 bg-black/40 p-2">
-                    <summary className="cursor-pointer text-[9px] uppercase tracking-widest text-amber-300">完整数据</summary>
-                    <pre className="mt-2 whitespace-pre-wrap break-words font-mono text-[9px] text-zinc-200">{fullData}</pre>
-                  </details>
                 </div>
               );
             }) : (
