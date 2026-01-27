@@ -58,7 +58,7 @@ const SimpleEquipSlot = ({ label, slotKey, stats, icon }: { label: string, slotK
 
 const normalizeStatus = (entry: StatusEffect | string): StatusEffect => {
     if (typeof entry === 'string') {
-        return { 名称: entry, 类型: 'Buff', 效果: '', 持续时间: '' };
+        return { 名称: entry, 类型: 'Buff', 效果: '', 结束时间: '' };
     }
     return entry;
 };
@@ -90,9 +90,9 @@ const StatusBadge = ({ entry, variant }: { entry: StatusEffect | string; variant
                         <span className="text-zinc-500">效果: </span>{status.效果}
                     </div>
                 )}
-                {status.持续时间 && (
+                {status.结束时间 && (
                     <div className="text-[10px] text-zinc-200">
-                        <span className="text-zinc-500">持续: </span>{status.持续时间}
+                        <span className="text-zinc-500">结束: </span>{status.结束时间}
                     </div>
                 )}
             </div>

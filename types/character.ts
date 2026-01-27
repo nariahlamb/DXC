@@ -87,7 +87,7 @@ export interface StatusEffect {
   名称: string;
   类型: 'Buff' | 'DeBuff';
   效果: string;
-  持续时间: string;
+  结束时间: string;
 }
 
 export interface CharacterStats {
