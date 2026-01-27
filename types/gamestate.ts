@@ -3,7 +3,7 @@ import { Screen, Difficulty } from './enums';
 import { CharacterStats } from './character';
 import { LogEntry, MemorySystem } from './ai';
 import { InventoryItem } from './item';
-import { Confidant, PhoneMessage, MomentPost } from './social';
+import { Confidant, PhoneState } from './social';
 import { WorldState, WorldMapData, GeoPoint, FamiliaState } from './world';
 import { Task, StoryState, Contract } from './story';
 import { CombatState } from './combat';
@@ -40,9 +40,7 @@ export interface GameState {
   战利品背负者: string; // NEW: 谁背着大包 (Player 或 支援者名字)
 
   社交: Confidant[];
-  短信: PhoneMessage[];
-  动态: MomentPost[];
-  魔石通讯终端: { 电量: number; 当前信号: number };
+  手机: PhoneState;
   世界: WorldState;
   地图: WorldMapData;
   

@@ -1,5 +1,5 @@
 
-import { GameState, RawGameData, Screen, Difficulty, InventoryItem, BodyParts, PhoneMessage, MomentPost, Task } from "../types";
+import { GameState, RawGameData, Screen, Difficulty, InventoryItem, BodyParts, PhoneThread, PhonePost, Task, PhoneState, PhoneMessage } from "../types";
 import { generateDanMachiMap } from "./mapSystem";
 
 export const createNewGameState = (
@@ -26,8 +26,11 @@ export const createNewGameState = (
     let startValis = 0;
     let totalHp = 300;
     let initialInventory: InventoryItem[] = [];
-    let initialMessages: PhoneMessage[] = [];
-    let initialMoments: MomentPost[] = [];
+    let initialPrivateThreads: PhoneThread[] = [];
+    let initialGroupThreads: PhoneThread[] = [];
+    let initialPublicThreads: PhoneThread[] = [];
+    let initialFriendPosts: PhonePost[] = [];
+    let initialPublicPosts: PhonePost[] = [];
     let initialTasks: Task[] = [];
     let initialNews: string[] = [];
     let initialRumors: { 主题: string; 传播度: number }[] = [];
@@ -48,6 +51,40 @@ export const createNewGameState = (
         饰品1: "",
         饰品2: "",
         饰品3: ""
+    };
+    const playerName = name;
+    let threadCounter = 0;
+    let messageCounter = 0;
+    const nextThreadId = () => `Thr${String(++threadCounter).padStart(3, '0')}`;
+    const nextMsgId = () => `Msg${String(++messageCounter).padStart(3, '0')}`;
+    const privateThreadMap = new Map<string, PhoneThread>();
+    const ensurePrivateThread = (targetName: string): PhoneThread => {
+        const existing = privateThreadMap.get(targetName);
+        if (existing) return existing;
+        const newThread: PhoneThread = {
+            id: nextThreadId(),
+            类型: 'private',
+            标题: targetName,
+            成员: [playerName, targetName],
+            消息: [],
+            未读: 0
+        };
+        privateThreadMap.set(targetName, newThread);
+        initialPrivateThreads.push(newThread);
+        return newThread;
+    };
+    const pushPrivateMessage = (sender: string, content: string, timeLabel: string, msgType?: string) => {
+        const thread = ensurePrivateThread(sender);
+        const message: PhoneMessage = {
+            id: nextMsgId(),
+            发送者: sender,
+            内容: content,
+            时间戳: timeLabel,
+            timestampValue: Date.now() + messageCounter,
+            类型: msgType || (sender === '系统' ? 'system' : 'text'),
+            状态: sender === playerName ? 'sent' : 'received'
+        };
+        thread.消息.push(message);
     };
     
     // Common Item: Phone
@@ -90,11 +127,11 @@ export const createNewGameState = (
             主手: '精炼长剑', 副手: '', 饰品1: '冒险者护符', 饰品2: '', 饰品3: ''
         };
 
-        initialMessages.push({
-            id: 'Msg_E_001', 发送者: '公会贵宾通道', 频道: 'private', 时间戳: '第1日 06:50',
-            内容: '尊敬的' + name + '，贵宾登记已预审通过。请前往公会本部二楼贵宾柜台办理手续。怪物祭将于第七日开启，请留意公会公告。',
-            timestampValue: Date.now()
-        });
+        pushPrivateMessage(
+            '公会贵宾通道',
+            '尊敬的' + name + '，贵宾登记已预审通过。请前往公会本部二楼贵宾柜台办理手续。怪物祭将于第十二日开启，请留意公会公告。',
+            '第1日 06:50'
+        );
 
         initialTasks.push({ id: 'Tsk_001', 标题: '贵宾登记', 描述: '前往公会本部二楼贵宾柜台完成登记。', 状态: 'active', 奖励: '专属支援者情报', 评级: 'D', 接取时间: '第1日 07:00' });
         initialTasks.push({ id: 'Tsk_002', 标题: '眷族接洽', 描述: '携带推荐信与潜在眷族进行初次接触。', 状态: 'active', 奖励: '眷族候选情报', 评级: 'C', 接取时间: '第1日 07:10' });
@@ -124,11 +161,11 @@ export const createNewGameState = (
             主手: '铁制短剑', 副手: '', 饰品1: '', 饰品2: '', 饰品3: ''
         };
 
-        initialMessages.push({
-            id: 'Msg_N_001', 发送者: '公会注册中心', 频道: 'private', 时间戳: '第1日 06:55',
-            内容: '欢迎来到迷宫都市欧拉丽。检测到新终端接入，请于今日内前往公会本部完成冒险者登记。怪物祭将于第七日开启，请留意公告。',
-            timestampValue: Date.now()
-        });
+        pushPrivateMessage(
+            '公会注册中心',
+            '欢迎来到迷宫都市欧拉丽。检测到新终端接入，请于今日内前往公会本部完成冒险者登记。怪物祭将于第十二日开启，请留意公告。',
+            '第1日 06:55'
+        );
 
         initialTasks.push({ id: 'Tsk_001', 标题: '冒险者登记', 描述: '前往公会本部完成新人注册。', 状态: 'active', 奖励: '冒险者ID卡', 评级: 'E', 接取时间: '第1日 07:00' });
         initialTasks.push({ id: 'Tsk_002', 标题: '寻找眷族', 描述: '在欧拉丽寻找愿意接纳你的神明。', 状态: 'active', 奖励: '神之恩惠 (Falna)', 评级: 'S', 接取时间: '第1日 07:05' });
@@ -157,11 +194,11 @@ export const createNewGameState = (
             主手: '磨损短刀', 副手: '', 饰品1: '', 饰品2: '', 饰品3: ''
         };
 
-        initialMessages.push({
-            id: 'Msg_H_001', 发送者: '公会服务台', 频道: 'private', 时间戳: '第1日 07:00',
-            内容: '冒险者预注册提醒：请尽快前往公会本部缴纳登记费用。近期上层异常频发，务必结伴行动。',
-            timestampValue: Date.now()
-        });
+        pushPrivateMessage(
+            '公会服务台',
+            '冒险者预注册提醒：请尽快前往公会本部缴纳登记费用。近期上层异常频发，务必结伴行动。',
+            '第1日 07:00'
+        );
 
         initialTasks.push({ id: 'Tsk_001', 标题: '生计问题', 描述: '口袋里的钱所剩无几，今晚的落脚处需要尽快解决。', 状态: 'active', 奖励: '生存', 评级: 'E', 接取时间: '第1日 07:00' });
         initialTasks.push({ id: 'Tsk_002', 标题: '眷族线索', 描述: '在街区中打听愿意接纳新人的眷族消息。', 状态: 'active', 奖励: '眷族情报', 评级: 'E', 接取时间: '第1日 07:10' });
@@ -188,11 +225,12 @@ export const createNewGameState = (
             主手: '', 副手: '', 饰品1: '', 饰品2: '', 饰品3: ''
         };
 
-        initialMessages.push({
-            id: 'Msg_X_001', 发送者: '系统', 频道: 'private', 时间戳: '第1日 07:00',
-            内容: '[电量警告] 终端剩余电量 5%。请尽快补充魔力或寻找充能点。',
-            timestampValue: Date.now()
-        });
+        pushPrivateMessage(
+            '系统',
+            '[电量警告] 终端剩余电量 5%。请尽快补充魔力或寻找充能点。',
+            '第1日 07:00',
+            'system'
+        );
 
         initialTasks.push({ id: 'Tsk_001', 标题: '活下去', 描述: '你几乎一无所有，必须先解决饥饿与栖身之所。', 状态: 'active', 奖励: '？？？', 评级: 'SS', 接取时间: '第1日 07:00' });
         initialTasks.push({ id: 'Tsk_002', 标题: '寻找落脚处', 描述: '在贫民区或公会周边寻找最低限度的容身处。', 状态: 'active', 奖励: '生存', 评级: 'S', 接取时间: '第1日 07:05' });
@@ -217,7 +255,7 @@ export const createNewGameState = (
 // --- 3. 统一世界动态与社交内容 ---
     
     // 增加通用新闻
-    initialNews.push("【庆典】怪物祭进入倒计时 6 天，公会全面提升安保等级。【第七日开启】");
+    initialNews.push("【庆典】怪物祭进入倒计时 11 天，公会全面提升安保等级。【第十二日开启】");
     initialNews.push("【公会】上层第 5~7 层出现异常刷新，请新人冒险者谨慎进入、优先组队。");
     
     // 增加通用传闻
@@ -225,16 +263,26 @@ export const createNewGameState = (
     initialRumors.push({ 主题: "东区的贫民窟里住着一位贫穷女神。", 传播度: 35 });
     initialRumors.push({ 主题: "芙蕾雅眷族最近频繁在酒馆露面。", 传播度: 25 });
 
-    // 增加通用动态 (Moments)
-    initialMoments.push({
-        id: 'Mom_001', 发布者: '迦尼萨', 头像: '', 时间戳: '第1日 06:00',
-        内容: '我是迦尼萨！怪物祭倒计时 6 天，彩排本周启动！请大家遵守公会安排！#Monsterphilia #我就是迦尼萨',
-        点赞数: 1240, 评论: [{ 用户: '公会职员', 内容: '主神大人请不要再刷屏了...' }], timestampValue: Date.now()
+    // 增加通用公共帖子 (Forum)
+    initialPublicPosts.push({
+        id: 'Forum001', 发布者: '迦尼萨', 头像: '', 时间戳: '第1日 06:00',
+        内容: '我是迦尼萨！怪物祭倒计时 11 天，彩排本周启动！请大家遵守公会安排！#Monsterphilia #我就是迦尼萨',
+        点赞数: 1240, 评论: [{ 用户: '公会职员', 内容: '主神大人请不要再刷屏了...' }],
+        timestampValue: Date.now(),
+        图片描述: '',
+        可见性: 'public',
+        话题: ['公告', '庆典'],
+        来源: '公会公告'
     });
-    initialMoments.push({
-        id: 'Mom_002', 发布者: '洛基眷族官方', 头像: '', 时间戳: '第1日 04:00',
+    initialPublicPosts.push({
+        id: 'Forum002', 发布者: '洛基眷族官方', 头像: '', 时间戳: '第1日 04:00',
         内容: '【远征备战】训练强度已上调，非相关人员请勿进入黄昏之馆周边。',
-        点赞数: 860, 评论: [], timestampValue: Date.now() - 10000
+        点赞数: 860, 评论: [],
+        timestampValue: Date.now() - 10000,
+        图片描述: '',
+        可见性: 'public',
+        话题: ['训练', '远征'],
+        来源: '眷族公告'
     });
 
     // 4. 生存与身体部位初始化
@@ -272,26 +320,52 @@ export const createNewGameState = (
 
 装备与补给一应俱全，推荐信与地图让你省去了试错的成本。你可以把精力放在挑选眷族与规划成长路线，而不是为第一顿饭发愁。
 
-怪物祭将于第七日开启，街头已开始布置与巡查。你的冒险，从优先通道与更高的起点开始。`;
+怪物祭将于第十二日开启，街头已开始布置与巡查。你的冒险，从优先通道与更高的起点开始。`;
     } else if (difficulty === Difficulty.NORMAL) {
         introText = `清晨的南大街人声渐起，店铺陆续开门，铁匠铺的敲击声此起彼伏。你握着登记通知，背包里只有基础装备与几份补给。
 
-公告板提醒新人结伴行动，并提前告知：怪物祭将于第七日开启，届时主街将实行交通管制。城市的节奏正在加快。
+公告板提醒新人结伴行动，并提前告知：怪物祭将于第十二日开启，届时主街将实行交通管制。城市的节奏正在加快。
 
 你深吸一口气，决定先完成冒险者登记，再去寻找愿意接纳你的眷族。`;
     } else if (difficulty === Difficulty.HARD) {
         introText = `你在南大街的拐角停下脚步，口袋里的法利寥寥，旧刀贴着腰侧发出轻响。路过的冒险者三三两两结伴而行，而你还在寻找今晚的落脚处。
 
-公告板写着上层异常频发，同时提醒怪物祭将于第七日开启，临近时物价和警戒都会上涨。你抬头望向公会方向，知道登记与眷族问题不能再拖。
+公告板写着上层异常频发，同时提醒怪物祭将于第十二日开启，临近时物价和警戒都会上涨。你抬头望向公会方向，知道登记与眷族问题不能再拖。
 
 这是一场紧绷的开局，你必须在有限的资源里找到第一条出路。`;
     } else {
         introText = `冷风从巷口灌入，你的胃因饥饿而抽痛。破旧外套挡不住清晨的寒意，终端电量只剩微光。
 
-公会公告与怪物祭的标语在风中抖动——开幕定在第七日，可你连最便宜的床位都买不起。节庆的喧嚣与你无关，你只关心下一口水。
+公会公告与怪物祭的标语在风中抖动——开幕定在第十二日，可你连最便宜的床位都买不起。节庆的喧嚣与你无关，你只关心下一口水。
 
 原著的序章仍在推进，但此刻的你只剩下最原始的求生本能。`;
     }
+
+    const phoneState: PhoneState = {
+        设备: {
+            电量: phoneBattery,
+            当前信号: phoneSignal,
+            状态: phoneBattery <= 0 ? 'offline' : 'online'
+        },
+        联系人: {
+            好友: [],
+            黑名单: [],
+            最近: []
+        },
+        对话: {
+            私聊: initialPrivateThreads,
+            群聊: initialGroupThreads,
+            公共频道: initialPublicThreads
+        },
+        朋友圈: {
+            仅好友可见: true,
+            帖子: initialFriendPosts
+        },
+        公共帖子: {
+            板块: ['公告', '酒馆闲聊', '交易', '求助', '远征', '情报'],
+            帖子: initialPublicPosts
+        }
+    };
 
     return {
         当前界面: Screen.GAME,
@@ -354,9 +428,7 @@ export const createNewGameState = (
         战利品背负者: name, 
 
         社交: [],
-        短信: initialMessages,
-        动态: initialMoments,
-        魔石通讯终端: { 电量: phoneBattery, 当前信号: phoneSignal },
+        手机: phoneState,
         
         地图: worldMap,
 
@@ -393,7 +465,7 @@ export const createNewGameState = (
             },
             时间轴: {
                 预定日期: "第1日",
-                下一关键时间: "第7日 18:00"
+                下一关键时间: "第12日 18:00"
             },
             路线: {
                 是否正史: true,
@@ -403,7 +475,7 @@ export const createNewGameState = (
             待触发: [
                 { 预计触发: "第2日 09:00", 内容: "公会发布新人讲习会报名名单", 类型: "世界", 状态: "待触发" },
                 { 预计触发: "第3日 19:00", 内容: "酒馆流出神会传闻与称号猜测", 类型: "人物", 状态: "待触发" },
-                { 预计触发: "第7日 18:00", 内容: "怪物祭开幕与交通管制", 类型: "世界", 状态: "待触发" }
+                { 预计触发: "第12日 18:00", 内容: "怪物祭开幕与交通管制", 类型: "世界", 状态: "待触发" }
             ],
             里程碑: [],
             备注: ""

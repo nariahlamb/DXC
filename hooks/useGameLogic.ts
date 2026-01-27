@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useRef } from 'react';
-import { GameState, AppSettings, LogEntry, InventoryItem, TavernCommand, ActionOption, PhoneMessage, Confidant, MemorySystem, MemoryEntry, SaveSlot, Task, ContextModuleConfig } from '../types';
+import { GameState, AppSettings, LogEntry, InventoryItem, TavernCommand, ActionOption, PhoneMessage, PhoneThread, Confidant, MemorySystem, MemoryEntry, SaveSlot, Task, ContextModuleConfig, PhonePost } from '../types';
 import { createNewGameState } from '../utils/dataMapper';
 import { generateDungeonMasterResponse, DEFAULT_PROMPT_MODULES, DEFAULT_MEMORY_CONFIG, dispatchAIRequest, generateMemorySummary, extractThinkingBlocks, parseAIResponseText, mergeThinkingSegments } from '../utils/ai';
 import { P_MEM_S2M, P_MEM_M2L } from '../prompts';
@@ -53,7 +53,7 @@ const DEFAULT_CONTEXT_MODULES: ContextModuleConfig[] = [
     { id: 'm_social', type: 'SOCIAL_CONTEXT', name: '周边NPC', enabled: true, order: 4, params: { includeAttributes: ['appearance', 'status'], presentMemoryLimit: 30, absentMemoryLimit: 6, specialPresentMemoryLimit: 30, specialAbsentMemoryLimit: 12 } },
     { id: 'm_familia', type: 'FAMILIA_CONTEXT', name: '眷族信息', enabled: true, order: 5, params: {} },
     { id: 'm_inv', type: 'INVENTORY_CONTEXT', name: '背包/战利品', enabled: true, order: 6, params: { detailLevel: 'medium' } },
-    { id: 'm_phone', type: 'PHONE_CONTEXT', name: '手机/消息', enabled: true, order: 7, params: { perTargetLimit: 10, includeMoments: true, momentLimit: 6 } },
+    { id: 'm_phone', type: 'PHONE_CONTEXT', name: '手机/消息', enabled: true, order: 7, params: { perThreadLimit: 10, includeMoments: true, momentLimit: 6, includePublicPosts: true, forumLimit: 6 } },
     { id: 'm_combat', type: 'COMBAT_CONTEXT', name: '战斗数据', enabled: true, order: 8, params: {} }, 
     { id: 'm_task', type: 'TASK_CONTEXT', name: '任务列表', enabled: true, order: 9, params: {} },
     { id: 'm_story', type: 'STORY_CONTEXT', name: '剧情进度', enabled: true, order: 10, params: {} },
@@ -697,23 +697,97 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         setGameState(prev => ({ ...prev, 处理中: false }));
         clearPendingCommands(); 
     };
-    const handleSendMessage = (text: string, channel: 'private'|'group' = 'private', target?: string) => {
-        let fullText = text;
-        if (channel === 'group' && target) fullText = `[群聊: ${target}] ${text}`;
-        else if (channel === 'private' && target && target !== 'Player') fullText = `[私信: ${target}] ${text}`;
-        handleAIInteraction(fullText, 'PHONE');
+    const handleSendMessage = (text: string, thread: PhoneThread) => {
+        const trimmed = text.trim();
+        if (!trimmed || !thread) return;
+        const timestampValue = Date.now();
+        const playerName = gameState.角色?.姓名 || 'Player';
+        const newMsg: PhoneMessage = {
+            id: generateNextId('Msg', thread.消息 || []),
+            发送者: playerName,
+            内容: trimmed,
+            时间戳: gameState.游戏时间 || '未知',
+            timestampValue,
+            类型: 'text',
+            状态: 'sent'
+        };
+        let nextState: GameState | null = null;
+        setGameState(prev => {
+            const phone = prev.手机;
+            if (!phone) return prev;
+            const updateThread = (t: PhoneThread) => {
+                if (t.id !== thread.id) return t;
+                return { ...t, 消息: [...(t.消息 || []), newMsg] };
+            };
+            const nextPhone = {
+                ...phone,
+                对话: {
+                    私聊: (phone.对话?.私聊 || []).map(updateThread),
+                    群聊: (phone.对话?.群聊 || []).map(updateThread),
+                    公共频道: (phone.对话?.公共频道 || []).map(updateThread),
+                }
+            };
+            const otherParty = thread.类型 === 'private'
+                ? (thread.成员 || []).find(m => m && m !== playerName)
+                : null;
+            if (otherParty) {
+                const recent = Array.isArray(nextPhone.联系人?.最近) ? nextPhone.联系人!.最近! : [];
+                const nextRecent = [otherParty, ...recent.filter(n => n !== otherParty)].slice(0, 8);
+                nextPhone.联系人 = { ...nextPhone.联系人, 最近: nextRecent };
+            }
+            nextState = { ...prev, 手机: nextPhone };
+            return nextState;
+        });
+        if (!nextState) return;
+        const otherParty = thread.类型 === 'private'
+            ? (thread.成员 || []).find(m => m && m !== playerName) || thread.标题
+            : thread.标题;
+        const channelLabel = thread.类型 === 'private' ? '私信' : (thread.类型 === 'group' ? '群聊' : '公共频道');
+        handleAIInteraction(`[手机/${channelLabel}] ${otherParty}: ${trimmed}`, 'PHONE', [], nextState, true);
     };
     const handleEditPhoneMessage = (id: string, content: string) => {
-        setGameState(prev => ({
-            ...prev,
-            短信: prev.短信.map(m => m.id === id ? { ...m, 内容: content } : m)
-        }));
+        if (!id) return;
+        setGameState(prev => {
+            const phone = prev.手机;
+            if (!phone) return prev;
+            const updateThread = (t: PhoneThread) => ({
+                ...t,
+                消息: (t.消息 || []).map(m => m.id === id ? { ...m, 内容: content } : m)
+            });
+            return {
+                ...prev,
+                手机: {
+                    ...phone,
+                    对话: {
+                        私聊: (phone.对话?.私聊 || []).map(updateThread),
+                        群聊: (phone.对话?.群聊 || []).map(updateThread),
+                        公共频道: (phone.对话?.公共频道 || []).map(updateThread),
+                    }
+                }
+            };
+        });
     };
     const handleDeletePhoneMessage = (id: string) => {
-        setGameState(prev => ({
-            ...prev,
-            短信: prev.短信.filter(m => m.id !== id)
-        }));
+        if (!id) return;
+        setGameState(prev => {
+            const phone = prev.手机;
+            if (!phone) return prev;
+            const updateThread = (t: PhoneThread) => ({
+                ...t,
+                消息: (t.消息 || []).filter(m => m.id !== id)
+            });
+            return {
+                ...prev,
+                手机: {
+                    ...phone,
+                    对话: {
+                        私聊: (phone.对话?.私聊 || []).map(updateThread),
+                        群聊: (phone.对话?.群聊 || []).map(updateThread),
+                        公共频道: (phone.对话?.公共频道 || []).map(updateThread),
+                    }
+                }
+            };
+        });
     };
 
     const handlePlayerInput = (text: string) => {
@@ -729,7 +803,7 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
     const handleCreateMoment = (content: string, imageDesc?: string) => {
         if (!content.trim()) return;
         const timestampValue = Date.now();
-        const newPost = {
+        const newPost: PhonePost = {
             id: `Mom_${timestampValue}`,
             发布者: gameState.角色.姓名 || 'Player',
             头像: gameState.角色.头像 || '',
@@ -738,12 +812,90 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
             timestampValue: timestampValue,
             点赞数: 0,
             评论: [],
-            图片描述: imageDesc || undefined
+            图片描述: imageDesc || undefined,
+            可见性: 'friends'
         };
-        const nextState = { ...gameState, 动态: [...gameState.动态, newPost] };
+        const nextState = {
+            ...gameState,
+            手机: {
+                ...gameState.手机,
+                朋友圈: {
+                    ...gameState.手机?.朋友圈,
+                    帖子: [...(gameState.手机?.朋友圈?.帖子 || []), newPost]
+                }
+            }
+        };
         setGameState(nextState);
         const descText = imageDesc ? `（图片描述：${imageDesc}）` : '';
         handleAIInteraction(`我在朋友圈发布动态：${content.trim()}${descText}`, 'PHONE', [], nextState, true);
+    };
+    const handleCreatePublicPost = (content: string, imageDesc?: string, topic?: string) => {
+        if (!content.trim()) return;
+        const timestampValue = Date.now();
+        const newPost: PhonePost = {
+            id: `Forum_${timestampValue}`,
+            发布者: gameState.角色.姓名 || 'Player',
+            头像: gameState.角色.头像 || '',
+            内容: content.trim(),
+            时间戳: gameState.游戏时间 || '未知',
+            timestampValue,
+            点赞数: 0,
+            评论: [],
+            图片描述: imageDesc || undefined,
+            可见性: 'public',
+            话题: topic ? [topic] : undefined
+        };
+        const nextState = {
+            ...gameState,
+            手机: {
+                ...gameState.手机,
+                公共帖子: {
+                    ...gameState.手机?.公共帖子,
+                    帖子: [...(gameState.手机?.公共帖子?.帖子 || []), newPost]
+                }
+            }
+        };
+        setGameState(nextState);
+        const descText = imageDesc ? `（图片描述：${imageDesc}）` : '';
+        const topicText = topic ? `（板块：${topic}）` : '';
+        handleAIInteraction(`我在公共论坛发布帖子：${content.trim()}${descText}${topicText}`, 'PHONE', [], nextState, true);
+    };
+    const handleCreateThread = (payload: { type: 'private' | 'group' | 'public'; title: string; members: string[] }) => {
+        const title = payload.title?.trim();
+        if (!title) return;
+        setGameState(prev => {
+            const phone = prev.手机;
+            if (!phone) return prev;
+            const dialog = phone.对话 || { 私聊: [], 群聊: [], 公共频道: [] };
+            const bucket = payload.type === 'private'
+                ? dialog.私聊
+                : payload.type === 'group'
+                    ? dialog.群聊
+                    : dialog.公共频道;
+            const exists = bucket.some((t: PhoneThread) => t.标题 === title && t.类型 === payload.type);
+            if (exists) return prev;
+            const newThread: PhoneThread = {
+                id: generateNextId('Thr', bucket),
+                类型: payload.type,
+                标题: title,
+                成员: Array.isArray(payload.members) && payload.members.length > 0 ? payload.members : [title],
+                消息: [],
+                未读: 0
+            };
+            const nextDialog = {
+                ...dialog,
+                私聊: payload.type === 'private' ? [...dialog.私聊, newThread] : dialog.私聊,
+                群聊: payload.type === 'group' ? [...dialog.群聊, newThread] : dialog.群聊,
+                公共频道: payload.type === 'public' ? [...dialog.公共频道, newThread] : dialog.公共频道
+            };
+            return {
+                ...prev,
+                手机: {
+                    ...phone,
+                    对话: nextDialog
+                }
+            };
+        });
     };
     const handleSilentWorldUpdate = async () => {
         if (silentUpdateInFlight.current || isProcessing) return;
@@ -981,7 +1133,7 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         gameState, setGameState, settings, setSettings,
         commandQueue, pendingCommands, addToQueue, removeFromQueue, currentOptions, lastAIResponse, lastAIThinking, isProcessing, isStreaming, draftInput, setDraftInput,
         memorySummaryState, confirmMemorySummary, applyMemorySummary, cancelMemorySummary,
-        handleAIInteraction, stopInteraction, handlePlayerAction, handlePlayerInput, handleSendMessage, handleCreateMoment, handleSilentWorldUpdate, saveSettings, manualSave, loadGame, updateConfidant, updateMemory,
+        handleAIInteraction, stopInteraction, handlePlayerAction, handlePlayerInput, handleSendMessage, handleCreateMoment, handleCreatePublicPost, handleCreateThread, handleSilentWorldUpdate, saveSettings, manualSave, loadGame, updateConfidant, updateMemory,
         handleReroll, handleEditLog, handleDeleteLog, handleEditUserLog, handleUpdateLogText, handleUserRewrite, handleDeleteTask,
         handleEditPhoneMessage, handleDeletePhoneMessage
     };

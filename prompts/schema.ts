@@ -190,18 +190,15 @@
 - \`截止时间\`: String
 - \`日志\`: Array<{ "时间戳": String, "内容": String }>
 
-## 8. 手机系统
-- \`gameState.魔石通讯终端\`: { "电量": Number (0-100), "当前信号": Number (0-4) }
-- \`gameState.短信\`: Array<{
-    "id": String, "发送者": String, "目标": String,
-    "内容": String, "频道": "private"|"group"|"forum", "群组名称": String,
-    "时间戳": String, "timestampValue": Number
-  }>
-- \`gameState.动态\`: Array<{
-    "id": String, "发布者": String, "头像": String, "内容": String,
-    "点赞数": Number, "评论": Array<{ "用户": String, "内容": String }>,
-    "时间戳": String, "timestampValue": Number, "图片描述": String
-  }>
+## 8. 手机系统 (gameState.手机)
+- \`gameState.手机.设备\`: { "电量": Number (0-100), "当前信号": Number (0-4), "状态": String }
+- \`gameState.手机.联系人\`: { "好友": String[], "黑名单": String[], "最近": String[] }
+- \`gameState.手机.对话\`: { "私聊": PhoneThread[], "群聊": PhoneThread[], "公共频道": PhoneThread[] }
+  - \`PhoneThread\`: { "id", "类型":"private"|"group"|"public", "标题", "成员": String[], "消息": PhoneMessage[], "未读?", "置顶?", "备注?" }
+  - \`PhoneMessage\`: { "id", "发送者", "内容", "时间戳", "timestampValue", "类型", "状态", "图片描述?", "引用?" }
+- \`gameState.手机.朋友圈\`: { "仅好友可见": Boolean, "帖子": PhonePost[] }
+- \`gameState.手机.公共帖子\`: { "板块?": String[], "帖子": PhonePost[] }
+  - \`PhonePost\`: { "id", "发布者", "头像?", "内容", "时间戳", "timestampValue", "点赞数", "评论": Array<{ "用户", "内容" }>, "图片描述?", "可见性":"friends"|"public", "话题?", "来源?" }
 
 ## 9. 世界动态 (gameState.世界)
 - \`gameState.世界.异常指数\`: Number (0-100)

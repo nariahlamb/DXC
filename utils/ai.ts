@@ -1,5 +1,5 @@
 
-import { AppSettings, GameState, PromptModule, AIEndpointConfig, Confidant, MemoryEntry, LogEntry, AIResponse, ContextModuleConfig, ContextModuleType, InventoryItem, Task, MemoryConfig, PhoneMessage, MemorySystem, MomentPost, WorldMapData } from "../types";
+import { AppSettings, GameState, PromptModule, AIEndpointConfig, Confidant, MemoryEntry, LogEntry, AIResponse, ContextModuleConfig, ContextModuleType, InventoryItem, Task, MemoryConfig, PhoneMessage, PhonePost, PhoneState, PhoneThread, MemorySystem, WorldMapData } from "../types";
 import { GoogleGenAI } from "@google/genai";
 import { 
     P_SYS_FORMAT, P_SYS_CORE, P_SYS_STATS, P_SYS_LEVELING, P_SYS_COMBAT,
@@ -462,105 +462,99 @@ const parseGameTimeLabel = (timestamp?: string) => {
     return { dayLabel, timeLabel, sortValue };
 };
 
-export const constructPhoneContext = (messages: PhoneMessage[], moments: MomentPost[], phoneState: any, params: any): string => {
-    const perTargetLimit = typeof params?.perTargetLimit === 'number' ? params.perTargetLimit : (params?.messageLimit || 10);
+export const constructPhoneContext = (phoneState: PhoneState | undefined, params: any): string => {
+    let output = "[手机通讯 (Phone)]\n";
+    if (!phoneState) return output + "（终端未接入）";
+
+    const device = phoneState.设备 || { 电量: 0, 当前信号: 0 };
+    const battery = typeof device.电量 === 'number' ? device.电量 : 0;
+    const signal = typeof device.当前信号 === 'number' ? device.当前信号 : 0;
+    const status = device.状态 || (battery <= 0 ? 'offline' : 'online');
+
+    output += `终端状态: 电量 ${battery}%, 信号 ${signal}/4, 状态 ${status}\n`;
+
+    const friends = Array.isArray(phoneState.联系人?.好友) ? phoneState.联系人.好友 : [];
+    const recent = Array.isArray(phoneState.联系人?.最近) ? phoneState.联系人.最近 : [];
+    if (friends.length > 0) output += `好友: ${friends.join(', ')}\n`;
+    if (recent.length > 0) output += `最近联系人: ${recent.join(', ')}\n`;
+
+    const perThreadLimit = typeof params?.perThreadLimit === 'number'
+        ? params.perThreadLimit
+        : (typeof params?.perTargetLimit === 'number' ? params.perTargetLimit : 10);
     const includeMoments = params?.includeMoments !== false;
     const momentLimit = typeof params?.momentLimit === 'number' ? params.momentLimit : 6;
-    const targetFilters: string[] = Array.isArray(params?.targets) ? params.targets : [];
-    const groupFilters: string[] = Array.isArray(params?.groups) ? params.groups : [];
-    const targetLimits = params?.targetLimits || {};
+    const includePublicPosts = params?.includePublicPosts !== false;
+    const forumLimit = typeof params?.forumLimit === 'number' ? params.forumLimit : 6;
 
-    const indexMap = new Map<string, number>();
-    (messages || []).forEach((m, idx) => indexMap.set(m.id, idx));
+    const targetFilter = Array.isArray(params?.targets) && params.targets.length > 0 ? new Set(params.targets) : null;
+    const targetLimits = params?.targetLimits || {};
+    const playerName = params?.playerName || 'Player';
+
     const getSortValue = (m: PhoneMessage) => {
         if (typeof m.timestampValue === 'number') return m.timestampValue;
         const parsed = parseGameTimeLabel(m.时间戳);
         if (parsed.sortValue !== null) return parsed.sortValue;
-        return indexMap.get(m.id) ?? 0;
+        return 0;
     };
 
-    const isPlayer = (name?: string) => name === 'Player' || name === 'Joker' || name === '玩家';
-    const getOtherParty = (m: PhoneMessage) => {
-        if (m.频道 !== 'private') return null;
-        if (m.发送者 && !isPlayer(m.发送者)) return m.发送者;
-        if (m.目标 && !isPlayer(m.目标)) return m.目标;
-        return null;
+    const formatMessage = (m: PhoneMessage) => {
+        const time = m.时间戳 || '';
+        const sender = m.发送者 || '未知';
+        let content = m.内容 || '';
+        if (m.图片描述) content += ` (图片: ${m.图片描述})`;
+        if (m.引用?.内容) {
+            const quoteSender = m.引用.发送者 ? `${m.引用.发送者}: ` : '';
+            content += ` (引用: ${quoteSender}${m.引用.内容})`;
+        }
+        return `[${time}] ${sender}: ${content}`;
     };
 
-    const buildConversationBlock = (title: string, items: PhoneMessage[], limitOverride?: number) => {
-        if (items.length === 0) return "";
-        const sorted = [...items].sort((a, b) => getSortValue(a) - getSortValue(b));
-        const limit = typeof limitOverride === 'number' ? limitOverride : perTargetLimit;
-        const slice = limit > 0 ? sorted.slice(-limit) : sorted;
-        let block = `【${title}】\n`;
-        let currentDay = "";
-        slice.forEach((msg) => {
-            const { dayLabel, timeLabel } = parseGameTimeLabel(msg.时间戳);
-            if (dayLabel !== currentDay) {
-                currentDay = dayLabel;
-                block += `[${dayLabel}]\n`;
-            }
-            const senderName = isPlayer(msg.发送者) ? '玩家' : (msg.发送者 || '未知');
-            block += `${senderName}: ${msg.内容}[${timeLabel}]\n`;
+    const buildThreadBlock = (label: string, threads: PhoneThread[], applyFilter: boolean) => {
+        if (!threads || threads.length === 0) return;
+        output += `${label}:\n`;
+        threads.forEach(t => {
+            if (applyFilter && targetFilter && !targetFilter.has(t.标题)) return;
+            const limitOverride = typeof targetLimits?.[t.标题] === 'number' ? targetLimits[t.标题] : perThreadLimit;
+            const messages = Array.isArray(t.消息) ? t.消息.slice().sort((a, b) => getSortValue(a) - getSortValue(b)) : [];
+            const trimmed = limitOverride > 0 ? messages.slice(-limitOverride) : messages;
+            if (trimmed.length === 0) return;
+            output += `- ${t.标题} (${t.类型})\n`;
+            trimmed.forEach(m => {
+                output += `  ${formatMessage(m)}\n`;
+            });
         });
-        return block.trimEnd();
     };
 
-    let output = "[手机通讯 (Phone)]\n";
-    if (phoneState) {
-        output += `设备状态: 电量 ${phoneState.电量 ?? '??'}%, 信号 ${phoneState.当前信号 ?? '??'}/4\n`;
+    buildThreadBlock("私聊", phoneState.对话?.私聊 || [], true);
+    buildThreadBlock("群聊", phoneState.对话?.群聊 || [], false);
+    buildThreadBlock("公共频道", phoneState.对话?.公共频道 || [], false);
+
+    if (includeMoments && Array.isArray(phoneState.朋友圈?.帖子)) {
+        const friendSet = new Set(friends);
+        const feed = phoneState.朋友圈?.仅好友可见
+            ? phoneState.朋友圈.帖子.filter(p => p.发布者 === playerName || friendSet.has(p.发布者))
+            : phoneState.朋友圈.帖子;
+        const sorted = [...feed].sort((a, b) => (a.timestampValue || 0) - (b.timestampValue || 0));
+        const trimmed = momentLimit > 0 ? sorted.slice(-momentLimit) : sorted;
+        if (trimmed.length > 0) {
+            output += "朋友圈动态:\n";
+            trimmed.forEach(m => {
+                const tags = Array.isArray(m.话题) && m.话题.length > 0 ? ` #${m.话题.join(' #')}` : '';
+                output += `- [${m.时间戳 || ''}] ${m.发布者}: ${m.内容}${tags}\n`;
+            });
+        }
     }
 
-    const privateThreads = new Map<string, PhoneMessage[]>();
-    (messages || []).forEach((m) => {
-        if (m.频道 !== 'private') return;
-        const other = getOtherParty(m);
-        if (!other) return;
-        if (targetFilters.length > 0 && !targetFilters.includes(other)) return;
-        if (!privateThreads.has(other)) privateThreads.set(other, []);
-        privateThreads.get(other)!.push(m);
-    });
-
-    const groupThreads = new Map<string, PhoneMessage[]>();
-    (messages || []).forEach((m) => {
-        if (m.频道 !== 'group' || !m.群组名称) return;
-        if (groupFilters.length > 0 && !groupFilters.includes(m.群组名称)) return;
-        if (!groupThreads.has(m.群组名称)) groupThreads.set(m.群组名称, []);
-        groupThreads.get(m.群组名称)!.push(m);
-    });
-
-    if (privateThreads.size > 0) {
-        output += "私信对话:\n";
-        Array.from(privateThreads.entries()).forEach(([name, msgs]) => {
-            const block = buildConversationBlock(`私信 - ${name}`, msgs, targetLimits[name]);
-            if (block) output += block + "\n";
-        });
-    }
-
-    if (groupThreads.size > 0) {
-        output += "群聊对话:\n";
-        Array.from(groupThreads.entries()).forEach(([name, msgs]) => {
-            const block = buildConversationBlock(`群聊 - ${name}`, msgs);
-            if (block) output += block + "\n";
-        });
-    }
-
-    if (includeMoments && moments && moments.length > 0) {
-        const sortedMoments = [...moments].sort((a, b) => {
-            if (typeof a.timestampValue === 'number' && typeof b.timestampValue === 'number') {
-                return a.timestampValue - b.timestampValue;
-            }
-            const aParsed = parseGameTimeLabel(a.时间戳);
-            const bParsed = parseGameTimeLabel(b.时间戳);
-            if (aParsed.sortValue !== null && bParsed.sortValue !== null) return aParsed.sortValue - bParsed.sortValue;
-            return 0;
-        });
-        const slice = momentLimit > 0 ? sortedMoments.slice(-momentLimit) : sortedMoments;
-        output += "公开动态:\n";
-        slice.forEach((m) => {
-            const { timeLabel } = parseGameTimeLabel(m.时间戳);
-            output += `- ${m.发布者}: ${m.内容}[${timeLabel}]\n`;
-        });
+    if (includePublicPosts && Array.isArray(phoneState.公共帖子?.帖子)) {
+        const sorted = [...phoneState.公共帖子.帖子].sort((a, b) => (a.timestampValue || 0) - (b.timestampValue || 0));
+        const trimmed = forumLimit > 0 ? sorted.slice(-forumLimit) : sorted;
+        if (trimmed.length > 0) {
+            output += "公共论坛:\n";
+            trimmed.forEach(p => {
+                const tag = Array.isArray(p.话题) && p.话题.length > 0 ? ` [${p.话题.join('/')}]` : '';
+                output += `- [${p.时间戳 || ''}] ${p.发布者}${tag}: ${p.内容}\n`;
+            });
+        }
     }
 
     return output.trim();
@@ -869,7 +863,7 @@ export const generateSingleModuleContext = (mod: ContextModuleConfig, gameState:
                 mod.params
             );
         case 'PHONE_CONTEXT':
-            return constructPhoneContext(gameState.短信, gameState.动态, gameState.魔石通讯终端, mod.params);
+            return constructPhoneContext(gameState.手机, { ...mod.params, playerName: gameState.角色?.姓名 || 'Player' });
         case 'TASK_CONTEXT':
             return constructTaskContext(gameState.任务, mod.params);
         case 'FAMILIA_CONTEXT':

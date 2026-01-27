@@ -244,21 +244,21 @@ export const SettingsContext: React.FC<SettingsContextProps> = ({ settings, onUp
                                             </div>
                                         ) : activeModule.type === 'PHONE_CONTEXT' ? (
                                             <div className="space-y-4">
-                                                <div className="grid grid-cols-2 gap-4">
+                                                <div className="grid grid-cols-3 gap-4">
                                                     <div className="bg-white p-3 border border-zinc-200 rounded">
                                                         <label className="block text-xs font-bold text-zinc-500 mb-1">对话展示条数</label>
                                                         <div className="flex items-center gap-2">
                                                             <input 
                                                                 type="number" min="0" max="100"
-                                                                value={activeModule.params.perTargetLimit ?? activeModule.params.messageLimit ?? 10} 
-                                                                onChange={(e) => handleUpdateParams(activeModule.id, 'perTargetLimit', parseInt(e.target.value))}
+                                                                value={activeModule.params.perThreadLimit ?? activeModule.params.perTargetLimit ?? activeModule.params.messageLimit ?? 10} 
+                                                                onChange={(e) => handleUpdateParams(activeModule.id, 'perThreadLimit', parseInt(e.target.value))}
                                                                 className="w-16 p-1 border border-zinc-300 text-xs font-mono"
                                                             />
                                                             <span className="text-[10px] text-zinc-400">条</span>
                                                         </div>
                                                     </div>
                                                     <div className="bg-white p-3 border border-zinc-200 rounded">
-                                                        <label className="block text-xs font-bold text-zinc-500 mb-1">公开动态条数</label>
+                                                        <label className="block text-xs font-bold text-zinc-500 mb-1">朋友圈条数</label>
                                                         <div className="flex items-center gap-2">
                                                             <input 
                                                                 type="number" min="0" max="50"
@@ -269,19 +269,45 @@ export const SettingsContext: React.FC<SettingsContextProps> = ({ settings, onUp
                                                             <span className="text-[10px] text-zinc-400">0=不限</span>
                                                         </div>
                                                     </div>
+                                                    <div className="bg-white p-3 border border-zinc-200 rounded">
+                                                        <label className="block text-xs font-bold text-zinc-500 mb-1">论坛条数</label>
+                                                        <div className="flex items-center gap-2">
+                                                            <input 
+                                                                type="number" min="0" max="50"
+                                                                value={activeModule.params.forumLimit ?? 6} 
+                                                                onChange={(e) => handleUpdateParams(activeModule.id, 'forumLimit', parseInt(e.target.value))}
+                                                                className="w-16 p-1 border border-zinc-300 text-xs font-mono"
+                                                            />
+                                                            <span className="text-[10px] text-zinc-400">0=不限</span>
+                                                        </div>
+                                                    </div>
                                                 </div>
 
-                                                <div className="bg-white p-3 border border-zinc-200 rounded flex items-center justify-between">
-                                                    <div>
-                                                        <div className="text-xs font-bold text-zinc-600">包含公开动态</div>
-                                                        <div className="text-[10px] text-zinc-400">关闭后仅发送聊天对话</div>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div className="bg-white p-3 border border-zinc-200 rounded flex items-center justify-between">
+                                                        <div>
+                                                            <div className="text-xs font-bold text-zinc-600">包含朋友圈</div>
+                                                            <div className="text-[10px] text-zinc-400">关闭后仅发送聊天对话</div>
+                                                        </div>
+                                                        <button 
+                                                            onClick={() => handleUpdateParams(activeModule.id, 'includeMoments', !(activeModule.params.includeMoments !== false))}
+                                                            className={`${activeModule.params.includeMoments !== false ? 'text-green-500' : 'text-zinc-300'}`}
+                                                        >
+                                                            {activeModule.params.includeMoments !== false ? <ToggleRight size={20}/> : <ToggleLeft size={20}/>}
+                                                        </button>
                                                     </div>
-                                                    <button 
-                                                        onClick={() => handleUpdateParams(activeModule.id, 'includeMoments', !(activeModule.params.includeMoments !== false))}
-                                                        className={`${activeModule.params.includeMoments !== false ? 'text-green-500' : 'text-zinc-300'}`}
-                                                    >
-                                                        {activeModule.params.includeMoments !== false ? <ToggleRight size={20}/> : <ToggleLeft size={20}/>}
-                                                    </button>
+                                                    <div className="bg-white p-3 border border-zinc-200 rounded flex items-center justify-between">
+                                                        <div>
+                                                            <div className="text-xs font-bold text-zinc-600">包含公共论坛</div>
+                                                            <div className="text-[10px] text-zinc-400">关闭后不发送公共帖子</div>
+                                                        </div>
+                                                        <button 
+                                                            onClick={() => handleUpdateParams(activeModule.id, 'includePublicPosts', !(activeModule.params.includePublicPosts !== false))}
+                                                            className={`${activeModule.params.includePublicPosts !== false ? 'text-green-500' : 'text-zinc-300'}`}
+                                                        >
+                                                            {activeModule.params.includePublicPosts !== false ? <ToggleRight size={20}/> : <ToggleLeft size={20}/>}
+                                                        </button>
+                                                    </div>
                                                 </div>
 
                                                 <div className="border border-zinc-200 rounded overflow-hidden bg-white shadow-sm">
@@ -318,7 +344,7 @@ export const SettingsContext: React.FC<SettingsContextProps> = ({ settings, onUp
                                                                                     type="number" min="0" max="100"
                                                                                     value={limitVal}
                                                                                     onChange={(e) => updatePhoneTargetLimit(c.姓名, parseInt(e.target.value))}
-                                                                                    placeholder={`${activeModule.params.perTargetLimit ?? activeModule.params.messageLimit ?? 10}`}
+                                                                                    placeholder={`${activeModule.params.perThreadLimit ?? activeModule.params.perTargetLimit ?? activeModule.params.messageLimit ?? 10}`}
                                                                                     className="w-12 p-0.5 border border-zinc-300 text-[10px] font-mono text-center"
                                                                                 />
                                                                             </td>

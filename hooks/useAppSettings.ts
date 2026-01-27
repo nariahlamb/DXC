@@ -10,7 +10,7 @@ const DEFAULT_CONTEXT_MODULES: ContextModuleConfig[] = [
     { id: 'm_social', type: 'SOCIAL_CONTEXT', name: '周边NPC', enabled: true, order: 3, params: { includeAttributes: ['appearance', 'status'], presentMemoryLimit: 30, absentMemoryLimit: 6, specialPresentMemoryLimit: 30, specialAbsentMemoryLimit: 12 } },
     { id: 'm_familia', type: 'FAMILIA_CONTEXT', name: '眷族信息', enabled: true, order: 4, params: {} },
     { id: 'm_inv', type: 'INVENTORY_CONTEXT', name: '背包/公共战利品', enabled: true, order: 5, params: { detailLevel: 'medium' } },
-    { id: 'm_phone', type: 'PHONE_CONTEXT', name: '手机/消息', enabled: true, order: 6, params: { perTargetLimit: 10, includeMoments: true, momentLimit: 6 } },
+    { id: 'm_phone', type: 'PHONE_CONTEXT', name: '手机/消息', enabled: true, order: 6, params: { perThreadLimit: 10, includeMoments: true, momentLimit: 6, includePublicPosts: true, forumLimit: 6 } },
     { id: 'm_combat', type: 'COMBAT_CONTEXT', name: '战斗数据', enabled: true, order: 7, params: {} },
     { id: 'm_task', type: 'TASK_CONTEXT', name: '任务列表', enabled: true, order: 8, params: {} },
     { id: 'm_world', type: 'WORLD_CONTEXT', name: '世界动态', enabled: true, order: 9, params: {} },

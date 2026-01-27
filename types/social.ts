@@ -82,23 +82,63 @@ export interface Confidant {
 export interface PhoneMessage {
   id: string;
   发送者: string;
-  目标?: string;
   内容: string;
   时间戳: string; // Display string "第X日 HH:MM"
   timestampValue?: number; // Sorting value
-  频道: 'private' | 'group' | 'forum';
-  群组名称?: string;
-  头像色?: string;
+  类型?: 'text' | 'system' | 'image' | string;
+  状态?: 'sent' | 'received' | 'read' | string;
+  图片描述?: string;
+  引用?: { id?: string; 内容?: string; 发送者?: string };
 }
 
-export interface MomentPost {
+export interface PhoneThread {
+  id: string;
+  类型: 'private' | 'group' | 'public';
+  标题: string;
+  成员: string[];
+  消息: PhoneMessage[];
+  未读?: number;
+  置顶?: boolean;
+  备注?: string;
+}
+
+export interface PhonePost {
   id: string;
   发布者: string;
   头像?: string;
   内容: string;
-  时间戳: string; // Display string
-  timestampValue?: number; // Sorting value
+  时间戳: string;
+  timestampValue?: number;
   点赞数: number;
   评论: { 用户: string; 内容: string }[];
   图片描述?: string; 
+  可见性: 'friends' | 'public';
+  话题?: string[];
+  来源?: string;
+}
+
+export interface PhoneState {
+  设备: {
+    电量: number;
+    当前信号: number;
+    状态?: 'online' | 'offline' | 'silent' | string;
+  };
+  联系人: {
+    好友: string[];
+    黑名单?: string[];
+    最近?: string[];
+  };
+  对话: {
+    私聊: PhoneThread[];
+    群聊: PhoneThread[];
+    公共频道: PhoneThread[];
+  };
+  朋友圈: {
+    仅好友可见: boolean;
+    帖子: PhonePost[];
+  };
+  公共帖子: {
+    板块?: string[];
+    帖子: PhonePost[];
+  };
 }

@@ -58,7 +58,7 @@ export const P_COT_LOGIC = `
   - 情报扫描：
     - gameState.任务.日志 / gameState.剧情 / gameState.契约
     - gameState.世界（头条新闻/街头传闻/诸神神会/NPC后台跟踪/派阀格局/战争游戏）
-    - gameState.短信 / gameState.动态
+    - gameState.手机 (对话/朋友圈/公共帖子/设备状态)
     - gameState.地图（当前位置与已知节点）
 - 指令解析：
   - 分层指令识别：区分叙事层动作与系统层指令，并分别处理。
@@ -113,7 +113,7 @@ export const P_COT_LOGIC = `
   - 发展能力 / 技能 / 魔法
   - 人物关系 / 在场角色
   - 物品与装备 / 背包 / 公共战利品 / 战利品 / 眷族仓库
-  - 战斗状态 / 任务 / 剧情 / 契约 / 手机消息与动态
+  - 战斗状态 / 任务 / 剧情 / 契约 / 手机对话与社交动态
 - 构思具体变更内容（无痕化与精确化）：
   - 时间推进：必须使用 set 更新 gameState.游戏时间 / gameState.当前日期。
   - 移动：set gameState.当前地点 / gameState.世界坐标 / gameState.当前楼层。（一旦移动，必须更新坐标！）
@@ -126,7 +126,7 @@ export const P_COT_LOGIC = `
   - 发展能力/技能/魔法：仅在叙事明确习得/觉醒时 push；字段必须完整。
   - 社交与在场：set 是否在场/位置详情/当前行动；好感度 add；新增 NPC 用 push。
   - 任务/剧情/契约：按叙事 set 主线/引导/待触发/里程碑与触发条件。
-  - 手机与动态：仅在叙事发生时 push 短信/动态。
+  - 手机与动态：仅在叙事发生时 push gameState.手机.对话/朋友圈/公共帖子。
   - 数值的限制：当前值不可超过最大值。
 - 强制注释：为每一条拟生成的 tavern_commands 在 thinking 内附一句原因。
 

@@ -48,7 +48,7 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
       currentOptions, lastAIResponse, lastAIThinking, isProcessing, isStreaming,
       draftInput, setDraftInput,
       memorySummaryState, confirmMemorySummary, applyMemorySummary, cancelMemorySummary,
-      handlePlayerAction, handlePlayerInput, handleSendMessage, handleCreateMoment, handleSilentWorldUpdate,
+      handlePlayerAction, handlePlayerInput, handleSendMessage, handleCreateMoment, handleCreatePublicPost, handleCreateThread, handleSilentWorldUpdate,
       stopInteraction, handleEditLog, handleDeleteLog, handleEditUserLog, handleUpdateLogText, handleUserRewrite,
       manualSave, loadGame, handleReroll, handleDeleteTask,
       handleEditPhoneMessage, handleDeletePhoneMessage
@@ -377,16 +377,16 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
         <SocialPhoneModal 
             isOpen={activeModal === 'PHONE'}
             onClose={closeModal}
-            messages={gameState.短信}
+            phoneState={gameState.手机}
             contacts={gameState.社交}
-            moments={gameState.动态}
-            phoneState={gameState.魔石通讯终端}
+            playerName={gameState.角色.姓名}
             hasPhone={hasMagicPhone}
-            onSendMessage={(text, channel, target) => handleSendMessage(`[短信/${channel}] To ${target || 'Anyone'}: ${text}`)}
+            onSendMessage={handleSendMessage}
             onEditMessage={handleEditPhoneMessage}
             onDeleteMessage={handleDeletePhoneMessage}
-            onCreateGroup={(name, members) => addToQueue(`创建群组: ${name}, 成员: ${members.join(',')}`)}
+            onCreateThread={handleCreateThread}
             onCreateMoment={(content, imageDesc) => handleCreateMoment(content, imageDesc)}
+            onCreatePublicPost={(content, imageDesc, topic) => handleCreatePublicPost(content, imageDesc, topic)}
             onReroll={handleReroll}
         />
 
