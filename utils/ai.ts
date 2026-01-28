@@ -132,16 +132,30 @@ export const normalizeThinkingField = (value?: unknown): string => {
 export const mergeThinkingSegments = (response?: Partial<AIResponse>): string => {
     if (!response) return "";
     const thinkingPre = normalizeThinkingField((response as any).thinking_pre);
+    const thinkingPlan = normalizeThinkingField((response as any).thinking_plan);
     const thinkingDraft = normalizeThinkingField((response as any).thinking_draft);
+    const thinkingCheck = normalizeThinkingField((response as any).thinking_check);
+    const thinkingCanon = normalizeThinkingField((response as any).thinking_canon);
+    const thinkingVarsPre = normalizeThinkingField((response as any).thinking_vars_pre);
+    const thinkingVarsOther = normalizeThinkingField((response as any).thinking_vars_other);
+    const thinkingVarsMerge = normalizeThinkingField((response as any).thinking_vars_merge);
+    const thinkingVarsPost = normalizeThinkingField((response as any).thinking_vars_post);
     const thinkingStory = normalizeThinkingField((response as any).thinking_story);
     const thinkingPost = normalizeThinkingField((response as any).thinking_post);
     const thinkingLegacy = normalizeThinkingField((response as any).thinking);
     const segments: string[] = [];
     if (thinkingPre) segments.push(`[思考-前]\n${thinkingPre}`);
+    if (thinkingPlan) segments.push(`[剧情预先思考]\n${thinkingPlan}`);
     if (thinkingDraft) segments.push(`[思考-草稿]\n${thinkingDraft}`);
+    if (thinkingCheck) segments.push(`[剧情合理性校验]\n${thinkingCheck}`);
+    if (thinkingCanon) segments.push(`[原著思考]\n${thinkingCanon}`);
+    if (thinkingVarsPre) segments.push(`[变量预思考]\n${thinkingVarsPre}`);
+    if (thinkingVarsOther) segments.push(`[其他功能变量]\n${thinkingVarsOther}`);
+    if (thinkingVarsMerge) segments.push(`[变量融入剧情矫正]\n${thinkingVarsMerge}`);
     if (thinkingStory) segments.push(`[思考-完整]\n${thinkingStory}`);
     if (thinkingPost) segments.push(`[思考-后]\n${thinkingPost}`);
-    if (!thinkingPre && !thinkingPost && !thinkingDraft && !thinkingStory && thinkingLegacy) segments.push(thinkingLegacy);
+    if (thinkingVarsPost) segments.push(`[变量矫正思考]\n${thinkingVarsPost}`);
+    if (!thinkingPre && !thinkingPlan && !thinkingDraft && !thinkingCheck && !thinkingCanon && !thinkingVarsPre && !thinkingVarsOther && !thinkingVarsMerge && !thinkingVarsPost && !thinkingStory && !thinkingPost && thinkingLegacy) segments.push(thinkingLegacy);
     return segments.join('\n\n').trim();
 };
 
@@ -1027,7 +1041,8 @@ export const generateSingleModuleContext = (mod: ContextModuleConfig, gameState:
                 inputText += `\n\n- 本次"logs"内的正文**必须${required}字**以上`;
             }
             if (settings.aiConfig?.nativeThinkingChain !== false) {
-                inputText += `\n<think>好，思考结束</think>\n\n接下来以"thinking_pre"作为开头进行思考`;
+                const nextField = settings.aiConfig?.multiStageThinking ? 'thinking_plan' : 'thinking_pre';
+                inputText += `\n<think>好，思考结束</think>\n\n接下来以"${nextField}"作为开头进行思考`;
             }
             return inputText;
         default:

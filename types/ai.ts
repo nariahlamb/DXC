@@ -171,7 +171,14 @@ export interface AIResponse {
   thinking?: string; // AI思考内容（<thinking>解析结果）
   thinking_pre?: string; // 第一段思考
   thinking_post?: string; // 第二段思考
+  thinking_plan?: string; // 剧情预先思考（多重思考）
   thinking_draft?: string; // 剧情草稿（多重思考）
+  thinking_check?: string; // 剧情合理性校验
+  thinking_canon?: string; // 原著思考
+  thinking_vars_pre?: string; // 变量预思考
+  thinking_vars_other?: string; // 其他功能变量更新思考
+  thinking_vars_merge?: string; // 变量融入剧情矫正
+  thinking_vars_post?: string; // 变量矫正思考
   thinking_story?: string; // 完整剧情（多重思考）
   narrative?: string; // Optional for legacy support
   repairNote?: string; // 本地修复提示
