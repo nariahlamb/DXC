@@ -44,7 +44,6 @@ export interface LogEntry {
   responseId?: string; // AI响应分组ID
   repairNote?: string; // 本地修复提示
   gameTime?: string; // NEW: 游戏内完整时间 "YYYY-MM-DD HH:MM"
-  pinned?: boolean; // 收藏/置顶
   tags?: string[]; // 自定义标签
 }
 
@@ -174,12 +173,14 @@ export interface AIResponse {
   thinking_pre?: string; // 第一段思考
   thinking_post?: string; // 第二段思考
   thinking_plan?: string; // 剧情预先思考（多重思考）
+  thinking_style?: string; // 文风思考
   thinking_draft?: string; // 剧情草稿（多重思考）
   thinking_check?: string; // 剧情合理性校验
   thinking_canon?: string; // 原著思考
   thinking_vars_pre?: string; // 变量预思考
   thinking_vars_other?: string; // 其他功能变量更新思考
   thinking_vars_merge?: string; // 变量融入剧情矫正
+  thinking_gap?: string; // 查缺补漏思考
   thinking_vars_post?: string; // 变量矫正思考
   thinking_story?: string; // 完整剧情（多重思考）
   narrative?: string; // Optional for legacy support

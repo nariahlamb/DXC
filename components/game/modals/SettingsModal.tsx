@@ -53,7 +53,7 @@ interface SettingsModalProps {
   initialView?: SettingsView;
 }
 
-type SettingsView = 'MAIN' | 'PROMPTS' | 'VISUALS' | 'DATA' | 'AI_SERVICES' | 'VARIABLES' | 'MEMORY' | 'SCHEMA' | 'AI_CONTEXT' | 'STORAGE' | 'FULL_LOGS';
+type SettingsView = 'MAIN' | 'PROMPTS' | 'VISUALS' | 'DATA' | 'AI_SERVICES' | 'VARIABLES' | 'MEMORY' | 'SCHEMA' | 'AI_CONTEXT' | 'STORAGE' | 'FULL_LOGS' | 'LIBRARY';
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ 
   isOpen, 
@@ -539,6 +539,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             subLabel="LIVE STATE INSPECTOR"
             onClick={() => setCurrentView('SCHEMA')} 
             color="border-cyan-600 hover:bg-cyan-600 hover:text-white text-black"
+        />
+        <MenuButton 
+            icon={<Database />} 
+            label="资料库" 
+            subLabel="地图 / 建筑 / 地下城"
+            onClick={() => setCurrentView('LIBRARY')} 
+            color="border-emerald-600 hover:bg-emerald-600 hover:text-white text-black"
         />
         <MenuButton 
             icon={<Database />} 
@@ -1307,6 +1314,56 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       );
   };
 
+  const renderLibraryView = () => {
+      const mapData = gameState.地图;
+      const macro = mapData?.macroLocations || [];
+      const mid = mapData?.midLocations || [];
+      const small = mapData?.smallLocations || [];
+      const dungeonStructure = mapData?.dungeonStructure || [];
+      const dungeonNodes = (mapData?.surfaceLocations || []).filter((l: any) => (l.floor || 0) > 0);
+      return (
+          <div className="space-y-6 animate-in slide-in-from-right-8 duration-300">
+              <SectionHeader title="资料库" icon={<Database />} />
+              <div className="bg-white border border-zinc-300 p-4 shadow-sm space-y-2 text-xs text-zinc-700">
+                  <div className="font-bold text-zinc-800">上下文插入条件</div>
+                  <div>• 大地图/中地点：地表时默认输出名称/坐标/区域范围。</div>
+                  <div>• 小地点：仅当角色进入对应小地点时，才插入完整布局、房间与家具。</div>
+                  <div>• 地下城：仅当玩家输入包含地图关键词且明确写出“第N层/ N层”，并且 N = 当前楼层时插入该层完整地图。</div>
+              </div>
+              <div className="bg-white border border-zinc-300 p-4 shadow-sm">
+                  <div className="text-xs font-bold uppercase text-zinc-600 mb-2">完整地图数据</div>
+                  <pre className="text-[10px] text-zinc-800 font-mono bg-zinc-50 border border-zinc-200 p-3 max-h-96 overflow-auto whitespace-pre-wrap">
+                      {JSON.stringify(mapData, null, 2)}
+                  </pre>
+              </div>
+              <div className="bg-white border border-zinc-300 p-4 shadow-sm">
+                  <div className="text-xs font-bold uppercase text-zinc-600 mb-2">建筑/室内数据 (小地点)</div>
+                  <pre className="text-[10px] text-zinc-800 font-mono bg-zinc-50 border border-zinc-200 p-3 max-h-96 overflow-auto whitespace-pre-wrap">
+                      {JSON.stringify(small, null, 2)}
+                  </pre>
+              </div>
+              <div className="bg-white border border-zinc-300 p-4 shadow-sm">
+                  <div className="text-xs font-bold uppercase text-zinc-600 mb-2">地下城结构</div>
+                  <pre className="text-[10px] text-zinc-800 font-mono bg-zinc-50 border border-zinc-200 p-3 max-h-80 overflow-auto whitespace-pre-wrap">
+                      {JSON.stringify(dungeonStructure, null, 2)}
+                  </pre>
+              </div>
+              <div className="bg-white border border-zinc-300 p-4 shadow-sm">
+                  <div className="text-xs font-bold uppercase text-zinc-600 mb-2">地下城节点数据 (1-50层)</div>
+                  <pre className="text-[10px] text-zinc-800 font-mono bg-zinc-50 border border-zinc-200 p-3 max-h-96 overflow-auto whitespace-pre-wrap">
+                      {JSON.stringify(dungeonNodes, null, 2)}
+                  </pre>
+              </div>
+              <div className="bg-white border border-zinc-300 p-4 shadow-sm">
+                  <div className="text-xs font-bold uppercase text-zinc-600 mb-2">宏观/中观地点索引</div>
+                  <pre className="text-[10px] text-zinc-800 font-mono bg-zinc-50 border border-zinc-200 p-3 max-h-80 overflow-auto whitespace-pre-wrap">
+                      {JSON.stringify({ macro, mid }, null, 2)}
+                  </pre>
+              </div>
+          </div>
+      );
+  };
+
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-0 md:p-4 animate-in fade-in duration-300">
       <div className="w-full max-w-6xl h-full md:h-[90vh] bg-zinc-100 relative shadow-2xl overflow-hidden flex flex-col md:flex-row md:border-4 md:border-black">
@@ -1352,6 +1409,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 {currentView === 'MEMORY' && renderMemoryView()}
                 {currentView === 'SCHEMA' && renderSchemaView()}
                 {currentView === 'FULL_LOGS' && renderFullLogsView()}
+                {currentView === 'LIBRARY' && renderLibraryView()}
                 {currentView === 'AI_CONTEXT' && (
                     <SettingsContext 
                         settings={formData} 

@@ -731,7 +731,13 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         if (response.phone_updates) nextState = mergePhoneState(nextState, response.phone_updates);
         if (response.messages) nextState = enqueuePhoneMessages(nextState, response.messages, playerName);
         if (response.tavern_commands && response.tavern_commands.length > 0) {
-            nextState = processTavernCommands(nextState, response.tavern_commands).newState;
+            const hasPhonePayload = !!response.phone_updates || (Array.isArray(response.messages) && response.messages.length > 0);
+            const commands = hasPhonePayload
+                ? response.tavern_commands.filter(cmd => !(typeof cmd?.key === 'string' && cmd.key.startsWith('gameState.手机')))
+                : response.tavern_commands;
+            if (commands.length > 0) {
+                nextState = processTavernCommands(nextState, commands).newState;
+            }
         }
         if (response.short_memory && response.short_memory.length > 0) {
             nextState = appendPhoneMemoryEntries(nextState, response.short_memory);
@@ -1598,12 +1604,17 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                 undefined,
                 undefined
             );
+            let nextStateForPhoneSync: GameState | null = null;
             setGameState(prev => {
                 const commands = Array.isArray(aiResponse.tavern_commands) ? aiResponse.tavern_commands : [];
                 const { newState } = processTavernCommands(prev, commands);
                 newState.处理中 = false;
+                nextStateForPhoneSync = newState;
                 return newState;
             });
+            if (aiResponse.phone_sync_plan && nextStateForPhoneSync) {
+                handlePhoneSyncPlan(aiResponse.phone_sync_plan, nextStateForPhoneSync);
+            }
         } catch (e) {
             console.error('World info update failed', e);
         } finally {
@@ -1866,20 +1877,13 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         setGameState(prev => ({ ...prev, 任务: prev.任务.filter(t => t.id !== taskId) }));
     };
 
-    const handleToggleLogPin = (logId: string) => {
-        setGameState(prev => ({
-            ...prev,
-            日志: prev.日志.map(l => l.id === logId ? { ...l, pinned: !l.pinned } : l)
-        }));
-    };
-
     return {
         gameState, setGameState, settings, setSettings,
         commandQueue, pendingCommands, addToQueue, removeFromQueue, currentOptions, lastAIResponse, lastAIThinking, isProcessing, isStreaming, isPhoneProcessing, phoneProcessingThreadId, phoneProcessingScope, draftInput, setDraftInput,
         memorySummaryState, confirmMemorySummary, applyMemorySummary, cancelMemorySummary,
         handleAIInteraction, stopInteraction, handlePlayerAction, handlePlayerInput, handleSendMessage, handleCreateMoment, handleCreatePublicPost, handleCreateThread, handleMarkThreadRead, handleSilentWorldUpdate, handleWaitForPhoneReply, saveSettings, manualSave, loadGame, updateConfidant, updateMemory,
         handleReroll, handleEditLog, handleDeleteLog, handleEditUserLog, handleUpdateLogText, handleUserRewrite, handleDeleteTask,
-        handleEditPhoneMessage, handleDeletePhoneMessage, handleToggleLogPin,
+        handleEditPhoneMessage, handleDeletePhoneMessage,
         phoneNotifications
     };
 };

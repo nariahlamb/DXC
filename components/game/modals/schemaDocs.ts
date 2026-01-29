@@ -35,7 +35,6 @@
             "responseId": "String?",
             "repairNote": "String?",
             "gameTime": "String?",
-            "pinned": "Boolean?",
             "tags": "String[]?"
         }
     },
@@ -235,7 +234,10 @@
             "terrain": "Array<{id, type, name, path, color, strokeColor, strokeWidth, floor}>",
             "routes": "Array<{id, name, path, type, width, color, floor}>",
             "surfaceLocations": "Array<{id, name, type, coordinates, radius, description, icon, floor}>",
-            "dungeonStructure": "Array<{floorStart, floorEnd, name, description, dangerLevel, landmarks}>"
+            "dungeonStructure": "Array<{floorStart, floorEnd, name, description, dangerLevel, landmarks}>",
+            "macroLocations": "Array<{id, name, type?, coordinates, area, description?, floor?}>",
+            "midLocations": "Array<{id, name, parentId, coordinates, area?, description?, floor?}>",
+            "smallLocations": "Array<{id, name, parentId, coordinates?, area?, description?, floor?, layout}>"
         }
     },
     {

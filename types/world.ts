@@ -7,6 +7,84 @@ export interface GeoPoint {
     y: number;
 }
 
+export interface MapArea {
+  shape: 'CIRCLE' | 'RECT' | 'POLYGON';
+  center?: GeoPoint;
+  radius?: number;
+  width?: number;
+  height?: number;
+  points?: GeoPoint[];
+  note?: string;
+}
+
+export interface MapMacroLocation {
+  id: string;
+  name: string;
+  type?: string;
+  coordinates: GeoPoint;
+  area: MapArea;
+  description?: string;
+  floor?: number;
+}
+
+export interface MapMidLocation {
+  id: string;
+  name: string;
+  parentId: string;
+  coordinates: GeoPoint;
+  area?: MapArea;
+  description?: string;
+  floor?: number;
+}
+
+export interface MapRoom {
+  id: string;
+  name: string;
+  type?: string;
+  bounds: { x: number; y: number; width: number; height: number };
+  connections?: string[];
+  features?: string[];
+}
+
+export interface MapFurniture {
+  id: string;
+  name: string;
+  type?: string;
+  position: GeoPoint;
+  size?: { width: number; height: number };
+  roomId?: string;
+  description?: string;
+}
+
+export interface MapEntrance {
+  id: string;
+  name: string;
+  position: GeoPoint;
+  connectsTo?: string;
+}
+
+export interface MapSmallLayout {
+  scale: string;
+  width: number;
+  height: number;
+  rooms: MapRoom[];
+  furniture: MapFurniture[];
+  entrances: MapEntrance[];
+  paths?: { id: string; from: string; to: string; note?: string }[];
+  notes?: string[];
+}
+
+export interface MapSmallLocation {
+  id: string;
+  name: string;
+  parentId: string;
+  coordinates?: GeoPoint;
+  area?: MapArea;
+  layout: MapSmallLayout;
+  description?: string;
+  floor?: number;
+}
+
 // --- Map Features ---
 export interface MapFaction {
   id: string;
@@ -58,7 +136,7 @@ export interface TradeRoute {
 export interface OrarioLocation {
     id: string;
     name: string; 
-    type: 'LANDMARK' | 'SHOP' | 'GUILD' | 'FAMILIA_HOME' | 'SLUM' | 'STREET' | 'DUNGEON_ENTRANCE' | 'SAFE_ZONE';
+    type: 'LANDMARK' | 'SHOP' | 'GUILD' | 'FAMILIA_HOME' | 'SLUM' | 'STREET' | 'DUNGEON_ENTRANCE' | 'SAFE_ZONE' | 'STAIRS_UP' | 'STAIRS_DOWN' | 'POINT';
     coordinates: GeoPoint; 
     radius: number; 
     description: string;
@@ -89,6 +167,9 @@ export interface WorldMapData {
     routes: TradeRoute[];
     surfaceLocations: OrarioLocation[];
     dungeonStructure: DungeonLayer[];
+    macroLocations?: MapMacroLocation[];
+    midLocations?: MapMidLocation[];
+    smallLocations?: MapSmallLocation[];
 }
 
 export interface DenatusState {

@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Target, Plus, Minus, Layers, Eye, EyeOff, Map as MapIcon, Info, X, ChevronDown } from 'lucide-react';
-import { WorldMapData, GeoPoint, Confidant } from '../../types';
+import { WorldMapData, GeoPoint, Confidant, MapMidLocation, MapSmallLocation } from '../../types';
 import { drawWorldMapCanvas, resizeCanvasToContainer } from '../../utils/mapCanvas';
 
 interface MobileMapViewProps {
@@ -10,6 +10,7 @@ interface MobileMapViewProps {
   playerName: string;
   confidants: Confidant[];
   floor: number;
+  location?: string;
 }
 
 export const MobileMapView: React.FC<MobileMapViewProps> = ({ 
@@ -17,13 +18,17 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
   currentPos,
   playerName,
   confidants,
-  floor
+  floor,
+  location
 }) => {
   // Zoom & Pan State
   const [scale, setScale] = useState(0.5); // Default closer zoom for mobile
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [viewMode, setViewMode] = useState<'macro' | 'mid' | 'small'>('macro');
+  const [activeMid, setActiveMid] = useState<MapMidLocation | null>(null);
+  const [activeSmall, setActiveSmall] = useState<MapSmallLocation | null>(null);
   
   // UI State
   const [showLayers, setShowLayers] = useState(false);
@@ -49,21 +54,97 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
 
   // Initial Data (Fallback if undefined)
   const mapData = worldMap || { 
-      config: { width: 50000, height: 50000 },
+      config: { width: 10000, height: 10000 },
       factions: [], territories: [], terrain: [], routes: [], surfaceLocations: [], dungeonStructure: [] 
+  };
+
+  const matchByName = (needle?: string, name?: string) => {
+      if (!needle || !name) return false;
+      return needle.includes(name) || name.includes(needle);
+  };
+
+  const resolveAutoView = () => {
+      if (floor !== 0) {
+          setViewMode('macro');
+          setActiveMid(null);
+          setActiveSmall(null);
+          return;
+      }
+      const smallMatch = mapData.smallLocations?.find(s => matchByName(location, s.name)) || null;
+      const midMatch = mapData.midLocations?.find(m => matchByName(location, m.name)) || null;
+      if (smallMatch) {
+          setViewMode('small');
+          setActiveSmall(smallMatch);
+          setActiveMid(midMatch);
+      } else if (midMatch) {
+          setViewMode('mid');
+          setActiveMid(midMatch);
+          setActiveSmall(null);
+      } else {
+          setViewMode('macro');
+          setActiveMid(null);
+          setActiveSmall(null);
+      }
+  };
+
+  const centerOnArea = (center: GeoPoint, area?: { radius?: number; width?: number; height?: number }) => {
+      if (!containerRef.current) return;
+      const { clientWidth, clientHeight } = containerRef.current;
+      const diameter = area?.radius ? area.radius * 2 : (area?.width && area?.height ? Math.max(area.width, area.height) : 1200);
+      const desiredScale = Math.min(clientWidth / diameter, clientHeight / diameter) * 0.6;
+      const targetScale = Math.max(0.3, Math.min(desiredScale, 2.0));
+      setOffset({
+          x: -center.x * targetScale + clientWidth / 2,
+          y: -center.y * targetScale + clientHeight / 2
+      });
+      setScale(targetScale);
+      setViewingFloor(floor);
+  };
+
+  const centerOnPlayer = () => {
+      if (containerRef.current) {
+          const { clientWidth, clientHeight } = containerRef.current;
+          const targetScale = 0.5; 
+          setOffset({
+              x: -currentPos.x * targetScale + clientWidth / 2,
+              y: -currentPos.y * targetScale + clientHeight / 2
+          });
+          setScale(targetScale);
+          setViewingFloor(floor);
+      }
   };
 
   // Initial Center & Sync with Prop Updates
   useEffect(() => {
       setViewingFloor(floor);
+      resolveAutoView();
       setTimeout(() => centerOnPlayer(), 100);
-  }, [currentPos, floor]); 
+  }, [currentPos, floor, location, worldMap]); 
+
+  useEffect(() => {
+      if (viewingFloor !== 0) return;
+      if (viewMode === 'mid' && activeMid) {
+          centerOnArea(activeMid.area?.center || activeMid.coordinates, activeMid.area);
+      }
+      if (viewMode === 'macro') {
+          centerOnPlayer();
+      }
+  }, [viewMode, activeMid, viewingFloor]);
 
   useEffect(() => {
       setSelectedLocation(null);
   }, [viewingFloor]);
 
   useEffect(() => {
+      if (viewMode === 'small') {
+          setSelectedLocation(null);
+          setShowLayers(false);
+          setShowLegend(false);
+      }
+  }, [viewMode]);
+
+  useEffect(() => {
+      if (viewMode === 'small' && viewingFloor === 0) return;
       const draw = () => {
           const canvas = canvasRef.current;
           const container = containerRef.current;
@@ -86,10 +167,11 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
       draw();
       window.addEventListener('resize', draw);
       return () => window.removeEventListener('resize', draw);
-  }, [mapData, scale, offset, viewingFloor, showTerritories, showNPCs, floor, currentPos, confidants]);
+  }, [mapData, scale, offset, viewingFloor, showTerritories, showNPCs, floor, currentPos, confidants, viewMode]);
 
   // --- Zoom Logic (Visual Center) ---
   const applyZoom = (deltaScale: number) => {
+      if (viewMode === 'small') return;
       if (!containerRef.current) return;
       const { clientWidth, clientHeight } = containerRef.current;
       
@@ -109,22 +191,10 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
       setOffset({ x: newOffsetX, y: newOffsetY });
   };
 
-  const centerOnPlayer = () => {
-      if (containerRef.current) {
-          const { clientWidth, clientHeight } = containerRef.current;
-          // Target scale for mobile needs to be smaller to see context, or 0.5 for detail
-          const targetScale = 0.5; 
-          setOffset({
-              x: -currentPos.x * targetScale + clientWidth / 2,
-              y: -currentPos.y * targetScale + clientHeight / 2
-          });
-          setScale(targetScale);
-          setViewingFloor(floor);
-      }
-  };
 
   // --- Touch Pan Logic ---
   const handleTouchStart = (e: React.TouchEvent) => {
+      if (viewMode === 'small') return;
       if(e.touches.length === 1) {
           setIsDragging(true);
           setTouchMoved(false);
@@ -134,6 +204,7 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
+      if (viewMode === 'small') return;
       if (isDragging && e.touches.length === 1) {
           const dx = e.touches[0].clientX - touchStartRef.current.x;
           const dy = e.touches[0].clientY - touchStartRef.current.y;
@@ -143,6 +214,7 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
+      if (viewMode === 'small') return;
       setIsDragging(false);
       if (touchMoved) {
           setTouchMoved(false);
@@ -183,23 +255,113 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
       if (type === 'GUILD') return '公会';
       if (type === 'SHOP') return '商店';
       if (type === 'FAMILIA_HOME') return '眷族据点';
-      if (type === 'DUNGEON_GATE') return '入口';
+      if (type === 'DUNGEON_GATE' || type === 'DUNGEON_ENTRANCE') return '入口';
       return '地点';
+  };
+
+  const renderSmallLayout = () => {
+      if (!activeSmall?.layout) {
+          return (
+              <div className="flex-1 bg-[#050a14] flex items-center justify-center text-zinc-400 text-xs">
+                  未找到小地点布局数据
+              </div>
+          );
+      }
+      const layout = activeSmall.layout;
+      const unit = 10;
+      return (
+          <div className="flex-1 bg-[#050a14] overflow-auto">
+              <div className="p-4 flex flex-col items-center gap-3">
+                  <div className="text-[10px] text-blue-300 font-mono uppercase tracking-widest">
+                      小地点布局 · {activeSmall.name}
+                  </div>
+                  <div
+                      className="relative bg-[#f4f1e8] border-2 border-zinc-800 shadow-xl"
+                      style={{
+                          width: layout.width * unit,
+                          height: layout.height * unit,
+                          backgroundImage: `linear-gradient(to right, rgba(0,0,0,0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.1) 1px, transparent 1px)`,
+                          backgroundSize: `${unit}px ${unit}px`
+                      }}
+                  >
+                      {layout.rooms.map(room => (
+                          <div
+                              key={room.id}
+                              className="absolute border border-zinc-900/80 bg-white/70 text-[8px] text-zinc-800 font-bold flex items-center justify-center"
+                              style={{
+                                  left: room.bounds.x * unit,
+                                  top: room.bounds.y * unit,
+                                  width: room.bounds.width * unit,
+                                  height: room.bounds.height * unit
+                              }}
+                          >
+                              {room.name}
+                          </div>
+                      ))}
+                      {layout.furniture.map(item => (
+                          <div
+                              key={item.id}
+                              className="absolute bg-amber-600/70 border border-amber-900 text-[7px] text-white flex items-center justify-center"
+                              style={{
+                                  left: item.position.x * unit,
+                                  top: item.position.y * unit,
+                                  width: (item.size?.width || 1) * unit,
+                                  height: (item.size?.height || 1) * unit
+                              }}
+                              title={item.description || item.name}
+                          >
+                              {item.name}
+                          </div>
+                      ))}
+                      {layout.entrances.map(entrance => (
+                          <div
+                              key={entrance.id}
+                              className="absolute w-2.5 h-2.5 bg-blue-600 border border-blue-900 rounded-full"
+                              style={{
+                                  left: entrance.position.x * unit - 5,
+                                  top: entrance.position.y * unit - 5
+                              }}
+                              title={entrance.name}
+                          />
+                      ))}
+                  </div>
+                  <div className="text-[9px] text-zinc-400 font-mono">
+                      比例: {layout.scale} | 尺寸: {layout.width} × {layout.height} 米
+                  </div>
+              </div>
+          </div>
+      );
+  };
+
+  const handleSelectFloor = (nextFloor: number) => {
+      setViewingFloor(nextFloor);
+      if (nextFloor !== 0) {
+          setViewMode('macro');
+          setActiveMid(null);
+          setActiveSmall(null);
+      } else {
+          resolveAutoView();
+      }
+      setShowFloorSelect(false);
   };
 
   return (
     <div className="w-full h-full relative bg-[#050a14] overflow-hidden flex flex-col font-sans">
         
-        {/* Map Canvas */}
-        <div 
-            ref={containerRef}
-            className="flex-1 w-full h-full touch-none"
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-        >
-            <canvas ref={canvasRef} className="w-full h-full" />
-        </div>
+        {/* Map Canvas / Small Layout */}
+        {viewMode === 'small' && viewingFloor === 0 ? (
+            renderSmallLayout()
+        ) : (
+            <div 
+                ref={containerRef}
+                className="flex-1 w-full h-full touch-none"
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+            >
+                <canvas ref={canvasRef} className="w-full h-full" />
+            </div>
+        )}
 
         {/* --- UI Overlays --- */}
 
@@ -214,13 +376,13 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
             </button>
             {showFloorSelect && (
                 <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-40 bg-zinc-900 border border-zinc-700 rounded shadow-xl max-h-60 overflow-y-auto custom-scrollbar flex flex-col">
-                    <button onClick={() => { setViewingFloor(0); setShowFloorSelect(false); }} className="p-3 text-xs text-left text-white border-b border-zinc-800 hover:bg-blue-900">
+                    <button onClick={() => handleSelectFloor(0)} className="p-3 text-xs text-left text-white border-b border-zinc-800 hover:bg-blue-900">
                         地表 (欧拉丽)
                     </button>
-                    {Array.from({length: 37}, (_, i) => i + 1).map(f => (
+                    {Array.from({length: 50}, (_, i) => i + 1).map(f => (
                         <button 
                             key={f} 
-                            onClick={() => { setViewingFloor(f); setShowFloorSelect(false); }}
+                            onClick={() => handleSelectFloor(f)}
                             className={`p-3 text-xs text-left border-b border-zinc-800 hover:bg-zinc-800 ${f === floor ? 'text-green-500 font-bold' : 'text-zinc-400'}`}
                         >
                             地下 {f} 层 {f === floor ? '(当前)' : ''}
@@ -230,6 +392,29 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
             )}
         </div>
 
+        {viewingFloor === 0 && (
+            <div className="absolute top-28 left-1/2 -translate-x-1/2 z-20 bg-black/80 border border-blue-600 rounded-full overflow-hidden flex text-[10px] font-bold">
+                <button
+                    onClick={() => setViewMode('macro')}
+                    className={`px-3 py-1.5 ${viewMode === 'macro' ? 'bg-blue-600 text-white' : 'text-zinc-300'}`}
+                >
+                    大地图
+                </button>
+                <button
+                    onClick={() => activeMid && setViewMode('mid')}
+                    className={`px-3 py-1.5 ${viewMode === 'mid' ? 'bg-blue-600 text-white' : activeMid ? 'text-zinc-300' : 'text-zinc-600'}`}
+                >
+                    中地点
+                </button>
+                <button
+                    onClick={() => activeSmall && setViewMode('small')}
+                    className={`px-3 py-1.5 ${viewMode === 'small' ? 'bg-blue-600 text-white' : activeSmall ? 'text-zinc-300' : 'text-zinc-600'}`}
+                >
+                    小地点
+                </button>
+            </div>
+        )}
+
         {/* Coordinates Pill */}
         <div className="absolute top-4 left-4 bg-black/80 px-3 py-1.5 rounded-full text-xs text-white border border-zinc-700 pointer-events-none flex items-center gap-2 backdrop-blur-sm shadow-lg z-10">
             <Target size={14} className="text-blue-500"/>
@@ -237,6 +422,7 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
         </div>
 
         {/* Right Controls Group */}
+        {!(viewMode === 'small' && viewingFloor === 0) && (
         <div className="absolute bottom-24 right-4 flex flex-col gap-3 z-20">
             {/* Layer Toggle */}
             <button 
@@ -272,15 +458,18 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
                 <Target size={24}/>
             </button>
         </div>
+        )}
 
         {/* Legend Button (Bottom Left) */}
-        <button 
-            onClick={() => setShowLegend(!showLegend)}
-            className={`absolute bottom-24 left-4 p-2 rounded-lg border flex items-center gap-2 shadow-lg backdrop-blur-sm transition-colors z-20 ${showLegend ? 'bg-white text-black border-white' : 'bg-black/60 text-zinc-300 border-zinc-600'}`}
-        >
-            <Info size={16} />
-            <span className="text-xs font-bold uppercase">图例</span>
-        </button>
+        {!(viewMode === 'small' && viewingFloor === 0) && (
+            <button 
+                onClick={() => setShowLegend(!showLegend)}
+                className={`absolute bottom-24 left-4 p-2 rounded-lg border flex items-center gap-2 shadow-lg backdrop-blur-sm transition-colors z-20 ${showLegend ? 'bg-white text-black border-white' : 'bg-black/60 text-zinc-300 border-zinc-600'}`}
+            >
+                <Info size={16} />
+                <span className="text-xs font-bold uppercase">图例</span>
+            </button>
+        )}
 
         {/* Legend Sheet Overlay */}
         {showLegend && (

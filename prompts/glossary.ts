@@ -25,6 +25,7 @@
 6. **手机联动**
 - 仅当剧情涉及手机聊天/论坛/通知时新增 \`phone_sync_plan\`。
 - \`phone_sync_plan\` 只描述触发要点，不代替 logs。
+- 手机消息/帖子等内容更新优先通过 \`phone_sync_plan\` 触发手机系统生成，避免在 \`tavern_commands\` 中重复写入手机内容。
 
 7. **情报笔记 (gameState.笔记)**
 - 默认由玩家手动维护。

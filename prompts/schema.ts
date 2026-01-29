@@ -218,6 +218,10 @@
 - \`gameState.地图.routes\`: Array<{ "id", "name", "path", "type", "width", "color", "floor" }>
 - \`gameState.地图.surfaceLocations\`: Array<{ "id", "name", "type", "coordinates", "radius", "description", "icon", "floor" }>
 - \`gameState.地图.dungeonStructure\`: Array<{ "floorStart", "floorEnd", "name", "description", "dangerLevel", "landmarks" }>
+- \`gameState.地图.macroLocations\`: Array<{ "id", "name", "type?", "coordinates", "area": { "shape", "center?", "radius?", "width?", "height?", "points?", "note?" }, "description?", "floor?" }>
+- \`gameState.地图.midLocations\`: Array<{ "id", "name", "parentId", "coordinates", "area?", "description?", "floor?" }>
+- \`gameState.地图.smallLocations\`: Array<{ "id", "name", "parentId", "coordinates?", "area?", "description?", "floor?", "layout" }>
+  - \`layout\`: { "scale", "width", "height", "rooms", "furniture", "entrances", "paths?", "notes?" }
 
 ## 11. 剧情进度 (gameState.剧情)
 - \`gameState.剧情.主线\`: { "当前卷数": Number, "当前篇章": String, "当前阶段": String, "关键节点": String, "节点状态": String }

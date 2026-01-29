@@ -79,7 +79,6 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
       manualSave, loadGame, handleReroll, handleDeleteTask,
       handleEditPhoneMessage, handleDeletePhoneMessage,
       phoneNotifications,
-      handleToggleLogPin
   } = useGameLogic(initialState, onExit);
 
   // Modal States
@@ -181,7 +180,6 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
       chatLogLimit: settings.chatLogLimit ?? 30,
       enableCombatUI: settings.enableCombatUI,
       isHellMode,
-      onToggleLogPin: handleToggleLogPin
   };
 
   return (
@@ -224,6 +222,7 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
                         onOpenTasks={() => setActiveModal('TASKS')}
                         onOpenSkills={() => setActiveModal('SKILLS')}
                         onOpenMap={() => setActiveModal('MAP')}
+                        onOpenLibrary={() => openSettings('LIBRARY')}
                         onOpenPhone={() => hasMagicPhone && setActiveModal('PHONE')}
                         onOpenWorld={() => setActiveModal('WORLD')}
                         onOpenFamilia={() => setActiveModal('FAMILIA')}
@@ -290,6 +289,7 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
                         playerName={gameState.角色.姓名}
                         confidants={gameState.社交}
                         floor={gameState.当前楼层} 
+                        location={gameState.当前地点}
                      />
                  )}
                  {mobileActiveTab === 'MENU' && (
@@ -312,6 +312,7 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
                             onOpenLootVault: () => setActiveModal('LOOT_VAULT'),
                             onOpenSaveManager: () => setActiveModal('SAVE_MANAGER'),
                             onOpenMemory: () => setActiveModal('MEMORY'),
+                            onOpenLibrary: () => openSettings('LIBRARY'),
                             onOpenPresent: () => setActiveModal('PRESENT'),
                             onOpenParty: () => setActiveModal('PARTY'),
                             onOpenNotes: () => setActiveModal('NOTES'),

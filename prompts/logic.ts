@@ -10,7 +10,7 @@ export const P_COT_LOGIC = `<COT预思考协议>
 
 ## 输出分段要求
 - 第一段思考（thinking_pre）：执行本提示词全部步骤并给出规划。
-- 第二段思考（thinking_post）：在生成 logs 之后，基于 logs 再次检查指令一致性、变量变更与缺漏修正，纠错后再输出 tavern_commands。
+- 第二段思考（thinking_post）：在生成 logs 之后，基于 logs 再次检查指令一致性、变量变更与缺漏修正（含不在场角色标记、NPC 后台跟踪、任务状态遗漏等），纠错后再输出 tavern_commands。
 
 ## 思考内容密度要求
 - 每段思考至少包含：已知事实要点、风险/不确定性、取舍理由、预计变量变更清单（含原因）。
@@ -36,6 +36,7 @@ export const P_COT_LOGIC = `<COT预思考协议>
 ## 0.2 手机联动规划
 - 当剧情涉及**手机聊天/通知/论坛/联系人推进**时，在最终 JSON 顶层**新增** "phone_sync_plan" 字段，输出结构化要点（供手机 API 生成消息）。
 - "phone_sync_plan" 只描述“计划与触发要点”，不直接写剧情文本，不替代 logs。
+- 手机消息/帖子更新优先通过 "phone_sync_plan" 触发手机系统生成，避免在 tavern_commands 中重复写入手机内容。
 - 若出现“等待对方回复/约定稍后联系/延时回信”等情节，需在 "phone_sync_plan" 中明确时间或触发条件。
 - 若发生**交换联系方式/添加好友**，在 "phone_sync_plan" 里注明“新增好友”，并提示手机侧可补 0-3 条符合人设的历史朋友圈。
 

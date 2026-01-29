@@ -33,6 +33,7 @@ export const drawWorldMapCanvas = (
     options: MapDrawOptions
 ) => {
     const { floor, scale, offset, showTerritories, showNPCs, showPlayer, showLabels, currentPos, confidants } = options;
+    const sizeFactor = Math.max(0.3, mapData.config.width / 50000);
     const canvas = ctx.canvas;
     const dpr = window.devicePixelRatio || 1;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -80,8 +81,8 @@ export const drawWorldMapCanvas = (
             ctx.restore();
             ctx.save();
             ctx.strokeStyle = t.color;
-            ctx.lineWidth = 10;
-            ctx.setLineDash([100, 50]);
+            ctx.lineWidth = Math.max(1, 10 * sizeFactor);
+            ctx.setLineDash([100 * sizeFactor, 50 * sizeFactor]);
             ctx.stroke(path);
             ctx.restore();
 
@@ -89,7 +90,7 @@ export const drawWorldMapCanvas = (
                 ctx.save();
                 ctx.globalAlpha = 0.7;
                 ctx.fillStyle = t.color;
-                ctx.font = "bold 220px 'Noto Serif SC', serif";
+                ctx.font = `bold ${Math.max(24, 220 * sizeFactor)}px 'Noto Serif SC', serif`;
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
                 ctx.fillText(t.name, t.centerX, t.centerY);
@@ -109,7 +110,7 @@ export const drawWorldMapCanvas = (
         }
         if (feat.strokeColor && feat.strokeWidth) {
             ctx.strokeStyle = feat.strokeColor;
-            ctx.lineWidth = Math.min(feat.strokeWidth, 20);
+            ctx.lineWidth = Math.min(feat.strokeWidth * sizeFactor, 20 * sizeFactor);
             ctx.stroke(path);
         }
     });
@@ -123,9 +124,9 @@ export const drawWorldMapCanvas = (
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         if (route.type === 'ALLEY') {
-            ctx.setLineDash([120, 80]);
+            ctx.setLineDash([120 * sizeFactor, 80 * sizeFactor]);
         } else if (route.type === 'TRADE_ROUTE') {
-            ctx.setLineDash([200, 120]);
+            ctx.setLineDash([200 * sizeFactor, 120 * sizeFactor]);
         }
         ctx.stroke(path);
         ctx.setLineDash([]);
@@ -139,28 +140,28 @@ export const drawWorldMapCanvas = (
         ctx.arc(loc.coordinates.x, loc.coordinates.y, loc.radius, 0, Math.PI * 2);
         ctx.fillStyle = loc.type === 'GUILD' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(251, 191, 36, 0.05)';
         ctx.strokeStyle = loc.type === 'GUILD' ? '#3b82f6' : '#fbbf24';
-        ctx.lineWidth = 5;
+        ctx.lineWidth = Math.max(1, 5 * sizeFactor);
         ctx.fill();
         ctx.stroke();
 
         ctx.beginPath();
-        ctx.arc(loc.coordinates.x, loc.coordinates.y, 50, 0, Math.PI * 2);
+        ctx.arc(loc.coordinates.x, loc.coordinates.y, 50 * sizeFactor, 0, Math.PI * 2);
         ctx.fillStyle = "#000";
         ctx.strokeStyle = "#fff";
-        ctx.lineWidth = 5;
+        ctx.lineWidth = Math.max(1, 5 * sizeFactor);
         ctx.fill();
         ctx.stroke();
         ctx.restore();
 
         if (showLabels && loc.name) {
             ctx.save();
-            ctx.font = "bold 120px 'Noto Serif SC', serif";
+            ctx.font = `bold ${Math.max(14, 120 * sizeFactor)}px 'Noto Serif SC', serif`;
             ctx.textAlign = "center";
             ctx.textBaseline = "top";
-            ctx.lineWidth = 18;
+            ctx.lineWidth = Math.max(1, 18 * sizeFactor);
             ctx.strokeStyle = "rgba(0, 0, 0, 0.8)";
             ctx.fillStyle = "#f8fafc";
-            const labelY = loc.coordinates.y + loc.radius + 70;
+            const labelY = loc.coordinates.y + loc.radius + 70 * sizeFactor;
             ctx.strokeText(loc.name, loc.coordinates.x, labelY);
             ctx.fillText(loc.name, loc.coordinates.x, labelY);
             ctx.restore();
@@ -177,18 +178,18 @@ export const drawWorldMapCanvas = (
             ctx.rotate(Math.PI / 4);
             ctx.fillStyle = npc.是否队友 ? '#9333ea' : '#ec4899';
             ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 5;
-            ctx.fillRect(-30, -30, 60, 60);
-            ctx.strokeRect(-30, -30, 60, 60);
+            ctx.lineWidth = Math.max(1, 5 * sizeFactor);
+            ctx.fillRect(-30 * sizeFactor, -30 * sizeFactor, 60 * sizeFactor, 60 * sizeFactor);
+            ctx.strokeRect(-30 * sizeFactor, -30 * sizeFactor, 60 * sizeFactor, 60 * sizeFactor);
             ctx.restore();
 
             if (showLabels) {
                 ctx.save();
                 ctx.fillStyle = "#ffffff";
-                ctx.font = "100px sans-serif";
+                ctx.font = `${Math.max(12, 100 * sizeFactor)}px sans-serif`;
                 ctx.textAlign = "center";
                 ctx.textBaseline = "bottom";
-                ctx.fillText(npc.姓名, npc.坐标.x, npc.坐标.y - 50);
+                ctx.fillText(npc.姓名, npc.坐标.x, npc.坐标.y - 50 * sizeFactor);
                 ctx.restore();
             }
         });
@@ -199,18 +200,18 @@ export const drawWorldMapCanvas = (
         ctx.save();
         ctx.translate(currentPos.x, currentPos.y);
         ctx.beginPath();
-        ctx.arc(0, 0, 60, 0, Math.PI * 2);
+        ctx.arc(0, 0, 60 * sizeFactor, 0, Math.PI * 2);
         ctx.fillStyle = "#22c55e";
         ctx.strokeStyle = "#ffffff";
-        ctx.lineWidth = 10;
+        ctx.lineWidth = Math.max(1, 10 * sizeFactor);
         ctx.fill();
         ctx.stroke();
 
         ctx.beginPath();
-        ctx.arc(0, 0, 150, 0, Math.PI * 2);
+        ctx.arc(0, 0, 150 * sizeFactor, 0, Math.PI * 2);
         ctx.strokeStyle = "#22c55e";
-        ctx.lineWidth = 5;
-        ctx.setLineDash([30, 10]);
+        ctx.lineWidth = Math.max(1, 5 * sizeFactor);
+        ctx.setLineDash([30 * sizeFactor, 10 * sizeFactor]);
         ctx.stroke();
         ctx.setLineDash([]);
         ctx.restore();

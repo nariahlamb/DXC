@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { X, Users, ClipboardList, Zap, Settings, Smartphone, Globe, Shield, BookOpen, Scroll, Flag, Gem, Brain, Radar, Swords, Archive, HardDrive, StickyNote } from 'lucide-react';
+import { X, Users, ClipboardList, Zap, Settings, Smartphone, Globe, Shield, BookOpen, Scroll, Flag, Gem, Brain, Radar, Swords, Archive, HardDrive, StickyNote, Database } from 'lucide-react';
 
 interface MobileMenuOverlayProps {
     isOpen: boolean;
@@ -22,6 +22,7 @@ interface MobileMenuOverlayProps {
         onOpenSaveManager: () => void;
         onOpenMemory: () => void;
         onOpenNotes: () => void;
+        onOpenLibrary: () => void;
         onOpenPresent: () => void;
         onOpenParty: () => void;
     };
@@ -52,6 +53,7 @@ export const MobileMenuOverlay: React.FC<MobileMenuOverlayProps> = ({ isOpen, on
         { label: "世界", icon: <Globe />, action: actions.onOpenWorld, color: "bg-cyan-900/80 border-cyan-700" },
         { label: "记忆", icon: <Brain />, action: actions.onOpenMemory, color: "bg-emerald-900/80 border-emerald-700" },
         { label: "笔记", icon: <StickyNote />, action: actions.onOpenNotes, color: "bg-cyan-900/80 border-cyan-700" },
+        { label: "资料库", icon: <Database />, action: actions.onOpenLibrary, color: "bg-emerald-900/80 border-emerald-700" },
         { label: "系统", icon: <Settings />, action: actions.onOpenSettings, color: "bg-black border-2 border-white" },
     ];
 

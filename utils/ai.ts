@@ -136,12 +136,14 @@ export const mergeThinkingSegments = (response?: Partial<AIResponse>): string =>
     if (!response) return "";
     const thinkingPre = normalizeThinkingField((response as any).thinking_pre);
     const thinkingPlan = normalizeThinkingField((response as any).thinking_plan);
+    const thinkingStyle = normalizeThinkingField((response as any).thinking_style);
     const thinkingDraft = normalizeThinkingField((response as any).thinking_draft);
     const thinkingCheck = normalizeThinkingField((response as any).thinking_check);
     const thinkingCanon = normalizeThinkingField((response as any).thinking_canon);
     const thinkingVarsPre = normalizeThinkingField((response as any).thinking_vars_pre);
     const thinkingVarsOther = normalizeThinkingField((response as any).thinking_vars_other);
     const thinkingVarsMerge = normalizeThinkingField((response as any).thinking_vars_merge);
+    const thinkingGap = normalizeThinkingField((response as any).thinking_gap);
     const thinkingVarsPost = normalizeThinkingField((response as any).thinking_vars_post);
     const thinkingStory = normalizeThinkingField((response as any).thinking_story);
     const thinkingPost = normalizeThinkingField((response as any).thinking_post);
@@ -149,16 +151,18 @@ export const mergeThinkingSegments = (response?: Partial<AIResponse>): string =>
     const segments: string[] = [];
     if (thinkingPre) segments.push(`[思考-前]\n${thinkingPre}`);
     if (thinkingPlan) segments.push(`[剧情预先思考]\n${thinkingPlan}`);
+    if (thinkingStyle) segments.push(`[文风思考]\n${thinkingStyle}`);
     if (thinkingDraft) segments.push(`[思考-草稿]\n${thinkingDraft}`);
     if (thinkingCheck) segments.push(`[剧情合理性校验]\n${thinkingCheck}`);
     if (thinkingCanon) segments.push(`[原著思考]\n${thinkingCanon}`);
     if (thinkingVarsPre) segments.push(`[变量预思考]\n${thinkingVarsPre}`);
     if (thinkingVarsOther) segments.push(`[其他功能变量]\n${thinkingVarsOther}`);
     if (thinkingVarsMerge) segments.push(`[变量融入剧情矫正]\n${thinkingVarsMerge}`);
+    if (thinkingGap) segments.push(`[查缺补漏思考]\n${thinkingGap}`);
     if (thinkingStory) segments.push(`[思考-完整]\n${thinkingStory}`);
     if (thinkingPost) segments.push(`[思考-后]\n${thinkingPost}`);
     if (thinkingVarsPost) segments.push(`[变量矫正思考]\n${thinkingVarsPost}`);
-    if (!thinkingPre && !thinkingPlan && !thinkingDraft && !thinkingCheck && !thinkingCanon && !thinkingVarsPre && !thinkingVarsOther && !thinkingVarsMerge && !thinkingVarsPost && !thinkingStory && !thinkingPost && thinkingLegacy) segments.push(thinkingLegacy);
+    if (!thinkingPre && !thinkingPlan && !thinkingStyle && !thinkingDraft && !thinkingCheck && !thinkingCanon && !thinkingVarsPre && !thinkingVarsOther && !thinkingVarsMerge && !thinkingGap && !thinkingVarsPost && !thinkingStory && !thinkingPost && thinkingLegacy) segments.push(thinkingLegacy);
     return segments.join('\n\n').trim();
 };
 
@@ -388,6 +392,68 @@ export const constructMapContext = (gameState: GameState, params: any): string =
 
     const mapData = gameState.地图;
     if (!mapData) return output + '(地图数据丢失)';
+
+    const macroLocations = Array.isArray(mapData.macroLocations) ? mapData.macroLocations : [];
+    const midLocations = Array.isArray(mapData.midLocations) ? mapData.midLocations : [];
+    const smallLocations = Array.isArray(mapData.smallLocations) ? mapData.smallLocations : [];
+
+    const normalizeName = (value?: string) => (value || '').toString().trim().toLowerCase().replace(/\s+/g, '');
+    const matchByName = (name: string, target: { name: string; id: string }[]) => {
+        const normalized = normalizeName(name);
+        if (!normalized) return null;
+        return (
+            target.find(t => normalizeName(t.name) === normalized)
+            || target.find(t => normalized.includes(normalizeName(t.name)))
+            || null
+        );
+    };
+
+    if (floor === 0 && (macroLocations.length > 0 || midLocations.length > 0 || smallLocations.length > 0)) {
+        const currentLocationName = gameState.当前地点 || '';
+        const currentSmall = matchByName(currentLocationName, smallLocations as any) as any;
+        const currentMid = currentSmall
+            ? midLocations.find(m => m.id === currentSmall.parentId)
+            : (matchByName(currentLocationName, midLocations as any) as any);
+        const currentMacro = currentMid
+            ? macroLocations.find(m => m.id === currentMid.parentId)
+            : (macroLocations.length === 1 ? macroLocations[0] : null);
+
+        if (currentMacro) output += `当前层级: ${currentMacro.name}${currentMid ? ` > ${currentMid.name}` : ''}${currentSmall ? ` > ${currentSmall.name}` : ''}\n`;
+
+        const macroSummary = macroLocations.map(m => ({
+            id: m.id,
+            name: m.name,
+            type: m.type,
+            coordinates: m.coordinates,
+            area: m.area
+        }));
+        const midSummary = midLocations
+            .filter(m => !currentMacro || m.parentId === currentMacro.id)
+            .map(m => ({
+                id: m.id,
+                name: m.name,
+                coordinates: m.coordinates,
+                parentId: m.parentId
+            }));
+
+        output += `【大地点】\n${JSON.stringify(macroSummary, null, 2)}\n`;
+        output += `【中地点】\n${JSON.stringify(midSummary, null, 2)}\n`;
+        if (currentSmall) {
+            const smallPayload = {
+                id: currentSmall.id,
+                name: currentSmall.name,
+                parentId: currentSmall.parentId,
+                coordinates: currentSmall.coordinates,
+                area: currentSmall.area,
+                description: currentSmall.description,
+                layout: currentSmall.layout
+            };
+            output += `【小地点-当前】\n${JSON.stringify(smallPayload, null, 2)}\n`;
+        } else {
+            output += `【小地点-当前】\n（未进入小地点内部，完整结构不载入）\n`;
+        }
+        return output.trimEnd();
+    }
 
     const surfaceLocations = Array.isArray(mapData.surfaceLocations) ? mapData.surfaceLocations : [];
     const routes = Array.isArray(mapData.routes) ? mapData.routes : [];
@@ -825,10 +891,12 @@ const buildPlayerDataContext = (playerData: GameState["角色"], difficultySetti
 
 const parseDungeonFloorTrigger = (input: string): number | null => {
     if (!input) return null;
-    const match = input.match(/(?:前往|去|到|进入|下降到|下到|抵达)\s*(\d{1,3})\s*层/);
+    const match = input.match(/(?:第\s*)?(\d{1,2})\s*层/);
     if (!match) return null;
     const floor = parseInt(match[1], 10);
-    return Number.isNaN(floor) ? null : floor;
+    if (Number.isNaN(floor)) return null;
+    if (floor < 1 || floor > 50) return null;
+    return floor;
 };
 
 const hasMapKeyword = (input: string, params: any): boolean => {
@@ -997,8 +1065,11 @@ export const generateSingleModuleContext = (mod: ContextModuleConfig, gameState:
         case 'MAP_CONTEXT': {
             const mapFloor = gameState.当前楼层 || 0;
             const triggerFloor = parseDungeonFloorTrigger(playerInput);
-            const hasTrigger = triggerFloor !== null || hasMapKeyword(playerInput, mod.params);
-            if (mapFloor > 0 && !hasTrigger && !mod.params?.alwaysIncludeDungeon) return "";
+            const hasKeyword = hasMapKeyword(playerInput, mod.params);
+            if (mapFloor > 0 && !mod.params?.alwaysIncludeDungeon) {
+                const floorMatch = triggerFloor !== null && triggerFloor === mapFloor;
+                if (!hasKeyword || !floorMatch) return "";
+            }
             return constructMapContext(gameState, { ...mod.params, forceFloor: triggerFloor ?? mapFloor });
         }
         case 'SOCIAL_CONTEXT':

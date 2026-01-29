@@ -41,6 +41,7 @@ export const P_PHONE_SYSTEM = `<手机聊天AI协议>
 }
 
 ## 规则
+- 避免重复：同一手机更新仅写入 phone_updates/messages 或 tavern_commands 之一。手机内容优先使用 phone_updates/messages，tavern_commands 仅用于非手机状态更新。
 - 时间推进：如手机互动产生显著等待，可返回 time_advance_minutes。
 - 延迟逻辑：优先使用delay_minutes；若给出deliver_at_game_time则以其为准。
 - 当输入包含 [PHONE_SYNC_PLAN] 时，将其视为剧情同步计划，生成手机消息/帖子/通知。

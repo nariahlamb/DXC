@@ -1,4 +1,4 @@
-
+﻿
 export const P_WORLD_FOUNDATION = `<世界观基石>
 【世界观基石：神时代 (Age of Gods)】
 1. **起源与契约**:
@@ -388,52 +388,86 @@ export const P_MAP_DISCOVERY = `<新地点发现与绘制>
 【新地点发现与绘制 (Map Discovery Protocol)】
 当玩家在探索过程中，发现了一个当前地图(\`gameState.地图\`)中不存在的重要地点时，**必须**生成指令将其永久记录到地图上。
 
-### 0. 地图比例：坐标5:1米
+### 0. 地图层级：大地点 / 中地点 / 小地点
+- 大地点（macro）：城市/区域级别，如“欧拉丽”。记录在 \`gameState.地图.macroLocations\`。
+- 中地点（mid）：大地点内部的功能地点，如“公会本部/丰饶的女主人”。记录在 \`gameState.地图.midLocations\`。
+- 小地点（small）：中地点内部结构（建筑/室内/地下室等）。记录在 \`gameState.地图.smallLocations\`。
 
 ### 1. 触发条件
-玩家到达了一个有名字、有功能或有剧情意义的新地点（如黑市入口、隐藏的武器店、未记录的遗迹）。
+- 玩家到达了一个有名字、有功能或有剧情意义的新地点。
+- 当玩家进入“中地点内部”的具体区域（室内/建筑内部），且该小地点未建档时，必须生成小地点布局。
 
 ### 2. 坐标推算 (Triangulation)
 你必须根据剧情描述，估算该地点相对于已知地标的位置。
-- **中心点**: (25000, 25000) 巴别塔。
-- **已知参照**: 参考 \`gameState.地图.surfaceLocations\` 中的其他点。
-- *示例*: "在丰饶女主人(西)的更西边偏南一点的后巷" -> 估算 X: 14000, Y: 26000。
+- **中心点**: (5000, 5000) 巴别塔。
+- **已知参照**: 参考 \`gameState.地图.surfaceLocations\` 或 \`gameState.地图.midLocations\` 中的其他点。
+- **地图比例**: 坐标 1:1 米。
+- *示例*: "在丰饶女主人(西)的更西边偏南一点的后巷" -> 估算 X: 2800, Y: 5200。
 
-### 3. 指令生成
-使用 \`push gameState.地图.surfaceLocations\` 指令添加新节点。
+### 3. 指令生成（按层级选择）
+- **大地点**: \`push gameState.地图.macroLocations\`
+- **中地点**: \`push gameState.地图.midLocations\`
+- **小地点**: \`push gameState.地图.smallLocations\`
 
-**数据结构**:
+**大地点结构**:
 \`\`\`json
 {
-  "id": "loc_gen_[UniqueString]",
-  "name": "[地点名称]",
-  "type": "SHOP | LANDMARK | SLUM | STREET",
-  "floor": 0, // 0表示地表，地下层填层数
-  "coordinates": { "x": [Number], "y": [Number] },
-  "radius": [Number 范围半径, 小店300, 区域1000],
-  "description": "[简短描述]",
-  "icon": "flag" // 可选: flag, shop, skull, home, gem
+  "id": "macro_[Unique]",
+  "name": "欧拉丽",
+  "type": "CITY",
+  "coordinates": { "x": 5000, "y": 5000 },
+  "area": { "shape": "CIRCLE", "center": { "x": 5000, "y": 5000 }, "radius": 4000 },
+  "description": "迷宫都市",
+  "floor": 0
 }
 \`\`\`
 
-### 4. 示例
-玩家发现了一个名为"暗夜猫亭"的情报屋，位于东南大街贫民窟边缘。
+**中地点结构**:
 \`\`\`json
 {
-  "action": "push",
-  "key": "gameState.地图.surfaceLocations",
-  "value": {
-    "id": "loc_new_cat_pub",
-    "name": "暗夜猫亭",
-    "type": "SHOP",
-    "floor": 0,
-    "coordinates": { "x": 32000, "y": 30000 },
-    "radius": 400,
-    "description": "位于贫民窟边缘的神秘情报屋，店主是猫人。",
-    "icon": "beer"
+  "id": "mid_[Unique]",
+  "name": "公会本部",
+  "parentId": "macro_orario",
+  "coordinates": { "x": 3800, "y": 3800 },
+  "area": { "shape": "CIRCLE", "center": { "x": 3800, "y": 3800 }, "radius": 200 },
+  "description": "冒险者登记与委托中心",
+  "floor": 0
+}
+\`\`\`
+
+**小地点结构（室内平面图）**:
+\`\`\`json
+{
+  "id": "small_[Unique]",
+  "name": "公会本部-一层大厅",
+  "parentId": "mid_guild",
+  "coordinates": { "x": 3800, "y": 3800 },
+  "area": { "shape": "RECT", "center": { "x": 3800, "y": 3800 }, "width": 40, "height": 25 },
+  "description": "公会本部一层对外开放区域",
+  "floor": 0,
+  "layout": {
+    "scale": "1格=1米",
+    "width": 40,
+    "height": 25,
+    "rooms": [
+      { "id": "room_lobby", "name": "接待大厅", "type": "public", "bounds": { "x": 0, "y": 0, "width": 40, "height": 14 }, "connections": ["room_counter"] }
+    ],
+    "furniture": [
+      { "id": "f_reception", "name": "接待柜台", "type": "counter", "position": { "x": 8, "y": 16 }, "size": { "width": 8, "height": 2 }, "roomId": "room_counter" }
+    ],
+    "entrances": [
+      { "id": "entrance_main", "name": "正门", "position": { "x": 20, "y": 0 }, "connectsTo": "欧拉丽西北大街" }
+    ]
   }
 }
-\`\`\
+\`\`\`
+
+### 4. 小地点布局要求
+- 小地点必须像“房屋平面设计图”：规划完整建筑区域、房间边界、通道与入口。
+- 必须标出关键家具/设施（柜台、桌椅、楼梯、床铺、货架等）。
+- 保持可读性与可探索性：每个房间至少一个连接或入口。
+- 小地点命名建议：使用“中地点-区域”形式，如“公会本部-一层大厅”。
+
 </新地点发现与绘制>`;
 
 export const P_SYS_STATS = `<能力值与精神力>
@@ -517,3 +551,5 @@ export const P_SYS_COMBAT = `<战斗法则与死亡>
    - **麻痹**: 无法动弹。
    - **诅咒**: 无法通过普通道具解除，需要高级道具或神圣魔法。
 </战斗法则与死亡>`;
+
+

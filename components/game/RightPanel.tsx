@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Briefcase, Users, ClipboardList, Zap, Settings, Navigation, Smartphone, Globe, Shield, BookOpen, Scroll, Flag, Gem, Brain, Radar, Swords, Archive, HardDrive, Loader2, StickyNote, Scale, Bell } from 'lucide-react';
+import { Briefcase, Users, ClipboardList, Zap, Settings, Navigation, Smartphone, Globe, Shield, BookOpen, Scroll, Flag, Gem, Brain, Radar, Swords, Archive, HardDrive, Loader2, StickyNote, Scale, Bell, Database } from 'lucide-react';
 import { MenuButton } from './right/MenuButton';
 
 interface RightPanelProps {
@@ -21,6 +21,7 @@ interface RightPanelProps {
     onOpenSaveManager: () => void;
     onOpenMemory: () => void;
     onOpenNotes: () => void;
+    onOpenLibrary: () => void;
     onOpenPresent?: () => void;
     onOpenParty?: () => void;
     isHellMode?: boolean;
@@ -56,6 +57,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     onOpenSaveManager,
     onOpenMemory,
     onOpenNotes,
+    onOpenLibrary,
     onOpenPresent,
     onOpenParty,
     isHellMode,
@@ -192,6 +194,14 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                 colorClass="bg-zinc-800"
                 hoverColorClass={`${mapHover} group-hover:border-white`}
                 onClick={onOpenMap}
+            />
+            <MenuButton 
+                label="资料库" 
+                icon={<Database className="w-5 h-5 lg:w-5 lg:h-5" />} 
+                delay={210} 
+                colorClass="bg-zinc-800"
+                hoverColorClass="group-hover:bg-emerald-600 group-hover:border-white"
+                onClick={onOpenLibrary}
             />
             <MenuButton 
                 label="记忆" 

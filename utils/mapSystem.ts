@@ -1,5 +1,5 @@
-
-import { Direction, Enemy, WorldMapData, OrarioLocation, DungeonLayer, MapFaction, TerritoryData, TradeRoute, TerrainFeature } from "../types";
+﻿
+import { Direction, Enemy, WorldMapData, OrarioLocation, DungeonLayer, MapFaction, TerritoryData, TradeRoute, TerrainFeature, MapMacroLocation, MapMidLocation, MapSmallLocation } from "../types";
 
 // Helper to get opposite direction
 export const getOppositeDir = (dir: Direction): Direction => {
@@ -124,14 +124,16 @@ const createPolylinePath = (points: { x: number; y: number }[]): string => {
 
 export const generateDanMachiMap = (): WorldMapData => {
     // 基础配置
-    const MAP_SIZE = 50000; 
-    const CENTER_X = 25000;  
-    const CENTER_Y = 25000;
-    
+    const SCALE = 0.2; // 1:1 坐标比例
+    const S = (value: number) => value * SCALE;
+    const MAP_SIZE = S(50000);
+    const CENTER_X = S(25000);
+    const CENTER_Y = S(25000);
+
     // 半径参数
-    const CITY_RADIUS = 20000;  // 都市外墙
-    const PLAZA_RADIUS = 2000;  // 中央广场
-    const BABEL_RADIUS = 500;   // 巴别塔基座
+    const CITY_RADIUS = S(20000);  // 都市外墙
+    const PLAZA_RADIUS = S(2000);  // 中央广场
+    const BABEL_RADIUS = S(500);   // 巴别塔基座
 
     // 1. 势力定义 (Factions)
     const factions: MapFaction[] = [
@@ -152,7 +154,7 @@ export const generateDanMachiMap = (): WorldMapData => {
         // 北 (247.5° - 292.5°): 洛基眷族
         {
             id: 't_north', factionId: 'f_loki', name: '北大街 (繁华区)',
-            centerX: CENTER_X, centerY: CENTER_Y - 10000, color: factions[1].color,
+            centerX: CENTER_X, centerY: CENTER_Y - S(10000), color: factions[1].color,
             boundary: createSectorPath(CENTER_X, CENTER_Y, CITY_RADIUS, 247.5, 292.5, PLAZA_RADIUS),
             shape: 'SECTOR',
             sector: { startAngle: 247.5, endAngle: 292.5, innerRadius: PLAZA_RADIUS, outerRadius: CITY_RADIUS },
@@ -161,7 +163,7 @@ export const generateDanMachiMap = (): WorldMapData => {
         // 东北 (292.5° - 337.5°): 芙蕾雅眷族
         {
             id: 't_northeast', factionId: 'f_freya', name: '东北大街 (战斗荒野)',
-            centerX: CENTER_X + 8000, centerY: CENTER_Y - 8000, color: factions[2].color,
+            centerX: CENTER_X + S(8000), centerY: CENTER_Y - S(8000), color: factions[2].color,
             boundary: createSectorPath(CENTER_X, CENTER_Y, CITY_RADIUS, 292.5, 337.5, PLAZA_RADIUS),
             shape: 'SECTOR',
             sector: { startAngle: 292.5, endAngle: 337.5, innerRadius: PLAZA_RADIUS, outerRadius: CITY_RADIUS },
@@ -170,7 +172,7 @@ export const generateDanMachiMap = (): WorldMapData => {
         // 东 (337.5° - 22.5°): 贫民窟/代达罗斯路 (Wrap around 0)
         {
             id: 't_east', factionId: 'f_slums', name: '东大街 (迷宫街)',
-            centerX: CENTER_X + 10000, centerY: CENTER_Y, color: factions[7].color,
+            centerX: CENTER_X + S(10000), centerY: CENTER_Y, color: factions[7].color,
             // Draw in two parts or normalize angles. Simple approach: -22.5 to 22.5
             boundary: createSectorPath(CENTER_X, CENTER_Y, CITY_RADIUS, -22.5, 22.5, PLAZA_RADIUS),
             shape: 'SECTOR',
@@ -180,7 +182,7 @@ export const generateDanMachiMap = (): WorldMapData => {
         // 东南 (22.5° - 67.5°): 欢乐街
         {
             id: 't_southeast', factionId: 'f_ishtar', name: '东南大街 (欢乐街)',
-            centerX: CENTER_X + 8000, centerY: CENTER_Y + 8000, color: factions[4].color,
+            centerX: CENTER_X + S(8000), centerY: CENTER_Y + S(8000), color: factions[4].color,
             boundary: createSectorPath(CENTER_X, CENTER_Y, CITY_RADIUS, 22.5, 67.5, PLAZA_RADIUS),
             shape: 'SECTOR',
             sector: { startAngle: 22.5, endAngle: 67.5, innerRadius: PLAZA_RADIUS, outerRadius: CITY_RADIUS },
@@ -189,7 +191,7 @@ export const generateDanMachiMap = (): WorldMapData => {
         // 南 (67.5° - 112.5°): 正门/新手区
         {
             id: 't_south', factionId: 'f_neutral', name: '南大街 (正门)',
-            centerX: CENTER_X, centerY: CENTER_Y + 12000, color: '#94a3b8',
+            centerX: CENTER_X, centerY: CENTER_Y + S(12000), color: '#94a3b8',
             boundary: createSectorPath(CENTER_X, CENTER_Y, CITY_RADIUS, 67.5, 112.5, PLAZA_RADIUS),
             shape: 'SECTOR',
             sector: { startAngle: 67.5, endAngle: 112.5, innerRadius: PLAZA_RADIUS, outerRadius: CITY_RADIUS },
@@ -198,7 +200,7 @@ export const generateDanMachiMap = (): WorldMapData => {
         // 西南 (112.5° - 157.5°): 赫菲斯托丝
         {
             id: 't_southwest', factionId: 'f_heph', name: '西南大街 (工业区)',
-            centerX: CENTER_X - 8000, centerY: CENTER_Y + 8000, color: factions[3].color,
+            centerX: CENTER_X - S(8000), centerY: CENTER_Y + S(8000), color: factions[3].color,
             boundary: createSectorPath(CENTER_X, CENTER_Y, CITY_RADIUS, 112.5, 157.5, PLAZA_RADIUS),
             shape: 'SECTOR',
             sector: { startAngle: 112.5, endAngle: 157.5, innerRadius: PLAZA_RADIUS, outerRadius: CITY_RADIUS },
@@ -207,7 +209,7 @@ export const generateDanMachiMap = (): WorldMapData => {
         // 西 (157.5° - 202.5°): 丰饶女主人/商业
         {
             id: 't_west', factionId: 'f_neutral', name: '西大街 (商业区)',
-            centerX: CENTER_X - 10000, centerY: CENTER_Y, color: '#60a5fa',
+            centerX: CENTER_X - S(10000), centerY: CENTER_Y, color: '#60a5fa',
             boundary: createSectorPath(CENTER_X, CENTER_Y, CITY_RADIUS, 157.5, 202.5, PLAZA_RADIUS),
             shape: 'SECTOR',
             sector: { startAngle: 157.5, endAngle: 202.5, innerRadius: PLAZA_RADIUS, outerRadius: CITY_RADIUS },
@@ -216,7 +218,7 @@ export const generateDanMachiMap = (): WorldMapData => {
         // 西北 (202.5° - 247.5°): 公会
         {
             id: 't_northwest', factionId: 'f_guild', name: '西北大街 (行政区)',
-            centerX: CENTER_X - 8000, centerY: CENTER_Y - 8000, color: factions[0].color,
+            centerX: CENTER_X - S(8000), centerY: CENTER_Y - S(8000), color: factions[0].color,
             boundary: createSectorPath(CENTER_X, CENTER_Y, CITY_RADIUS, 202.5, 247.5, PLAZA_RADIUS),
             shape: 'SECTOR',
             sector: { startAngle: 202.5, endAngle: 247.5, innerRadius: PLAZA_RADIUS, outerRadius: CITY_RADIUS },
@@ -228,12 +230,12 @@ export const generateDanMachiMap = (): WorldMapData => {
     const terrain: TerrainFeature[] = [
         {
             id: 'wall_outer', name: '都市城墙', type: 'WALL',
-            color: 'none', strokeColor: '#e2e8f0', strokeWidth: 80,
+            color: 'none', strokeColor: '#e2e8f0', strokeWidth: S(80),
             path: createCirclePath(CENTER_X, CENTER_Y, CITY_RADIUS), floor: 0
         },
         {
             id: 'babel_base', name: '中央广场', type: 'OBSTACLE',
-            color: '#f8fafc', strokeColor: '#93c5fd', strokeWidth: 20,
+            color: '#f8fafc', strokeColor: '#93c5fd', strokeWidth: S(20),
             path: createCirclePath(CENTER_X, CENTER_Y, PLAZA_RADIUS), floor: 0
         }
     ];
@@ -245,30 +247,171 @@ export const generateDanMachiMap = (): WorldMapData => {
         { id: 'loc_babel', name: '巴别塔', type: 'LANDMARK', coordinates: { x: CENTER_X, y: CENTER_Y }, radius: BABEL_RADIUS, description: '耸入云端的白塔，众神居住之地，地下城的盖子。', icon: 'tower', floor: 0 },
         
         // 北 (洛基)
-        { id: 'loc_twilight', name: '黄昏之馆', type: 'FAMILIA_HOME', coordinates: { x: CENTER_X, y: CENTER_Y - 12000 }, radius: 1500, description: '洛基眷族的大本营。', icon: 'flag', floor: 0 },
+        { id: 'loc_twilight', name: '黄昏之馆', type: 'FAMILIA_HOME', coordinates: { x: CENTER_X, y: CENTER_Y - S(12000) }, radius: S(1500), description: '洛基眷族的大本营。', icon: 'flag', floor: 0 },
         
         // 东北 (芙蕾雅)
-        { id: 'loc_folkvangr', name: '战斗荒野', type: 'FAMILIA_HOME', coordinates: { x: CENTER_X + 10000, y: CENTER_Y - 10000 }, radius: 1500, description: '芙蕾雅眷族的根据地。', icon: 'flag', floor: 0 },
+        { id: 'loc_folkvangr', name: '战斗荒野', type: 'FAMILIA_HOME', coordinates: { x: CENTER_X + S(10000), y: CENTER_Y - S(10000) }, radius: S(1500), description: '芙蕾雅眷族的根据地。', icon: 'flag', floor: 0 },
         
         // 东 (贫民窟)
-        { id: 'loc_daedalus', name: '代达罗斯路', type: 'SLUM', coordinates: { x: CENTER_X + 14000, y: CENTER_Y }, radius: 2500, description: '错综复杂的贫民窟迷宫街。', icon: 'skull', floor: 0 },
+        { id: 'loc_daedalus', name: '代达罗斯路', type: 'SLUM', coordinates: { x: CENTER_X + S(14000), y: CENTER_Y }, radius: S(2500), description: '错综复杂的贫民窟迷宫街。', icon: 'skull', floor: 0 },
         
         // 东南 (伊丝塔)
-        { id: 'loc_ishtar', name: '欢乐街', type: 'LANDMARK', coordinates: { x: CENTER_X + 10000, y: CENTER_Y + 10000 }, radius: 3000, description: '夜之街，男人的销金窟。', icon: 'heart', floor: 0 },
+        { id: 'loc_ishtar', name: '欢乐街', type: 'LANDMARK', coordinates: { x: CENTER_X + S(10000), y: CENTER_Y + S(10000) }, radius: S(3000), description: '夜之街，男人的销金窟。', icon: 'heart', floor: 0 },
         
         // 南 (正门)
-        { id: 'loc_gate', name: '都市正门', type: 'STREET', coordinates: { x: CENTER_X, y: CENTER_Y + 18000 }, radius: 1000, description: '宏伟的都市大门，新人聚集地。', icon: 'door', floor: 0 },
-        { id: 'loc_inn', name: '旅店街', type: 'SHOP', coordinates: { x: CENTER_X, y: CENTER_Y + 14000 }, radius: 1200, description: '廉价旅店林立的区域。', icon: 'bed', floor: 0 },
+        { id: 'loc_gate', name: '都市正门', type: 'STREET', coordinates: { x: CENTER_X, y: CENTER_Y + S(18000) }, radius: S(1000), description: '宏伟的都市大门，新人聚集地。', icon: 'door', floor: 0 },
+        { id: 'loc_inn', name: '旅店街', type: 'SHOP', coordinates: { x: CENTER_X, y: CENTER_Y + S(14000) }, radius: S(1200), description: '廉价旅店林立的区域。', icon: 'bed', floor: 0 },
         
         // 西南 (赫菲斯托丝 & 赫斯缇雅)
-        { id: 'loc_heph', name: '赫菲斯托丝工坊', type: 'SHOP', coordinates: { x: CENTER_X - 10000, y: CENTER_Y + 10000 }, radius: 1500, description: '最高级的武器店与锻造工坊。', icon: 'hammer', floor: 0 },
-        { id: 'loc_church', name: '废弃教堂', type: 'FAMILIA_HOME', coordinates: { x: CENTER_X - 13000, y: CENTER_Y + 13000 }, radius: 500, description: '隐秘的废墟，赫斯缇雅眷族的据点。', icon: 'home', floor: 0 },
+        { id: 'loc_heph', name: '赫菲斯托丝工坊', type: 'SHOP', coordinates: { x: CENTER_X - S(10000), y: CENTER_Y + S(10000) }, radius: S(1500), description: '最高级的武器店与锻造工坊。', icon: 'hammer', floor: 0 },
+        { id: 'loc_church', name: '废弃教堂', type: 'FAMILIA_HOME', coordinates: { x: CENTER_X - S(13000), y: CENTER_Y + S(13000) }, radius: S(500), description: '隐秘的废墟，赫斯缇雅眷族的据点。', icon: 'home', floor: 0 },
         
         // 西 (丰饶女主人)
-        { id: 'loc_pub', name: '丰饶的女主人', type: 'SHOP', coordinates: { x: CENTER_X - 9000, y: CENTER_Y }, radius: 600, description: '西大街著名的酒馆，店员全是女性。', icon: 'beer', floor: 0 },
+        { id: 'loc_pub', name: '丰饶的女主人', type: 'SHOP', coordinates: { x: CENTER_X - S(9000), y: CENTER_Y }, radius: S(600), description: '西大街著名的酒馆，店员全是女性。', icon: 'beer', floor: 0 },
         
         // 西北 (公会)
-        { id: 'loc_guild', name: '公会本部', type: 'GUILD', coordinates: { x: CENTER_X - 6000, y: CENTER_Y - 6000 }, radius: 1000, description: '统辖欧拉丽的行政中心。', icon: 'shield', floor: 0 },
+        { id: 'loc_guild', name: '公会本部', type: 'GUILD', coordinates: { x: CENTER_X - S(6000), y: CENTER_Y - S(6000) }, radius: S(1000), description: '统辖欧拉丽的行政中心。', icon: 'shield', floor: 0 },
+    ];
+
+    const dungeonLocations: OrarioLocation[] = Array.from({ length: 50 }, (_, index) => {
+        const floor = index + 1;
+        const baseX = CENTER_X;
+        const baseY = CENTER_Y;
+        const offset = S(600);
+        const nodes: OrarioLocation[] = [];
+        if (floor === 1) {
+            nodes.push({
+                id: `dungeon_entrance_f${floor}`,
+                name: '地下城入口',
+                type: 'DUNGEON_ENTRANCE',
+                coordinates: { x: baseX, y: baseY - offset },
+                radius: S(160),
+                description: '通往地表的入口与检查点。',
+                icon: 'door',
+                floor
+            });
+        } else {
+            nodes.push({
+                id: `dungeon_stairs_up_f${floor}`,
+                name: '上行楼梯',
+                type: 'STAIRS_UP',
+                coordinates: { x: baseX, y: baseY - offset },
+                radius: S(140),
+                description: `通往第${floor - 1}层的楼梯。`,
+                icon: 'stairs-up',
+                floor
+            });
+        }
+        if (floor < 50) {
+            nodes.push({
+                id: `dungeon_stairs_down_f${floor}`,
+                name: '下行楼梯',
+                type: 'STAIRS_DOWN',
+                coordinates: { x: baseX, y: baseY + offset },
+                radius: S(140),
+                description: `通往第${floor + 1}层的楼梯。`,
+                icon: 'stairs-down',
+                floor
+            });
+        }
+        nodes.push({
+            id: `dungeon_node_f${floor}`,
+            name: `节点-第${floor}层`,
+            type: 'POINT',
+            coordinates: { x: baseX + offset, y: baseY },
+            radius: S(120),
+            description: `第${floor}层主要分岔节点。`,
+            icon: 'node',
+            floor
+        });
+        if (floor === 18) {
+            nodes.push({
+                id: 'dungeon_safe_f18',
+                name: '里维拉镇',
+                type: 'SAFE_ZONE',
+                coordinates: { x: baseX - offset, y: baseY },
+                radius: S(180),
+                description: '安全楼层中的城镇与补给站。',
+                icon: 'safe',
+                floor
+            });
+        }
+        return nodes;
+    }).flat();
+
+    const allLocations: OrarioLocation[] = [...surfaceLocations, ...dungeonLocations];
+
+    const macroLocations: MapMacroLocation[] = [
+        {
+            id: 'macro_orario',
+            name: '欧拉丽',
+            type: 'CITY',
+            coordinates: { x: CENTER_X, y: CENTER_Y },
+            area: { shape: 'CIRCLE', center: { x: CENTER_X, y: CENTER_Y }, radius: CITY_RADIUS, note: '城墙范围' },
+            description: '迷宫都市欧拉丽。',
+            floor: 0
+        }
+    ];
+
+    const midLocations: MapMidLocation[] = [
+        {
+            id: 'mid_guild',
+            name: '公会本部',
+            parentId: 'macro_orario',
+            coordinates: { x: CENTER_X - S(6000), y: CENTER_Y - S(6000) },
+            area: { shape: 'CIRCLE', center: { x: CENTER_X - S(6000), y: CENTER_Y - S(6000) }, radius: S(1000) },
+            description: '冒险者登记与委托中心。',
+            floor: 0
+        },
+        {
+            id: 'mid_tavern',
+            name: '丰饶的女主人',
+            parentId: 'macro_orario',
+            coordinates: { x: CENTER_X - S(9000), y: CENTER_Y },
+            area: { shape: 'CIRCLE', center: { x: CENTER_X - S(9000), y: CENTER_Y }, radius: S(600) },
+            description: '西大街知名酒馆。',
+            floor: 0
+        }
+    ];
+
+    const smallLocations: MapSmallLocation[] = [
+        {
+            id: 'small_guild_lobby',
+            name: '公会本部-一层大厅',
+            parentId: 'mid_guild',
+            coordinates: { x: CENTER_X - S(6000), y: CENTER_Y - S(6000) },
+            area: { shape: 'RECT', center: { x: CENTER_X - S(6000), y: CENTER_Y - S(6000) }, width: 40, height: 25 },
+            description: '公会本部一层对外开放区域。',
+            floor: 0,
+            layout: {
+                scale: '1格=1米',
+                width: 40,
+                height: 25,
+                rooms: [
+                    { id: 'room_lobby', name: '接待大厅', type: 'public', bounds: { x: 0, y: 0, width: 40, height: 14 }, connections: ['room_counter', 'room_board', 'room_corridor'] },
+                    { id: 'room_counter', name: '委托柜台区', type: 'service', bounds: { x: 0, y: 14, width: 24, height: 6 }, connections: ['room_lobby', 'room_corridor'] },
+                    { id: 'room_board', name: '公告板区', type: 'info', bounds: { x: 24, y: 14, width: 16, height: 6 }, connections: ['room_lobby'] },
+                    { id: 'room_corridor', name: '内部走廊', type: 'hall', bounds: { x: 0, y: 20, width: 32, height: 5 }, connections: ['room_counter', 'room_stairs'] },
+                    { id: 'room_stairs', name: '楼梯间', type: 'stairs', bounds: { x: 32, y: 20, width: 8, height: 5 }, connections: ['room_corridor'] }
+                ],
+                furniture: [
+                    { id: 'f_reception', name: '接待柜台', type: 'counter', position: { x: 8, y: 16 }, size: { width: 8, height: 2 }, roomId: 'room_counter', description: '公会职员办理委托与登记。' },
+                    { id: 'f_notice', name: '公告板', type: 'board', position: { x: 28, y: 15 }, size: { width: 6, height: 3 }, roomId: 'room_board', description: '张贴任务、警戒与公告。' },
+                    { id: 'f_bench_1', name: '长椅', type: 'bench', position: { x: 6, y: 6 }, size: { width: 4, height: 1 }, roomId: 'room_lobby' },
+                    { id: 'f_bench_2', name: '长椅', type: 'bench', position: { x: 20, y: 6 }, size: { width: 4, height: 1 }, roomId: 'room_lobby' },
+                    { id: 'f_map_table', name: '地图台', type: 'table', position: { x: 30, y: 8 }, size: { width: 3, height: 2 }, roomId: 'room_lobby', description: '公会公开地图与路线说明。' }
+                ],
+                entrances: [
+                    { id: 'entrance_main', name: '正门', position: { x: 20, y: 0 }, connectsTo: '欧拉丽西北大街' },
+                    { id: 'entrance_inner', name: '内部门', position: { x: 4, y: 25 }, connectsTo: '公会内部办公区' }
+                ],
+                paths: [
+                    { id: 'path_lobby_counter', from: 'room_lobby', to: 'room_counter', note: '接待大厅通往委托柜台' },
+                    { id: 'path_corridor_stairs', from: 'room_corridor', to: 'room_stairs', note: '内部走廊通往楼梯' }
+                ],
+                notes: ['大厅人流密集，声音嘈杂。', '公告板区常有冒险者驻足查看委托。']
+            }
+        }
     ];
 
     const dungeonStructure: DungeonLayer[] = [
@@ -279,25 +422,27 @@ export const generateDanMachiMap = (): WorldMapData => {
         { floorStart: 18, floorEnd: 18, name: "迷宫乐园 (Rivira)", description: "安全楼层。冒险者的中转站。", dangerLevel: "SAFE", landmarks: [{ floor: 18, name: "里维拉镇", type: "SAFE_ZONE" }] },
         { floorStart: 19, floorEnd: 24, name: "中层·大树迷宫", description: "巨大的树木迷宫，视线极差。", dangerLevel: "HIGH", landmarks: [] },
         { floorStart: 25, floorEnd: 27, name: "下层·水之迷都", description: "拥有巨大瀑布的楼层。强化种出没。", dangerLevel: "EXTREME", landmarks: [] },
-        { floorStart: 37, floorEnd: 37, name: "深层·白之宫殿", description: "只有第一级冒险者才能踏足的死地。", dangerLevel: "HELL", landmarks: [] }
+        { floorStart: 28, floorEnd: 36, name: "下层·古城遗迹", description: "石柱与断壁构成的旧时代迷宫，魔物密度高。", dangerLevel: "EXTREME", landmarks: [] },
+        { floorStart: 37, floorEnd: 37, name: "深层·白之宫殿", description: "只有第一级冒险者才能踏足的死地。", dangerLevel: "HELL", landmarks: [] },
+        { floorStart: 38, floorEnd: 50, name: "深层·未知回廊", description: "地图与生态高度不稳定的区域，怪物强度极端。", dangerLevel: "HELL+", landmarks: [] }
     ];
 
     const routes: TradeRoute[] = [
         {
             id: 'route_ring_inner',
             name: '中央环路',
-            path: createCirclePath(CENTER_X, CENTER_Y, 4500),
+            path: createCirclePath(CENTER_X, CENTER_Y, S(4500)),
             type: 'MAIN_STREET',
-            width: 140,
+            width: S(140),
             color: '#94a3b8',
             floor: 0
         },
         {
             id: 'route_ring_outer',
             name: '外环干道',
-            path: createCirclePath(CENTER_X, CENTER_Y, 15000),
+            path: createCirclePath(CENTER_X, CENTER_Y, S(15000)),
             type: 'MAIN_STREET',
-            width: 180,
+            width: S(180),
             color: '#64748b',
             floor: 0
         },
@@ -305,12 +450,12 @@ export const generateDanMachiMap = (): WorldMapData => {
             id: 'route_north_south',
             name: '南北大道',
             path: createPolylinePath([
-                { x: CENTER_X, y: CENTER_Y - 19000 },
+                { x: CENTER_X, y: CENTER_Y - S(19000) },
                 { x: CENTER_X, y: CENTER_Y },
-                { x: CENTER_X, y: CENTER_Y + 19000 }
+                { x: CENTER_X, y: CENTER_Y + S(19000) }
             ]),
             type: 'MAIN_STREET',
-            width: 200,
+            width: S(200),
             color: '#cbd5f5',
             floor: 0
         },
@@ -318,12 +463,12 @@ export const generateDanMachiMap = (): WorldMapData => {
             id: 'route_east_west',
             name: '东西大道',
             path: createPolylinePath([
-                { x: CENTER_X - 19000, y: CENTER_Y },
+                { x: CENTER_X - S(19000), y: CENTER_Y },
                 { x: CENTER_X, y: CENTER_Y },
-                { x: CENTER_X + 19000, y: CENTER_Y }
+                { x: CENTER_X + S(19000), y: CENTER_Y }
             ]),
             type: 'MAIN_STREET',
-            width: 200,
+            width: S(200),
             color: '#cbd5f5',
             floor: 0
         },
@@ -331,13 +476,13 @@ export const generateDanMachiMap = (): WorldMapData => {
             id: 'route_market_trade',
             name: '商贸走廊',
             path: createPolylinePath([
-                { x: CENTER_X - 9000, y: CENTER_Y + 12000 },
-                { x: CENTER_X - 2000, y: CENTER_Y + 6000 },
-                { x: CENTER_X + 6000, y: CENTER_Y + 2000 },
-                { x: CENTER_X + 14000, y: CENTER_Y }
+                { x: CENTER_X - S(9000), y: CENTER_Y + S(12000) },
+                { x: CENTER_X - S(2000), y: CENTER_Y + S(6000) },
+                { x: CENTER_X + S(6000), y: CENTER_Y + S(2000) },
+                { x: CENTER_X + S(14000), y: CENTER_Y }
             ]),
             type: 'TRADE_ROUTE',
-            width: 140,
+            width: S(140),
             color: '#f59e0b',
             floor: 0
         },
@@ -345,12 +490,12 @@ export const generateDanMachiMap = (): WorldMapData => {
             id: 'route_slum_alley',
             name: '迷宫街小巷',
             path: createPolylinePath([
-                { x: CENTER_X + 11000, y: CENTER_Y - 2000 },
-                { x: CENTER_X + 14000, y: CENTER_Y },
-                { x: CENTER_X + 12000, y: CENTER_Y + 2500 }
+                { x: CENTER_X + S(11000), y: CENTER_Y - S(2000) },
+                { x: CENTER_X + S(14000), y: CENTER_Y },
+                { x: CENTER_X + S(12000), y: CENTER_Y + S(2500) }
             ]),
             type: 'ALLEY',
-            width: 80,
+            width: S(80),
             color: '#475569',
             floor: 0
         },
@@ -358,12 +503,12 @@ export const generateDanMachiMap = (): WorldMapData => {
             id: 'route_heph_link',
             name: '锻造街道',
             path: createPolylinePath([
-                { x: CENTER_X - 13000, y: CENTER_Y + 13000 },
-                { x: CENTER_X - 10000, y: CENTER_Y + 10000 },
-                { x: CENTER_X - 6000, y: CENTER_Y + 6000 }
+                { x: CENTER_X - S(13000), y: CENTER_Y + S(13000) },
+                { x: CENTER_X - S(10000), y: CENTER_Y + S(10000) },
+                { x: CENTER_X - S(6000), y: CENTER_Y + S(6000) }
             ]),
             type: 'TRADE_ROUTE',
-            width: 120,
+            width: S(120),
             color: '#f97316',
             floor: 0
         }
@@ -375,7 +520,11 @@ export const generateDanMachiMap = (): WorldMapData => {
         territories,
         terrain,
         routes,
-        surfaceLocations,
-        dungeonStructure
+        surfaceLocations: allLocations,
+        dungeonStructure,
+        macroLocations,
+        midLocations,
+        smallLocations
     };
 };
+

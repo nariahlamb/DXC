@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { LogEntry, CharacterStats, Confidant } from '../../../types';
-import { Edit2, Terminal, Trash2, Sparkles, Pin } from 'lucide-react';
+import { Edit2, Terminal, Trash2, Sparkles } from 'lucide-react';
 import { getAvatarColor } from '../../../utils/uiUtils';
 
 interface LogEntryProps {
@@ -12,7 +12,6 @@ interface LogEntryProps {
   onEditClick: (log: LogEntry) => void;
   onDelete?: (logId: string) => void;
   onEditUserLog?: (logId: string) => void;
-  onTogglePin?: (logId: string) => void;
   aiActionAnchor?: boolean;
   fontSize?: 'small' | 'medium' | 'large';
   showAiToolbar?: boolean; 
@@ -27,7 +26,6 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
     onEditClick, 
     onDelete,
     onEditUserLog,
-    onTogglePin,
     aiActionAnchor = false,
     fontSize = 'medium',
     showAiToolbar = false,
@@ -47,8 +45,6 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
     const canDeleteAI = showAiActions && !!onDelete;
     const canEditUser = isPlayer && !!onEditUserLog;
     const canDeleteUser = isPlayer && !!onDelete;
-    const canPin = !!onTogglePin;
-    const isPinned = !!log.pinned;
     const hasInlineActions = canEditUser || canDeleteUser;
     const hasActions = showAiActions || hasInlineActions;
 
@@ -138,28 +134,12 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
                         <Trash2 size={12} />
                     </button>
                 )}
-                {canPin && (
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onTogglePin?.(log.id);
-                        }}
-                        className={`flex items-center justify-center w-7 h-7 border bg-black/70 hover:text-white ${
-                            isPinned ? 'border-amber-400 text-amber-300' : 'border-zinc-700 text-zinc-300 hover:border-amber-500'
-                        }`}
-                        title={isPinned ? '取消收藏' : '收藏'}
-                        aria-label="收藏"
-                    >
-                        <Pin size={12} />
-                    </button>
-                )}
             </div>
         );
     };
 
     const MobileActions = ({ align }: { align: 'left' | 'right' | 'center' }) => {
-        if (!hasInlineActions && !canPin) return null;
+        if (!hasInlineActions) return null;
         const alignClass = align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start';
         return (
             <div className={`md:hidden mt-2 flex gap-2 ${alignClass}`}>
@@ -187,27 +167,13 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
                         <Trash2 size={12} /> 删除
                     </button>
                 )}
-                {canPin && (
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onTogglePin?.(log.id);
-                        }}
-                        className={`flex items-center gap-1 px-2 py-1 text-[10px] uppercase tracking-wider border bg-black/70 ${
-                            isPinned ? 'border-amber-400 text-amber-300' : 'border-zinc-700 text-zinc-300 hover:border-amber-500'
-                        }`}
-                    >
-                        <Pin size={12} /> {isPinned ? '已收藏' : '收藏'}
-                    </button>
-                )}
             </div>
         );
     };
 
     // Unified Action Menu - Desktop Only
     const ActionMenu = () => {
-        if (!hasInlineActions && !canPin) return null;
+        if (!hasInlineActions) return null;
 
         return (
             <div className="hidden md:block absolute z-30" style={{ top: '-1.5rem', right: isPlayer ? 'auto' : '0', left: isPlayer ? '-0.5rem' : 'auto' }}>
@@ -243,20 +209,6 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
                                 title="删除消息"
                             >
                                 <Trash2 size={12} />
-                            </button>
-                        )}
-                        {canPin && (
-                            <button 
-                                onClick={(e) => { 
-                                    e.stopPropagation(); 
-                                    onTogglePin?.(log.id); 
-                                }}
-                                className={`flex items-center gap-2 px-2 py-1.5 text-xs rounded transition-colors whitespace-nowrap ${
-                                    isPinned ? 'text-amber-200 bg-amber-700/40' : 'text-zinc-300 hover:text-white hover:bg-amber-600'
-                                }`}
-                                title={isPinned ? '取消收藏' : '收藏'}
-                            >
-                                <Pin size={12} />
                             </button>
                         )}
                     </div>

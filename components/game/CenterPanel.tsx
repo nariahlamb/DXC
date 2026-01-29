@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { LogEntry, CombatState, CharacterStats, Skill, MagicSpell, InventoryItem, Confidant, ActionOption } from '../../types';
-import { MessageSquare, Sword, Eye, Loader2, ChevronRight, MousePointer2, Terminal, Layers, ChevronUp, Info, Search, Pin } from 'lucide-react';
+import { MessageSquare, Sword, Eye, Loader2, ChevronRight, MousePointer2, Terminal, Layers, ChevronUp, Info, Search } from 'lucide-react';
 import { CombatPanel } from './CombatPanel';
 import { LogEntryItem } from './center/LogEntry';
 import { GameInput } from './center/GameInput';
@@ -33,7 +33,6 @@ interface CenterPanelProps {
   handleUserRewrite?: (logId: string, newText: string) => void; 
   draftInput?: string;
   setDraftInput?: (val: string) => void;
-  onToggleLogPin?: (logId: string) => void;
 
   actionOptions?: ActionOption[];
   fontSize?: 'small' | 'medium' | 'large'; 
@@ -69,7 +68,6 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
     handleUserRewrite,
     draftInput,
     setDraftInput,
-    onToggleLogPin,
 
     actionOptions = [],
     fontSize = 'medium',
@@ -87,7 +85,6 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
   const [jumpExpanded, setJumpExpanded] = useState(false);
   const [jumpFocused, setJumpFocused] = useState(false);
   const [filterQuery, setFilterQuery] = useState('');
-  const [showPinnedOnly, setShowPinnedOnly] = useState(false);
   const jumpHideTimer = useRef<number | null>(null);
   
   // Refs for scrolling
@@ -137,13 +134,11 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
   });
   const normalizedQuery = filterQuery.trim().toLowerCase();
   const filteredLogs = visibleLogs.filter(log => {
-      if (showPinnedOnly && !log.pinned) return false;
       if (!normalizedQuery) return true;
       const senderMatch = (log.sender || '').toLowerCase().includes(normalizedQuery);
       const textMatch = (log.text || '').toLowerCase().includes(normalizedQuery);
       return senderMatch || textMatch;
   });
-  const pinnedCount = visibleLogs.filter(l => l.pinned).length;
   const aiActionSeen = new Set<string>();
   const logIndexMap = new Map<string, number>();
   logs.forEach((log, idx) => logIndexMap.set(log.id, idx));
@@ -360,20 +355,10 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
                   placeholder="搜索对白/旁白"
                   className="w-28 md:w-40 bg-transparent text-zinc-200 outline-none placeholder:text-zinc-600"
               />
-              <button
-                  type="button"
-                  onClick={() => setShowPinnedOnly(!showPinnedOnly)}
-                  className={`flex items-center gap-1 px-2 py-0.5 border text-[10px] uppercase tracking-widest transition-colors ${
-                      showPinnedOnly ? 'border-amber-400 text-amber-300 bg-amber-900/30' : 'border-zinc-700 text-zinc-400'
-                  }`}
-                  title={showPinnedOnly ? '显示全部' : '仅看收藏'}
-              >
-                  <Pin size={10} /> {pinnedCount}
-              </button>
-              {(filterQuery || showPinnedOnly) && (
+              {filterQuery && (
                   <button
                       type="button"
-                      onClick={() => { setFilterQuery(''); setShowPinnedOnly(false); }}
+                      onClick={() => setFilterQuery('')}
                       className="text-zinc-500 hover:text-white"
                       title="清除筛选"
                   >
@@ -381,7 +366,7 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
                   </button>
               )}
           </div>
-          {(filterQuery || showPinnedOnly) && (
+          {filterQuery && (
               <div className="mt-1 text-[10px] text-zinc-500">
                   显示 {filteredLogs.length}/{visibleLogs.length}
               </div>
@@ -475,7 +460,6 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
                         fontSize={fontSize} 
                         showAiToolbar={showAiToolbar}
                         isHellMode={isHellMode}
-                        onTogglePin={onToggleLogPin}
                     />
                 </div>
             );
