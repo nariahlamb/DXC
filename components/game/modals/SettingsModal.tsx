@@ -1350,15 +1350,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   <div className="bg-white border border-zinc-300 p-4 shadow-sm text-xs">
-                      <div className="text-zinc-500 uppercase font-bold">大地图</div>
+                      <div className="text-zinc-500 uppercase font-bold">世界地图</div>
                       <div className="text-2xl font-display text-black">{macro.length}</div>
                   </div>
                   <div className="bg-white border border-zinc-300 p-4 shadow-sm text-xs">
-                      <div className="text-zinc-500 uppercase font-bold">中地点</div>
+                      <div className="text-zinc-500 uppercase font-bold">地区地图</div>
                       <div className="text-2xl font-display text-black">{mid.length}</div>
                   </div>
                   <div className="bg-white border border-zinc-300 p-4 shadow-sm text-xs">
-                      <div className="text-zinc-500 uppercase font-bold">小地点</div>
+                      <div className="text-zinc-500 uppercase font-bold">细分地点</div>
                       <div className="text-2xl font-display text-black">{small.length}</div>
                   </div>
                   <div className="bg-white border border-zinc-300 p-4 shadow-sm text-xs">
@@ -1368,13 +1368,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
               <div className="bg-white border border-zinc-300 p-4 shadow-sm space-y-2 text-xs text-zinc-700">
                   <div className="font-bold text-zinc-800">上下文插入条件</div>
-                  <div>• 大地图/中地点：常驻上下文，输出名称/坐标/描述/大小/建筑清单。</div>
-                  <div>• 小地点：仅当角色进入对应小地点时，才插入完整布局、房间与家具。</div>
+                  <div>• 世界地图/地区地图：常驻上下文，输出名称/坐标/描述/大小/建筑清单。</div>
+                  <div>• 细分地点：仅当角色进入对应细分地点时，才插入完整布局、房间与家具。</div>
                   <div>• 地下城：仅当玩家输入包含地图关键词且明确写出“第N层/ N层”，并且 N = 当前楼层时插入该层完整地图。</div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div className="bg-white border border-zinc-300 p-4 shadow-sm text-xs">
-                      <div className="text-xs font-bold uppercase text-zinc-600 mb-2">大地图</div>
+                      <div className="text-xs font-bold uppercase text-zinc-600 mb-2">世界地图</div>
                       <div className="max-h-64 overflow-auto space-y-2">
                           {macro.length === 0 && <div className="text-zinc-400 italic">暂无数据</div>}
                           {macro.map(item => (
@@ -1389,7 +1389,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       </div>
                   </div>
                   <div className="bg-white border border-zinc-300 p-4 shadow-sm text-xs">
-                      <div className="text-xs font-bold uppercase text-zinc-600 mb-2">中地点</div>
+                      <div className="text-xs font-bold uppercase text-zinc-600 mb-2">地区地图</div>
                       <div className="max-h-64 overflow-auto space-y-2">
                           {mid.length === 0 && <div className="text-zinc-400 italic">暂无数据</div>}
                           {mid.map(item => (
@@ -1404,7 +1404,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       </div>
                   </div>
                   <div className="bg-white border border-zinc-300 p-4 shadow-sm text-xs">
-                      <div className="text-xs font-bold uppercase text-zinc-600 mb-2">小地点</div>
+                      <div className="text-xs font-bold uppercase text-zinc-600 mb-2">细分地点</div>
                       <div className="max-h-64 overflow-auto space-y-2">
                           {small.length === 0 && <div className="text-zinc-400 italic">暂无数据</div>}
                           {small.map(item => (

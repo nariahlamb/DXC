@@ -21,6 +21,7 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
   floor,
   location
 }) => {
+  const layoutUnit = 9;
   // Zoom & Pan State
   const [scale, setScale] = useState(0.5); // Default closer zoom for mobile
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -76,6 +77,7 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
   const macroLocations = mapData.macroLocations || [];
   const midLocations = mapData.midLocations || [];
   const smallLocations = mapData.smallLocations || [];
+  const hasSmallView = smallLocations.length > 0;
 
   const matchByName = (needle?: string, name?: string) => {
       if (!needle || !name) return false;
@@ -95,10 +97,10 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
       const midMatch = midLocations.find(m => matchByName(location, m.name)) || null;
       if (smallMatch) {
           setViewMode('small');
-          setActiveSmall(smallMatch);
+          setActiveSmall(smallMatch as MapSmallLocation);
           setActiveMid(midMatch);
           setSelectedSmallId(smallMatch.id);
-          setSelectedMidId(smallMatch.parentId || midMatch?.id || null);
+          setSelectedMidId((smallMatch as any).parentId || midMatch?.id || null);
       } else if (midMatch) {
           setViewMode('mid');
           setActiveMid(midMatch);
@@ -147,9 +149,8 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
       const container = layoutContainerRef.current;
       if (!container) return;
       const { clientWidth, clientHeight } = container;
-      const unit = 10;
-      const pixelX = localX * unit * layoutScale;
-      const pixelY = localY * unit * layoutScale;
+      const pixelX = localX * layoutUnit * layoutScale;
+      const pixelY = localY * layoutUnit * layoutScale;
       setLayoutOffset({
           x: clientWidth / 2 - pixelX,
           y: clientHeight / 2 - pixelY
@@ -204,17 +205,19 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
 
   const selectSmallById = (id: string) => {
       const small = smallLocations.find(s => s.id === id) || null;
-      if (!small) return;
-      const mid = midLocations.find(m => m.id === small.parentId) || null;
-      setSelectedSmallId(id);
-      setSelectedMidId(small.parentId || mid?.id || null);
-      setSelectedMacroId(mid?.parentId || selectedMacroId || null);
-      setActiveSmall(small);
-      setActiveMid(mid);
-      setViewingFloor(0);
-      setViewMode('small');
-      if (small.layout) {
-          setTimeout(() => centerOnLayout(small.layout, small.area, small.coordinates), 0);
+      if (small) {
+          const mid = midLocations.find(m => m.id === small.parentId) || null;
+          setSelectedSmallId(id);
+          setSelectedMidId(small.parentId || mid?.id || null);
+          setSelectedMacroId(mid?.parentId || selectedMacroId || null);
+          setActiveSmall(small);
+          setActiveMid(mid);
+          setViewingFloor(0);
+          setViewMode('small');
+          if (small.layout) {
+              setTimeout(() => centerOnLayout(small.layout, small.area, small.coordinates), 0);
+          }
+          return;
       }
   };
 
@@ -226,7 +229,9 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
 
   const pickDefaultSmallId = () => {
       if (selectedSmallId) return selectedSmallId;
-      const fromMid = selectedMidId ? smallLocations.find(s => s.parentId === selectedMidId) : null;
+      const fromMid = selectedMidId
+          ? smallLocations.find(s => (s as any).parentId === selectedMidId)
+          : null;
       return fromMid?.id || smallLocations[0]?.id || null;
   };
 
@@ -326,6 +331,7 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
           resizeCanvasToContainer(canvas, container);
           const ctx = canvas.getContext('2d');
           if (!ctx) return;
+          const mapScope = viewingFloor === 0 && viewMode === 'macro' ? 'macro' : 'mid';
           drawWorldMapCanvas(ctx, mapData, {
               floor: viewingFloor,
               scale,
@@ -334,6 +340,8 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
               showNPCs,
               showPlayer: viewingFloor === floor || viewingFloor === 0,
               showLabels: true,
+              scope: mapScope,
+              focusMacroId: selectedMacroId,
               currentPos,
               confidants
           });
@@ -448,6 +456,23 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
       if (!rect) return null;
       const mapX = (clientX - rect.left - offset.x) / scale;
       const mapY = (clientY - rect.top - offset.y) / scale;
+      const mapScope = viewingFloor === 0 && viewMode === 'macro' ? 'macro' : 'mid';
+      if (mapScope === 'macro') {
+          const macro = macroLocations.find(m => {
+              if (m.area?.shape === 'CIRCLE' && m.area.center && m.area.radius) {
+                  return Math.hypot(mapX - m.area.center.x, mapY - m.area.center.y) <= m.area.radius;
+              }
+              if (m.area?.shape === 'RECT' && m.area.center && m.area.width && m.area.height) {
+                  const left = m.area.center.x - m.area.width / 2;
+                  const right = m.area.center.x + m.area.width / 2;
+                  const top = m.area.center.y - m.area.height / 2;
+                  const bottom = m.area.center.y + m.area.height / 2;
+                  return mapX >= left && mapX <= right && mapY >= top && mapY <= bottom;
+              }
+              return false;
+          });
+          if (macro) return { ...macro, coordinates: macro.coordinates } as any;
+      }
       return mapData.surfaceLocations
           .filter(l => (l.floor || 0) === viewingFloor)
           .find(l => {
@@ -479,7 +504,7 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
               </div>
           );
       }
-      const unit = 10;
+      const unit = layoutUnit;
       const layoutWidth = area?.width ?? layout.width;
       const layoutHeight = area?.height ?? layout.height;
       const center = area?.center || baseCenter;
@@ -489,6 +514,9 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
           .filter(c => c.坐标)
           .map(c => ({ name: c.姓名, local: toLocal(c.坐标 as GeoPoint) }))
           .filter(c => c.local);
+      const showRoomLabels = layoutScale >= 1.0;
+      const showFurnitureLabels = layoutScale >= 1.4;
+      const showPlayerLabel = layoutScale >= 1.2;
       return (
           <div
               ref={layoutContainerRef}
@@ -498,7 +526,7 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
               onTouchEnd={handleTouchEnd}
           >
               <div className="p-4 flex flex-col items-center gap-3">
-                  <div className="text-[10px] text-blue-300 font-mono uppercase tracking-widest">
+                  <div className="text-[9px] text-blue-300 font-mono uppercase tracking-widest">
                       {title}
                   </div>
                   <div
@@ -520,7 +548,7 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
                       {layout.rooms.map(room => (
                           <div
                               key={room.id}
-                              className="absolute border border-zinc-900/80 bg-white/70 text-[8px] text-zinc-800 font-bold flex items-center justify-center"
+                              className="absolute border border-zinc-900/80 bg-white/70 text-[7px] text-zinc-800 font-semibold flex items-center justify-center"
                               style={{
                                   left: room.bounds.x * unit,
                                   top: room.bounds.y * unit,
@@ -528,13 +556,13 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
                                   height: room.bounds.height * unit
                               }}
                           >
-                              {room.name}
+                              {showRoomLabels ? room.name : ''}
                           </div>
                       ))}
                       {layout.furniture.map(item => (
                           <div
                               key={item.id}
-                              className="absolute bg-amber-600/70 border border-amber-900 text-[7px] text-white flex items-center justify-center"
+                              className="absolute bg-amber-600/70 border border-amber-900 text-[6px] text-white flex items-center justify-center"
                               style={{
                                   left: item.position.x * unit,
                                   top: item.position.y * unit,
@@ -543,7 +571,7 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
                               }}
                               title={item.description || item.name}
                           >
-                              {item.name}
+                              {showFurnitureLabels ? item.name : ''}
                           </div>
                       ))}
                       {layout.entrances.map(entrance => (
@@ -564,6 +592,14 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
                               title="玩家"
                           />
                       )}
+                      {playerLocal && showPlayerLabel && (
+                          <div
+                              className="absolute text-[8px] text-emerald-900 font-bold bg-white/80 px-1 rounded"
+                              style={{ left: playerLocal.x * unit + 4, top: playerLocal.y * unit - 8 }}
+                          >
+                              玩家
+                          </div>
+                      )}
                       {npcLocals.map(npc => (
                           <div
                               key={npc.name}
@@ -574,10 +610,10 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
                       ))}
                       </div>
                   </div>
-                  <div className="text-[9px] text-zinc-400 font-mono">
+                  <div className="text-[8px] text-zinc-400 font-mono">
                       比例: {layout.scale} | 尺寸: {layoutWidth} × {layoutHeight} 米
                   </div>
-                  <div className="w-full bg-black/60 border border-zinc-700 p-2 text-[9px] text-zinc-200 space-y-1">
+                  <div className="w-full bg-black/60 border border-zinc-700 p-2 text-[8px] text-zinc-200 space-y-1">
                       <div>玩家坐标: {Math.round(currentPos.x)}, {Math.round(currentPos.y)}</div>
                       {npcLocals.length > 0 && (
                           <div>在场角色: {npcLocals.map(n => n.name).join(' / ')}</div>
@@ -605,9 +641,9 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
         
         {/* Map Canvas / Small Layout */}
         {viewingFloor === 0 && viewMode === 'small' && activeSmall ? (
-            renderLayoutView(activeSmall.layout, `小地点布局 · ${activeSmall.name}`, activeSmall.area, activeSmall.coordinates)
+            renderLayoutView(activeSmall.layout, `细分地点布局 · ${activeSmall.name}`, activeSmall.area, activeSmall.coordinates)
         ) : viewingFloor === 0 && viewMode === 'mid' && activeMid?.layout ? (
-            renderLayoutView(activeMid.layout, `中地点布局 · ${activeMid.name}`, activeMid.area, activeMid.coordinates)
+            renderLayoutView(activeMid.layout, `地区地图 · ${activeMid.name}`, activeMid.area, activeMid.coordinates)
         ) : (
             <div 
                 ref={containerRef}
@@ -634,9 +670,9 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
             {showFloorSelect && (
                 <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-40 bg-zinc-900 border border-zinc-700 rounded shadow-xl max-h-60 overflow-y-auto custom-scrollbar flex flex-col">
                     <button onClick={() => handleSelectFloor(0)} className="p-3 text-xs text-left text-white border-b border-zinc-800 hover:bg-blue-900">
-                        地表 (欧拉丽)
+                        地表区域
                     </button>
-                    {Array.from({length: 50}, (_, i) => i + 1).map(f => (
+                    {Array.from({length: 65}, (_, i) => i + 1).map(f => (
                         <button 
                             key={f} 
                             onClick={() => handleSelectFloor(f)}
@@ -655,19 +691,19 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
                     onClick={() => setViewMode('macro')}
                     className={`px-3 py-1.5 ${viewMode === 'macro' ? 'bg-blue-600 text-white' : 'text-zinc-300'}`}
                 >
-                    大地图
+                    世界地图
                 </button>
                 <button
                     onClick={enterMidView}
                     className={`px-3 py-1.5 ${viewMode === 'mid' ? 'bg-blue-600 text-white' : midLocations.length > 0 ? 'text-zinc-300' : 'text-zinc-600'}`}
                 >
-                    中地点
+                    地区地图
                 </button>
                 <button
                     onClick={enterSmallView}
-                    className={`px-3 py-1.5 ${viewMode === 'small' ? 'bg-blue-600 text-white' : smallLocations.length > 0 ? 'text-zinc-300' : 'text-zinc-600'}`}
+                    className={`px-3 py-1.5 ${viewMode === 'small' ? 'bg-blue-600 text-white' : hasSmallView ? 'text-zinc-300' : 'text-zinc-600'}`}
                 >
-                    小地点
+                    细分地点
                 </button>
             </div>
         )}
@@ -679,7 +715,7 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
                     onChange={(e) => selectMacroById(e.target.value)}
                     className="bg-zinc-900 text-zinc-200 border border-zinc-700 px-2 py-1"
                 >
-                    {macroLocations.length === 0 && <option value="">无大地图</option>}
+                    {macroLocations.length === 0 && <option value="">无世界地图</option>}
                     {macroLocations.map(m => (
                         <option key={m.id} value={m.id}>{m.name}</option>
                     ))}
@@ -689,7 +725,7 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
                     onChange={(e) => selectMidById(e.target.value)}
                     className="bg-zinc-900 text-zinc-200 border border-zinc-700 px-2 py-1"
                 >
-                    <option value="">选择中地点</option>
+                    <option value="">选择地区/城市</option>
                     {midLocations
                         .filter(m => !selectedMacroId || m.parentId === selectedMacroId)
                         .map(m => (
@@ -701,9 +737,9 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
                     onChange={(e) => selectSmallById(e.target.value)}
                     className="bg-zinc-900 text-zinc-200 border border-zinc-700 px-2 py-1"
                 >
-                    <option value="">选择小地点</option>
+                    <option value="">选择细分地点</option>
                     {smallLocations
-                        .filter(s => !selectedMidId || s.parentId === selectedMidId)
+                        .filter(s => !selectedMidId || (s as any).parentId === selectedMidId)
                         .map(s => (
                             <option key={s.id} value={s.id}>{s.name}</option>
                         ))}

@@ -25,6 +25,7 @@ export const MapModal: React.FC<MapModalProps> = ({
   playerName = "YOU",
   confidants = []
 }) => {
+  const layoutUnit = 12;
   // Enhanced Scale: Limit minimum scale to 0.1 to prevent crash
   const [scale, setScale] = useState(0.5); 
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -73,6 +74,7 @@ export const MapModal: React.FC<MapModalProps> = ({
   const macroLocations = mapData.macroLocations || [];
   const midLocations = mapData.midLocations || [];
   const smallLocations = mapData.smallLocations || [];
+  const hasSmallView = smallLocations.length > 0;
 
   const matchByName = (needle?: string, name?: string) => {
       if (!needle || !name) return false;
@@ -92,10 +94,10 @@ export const MapModal: React.FC<MapModalProps> = ({
       const midMatch = midLocations.find(m => matchByName(location, m.name)) || null;
       if (smallMatch) {
           setViewMode('small');
-          setActiveSmall(smallMatch);
+          setActiveSmall(smallMatch as MapSmallLocation);
           setActiveMid(midMatch);
           setSelectedSmallId(smallMatch.id);
-          setSelectedMidId(smallMatch.parentId || midMatch?.id || null);
+          setSelectedMidId((smallMatch as any).parentId || midMatch?.id || null);
       } else if (midMatch) {
           setViewMode('mid');
           setActiveMid(midMatch);
@@ -144,9 +146,8 @@ export const MapModal: React.FC<MapModalProps> = ({
       const container = layoutContainerRef.current;
       if (!container) return;
       const { clientWidth, clientHeight } = container;
-      const unit = 14;
-      const pixelX = localX * unit * layoutScale;
-      const pixelY = localY * unit * layoutScale;
+      const pixelX = localX * layoutUnit * layoutScale;
+      const pixelY = localY * layoutUnit * layoutScale;
       const targetOffset = {
           x: clientWidth / 2 - pixelX,
           y: clientHeight / 2 - pixelY
@@ -180,13 +181,12 @@ export const MapModal: React.FC<MapModalProps> = ({
       const container = layoutContainerRef.current;
       if (!container) return;
       const { width: layoutWidth, height: layoutHeight } = getLayoutSize(layout, area);
-      const unit = 14;
-      const targetScale = Math.min(container.clientWidth / (layoutWidth * unit), container.clientHeight / (layoutHeight * unit)) * 0.9;
+      const targetScale = Math.min(container.clientWidth / (layoutWidth * layoutUnit), container.clientHeight / (layoutHeight * layoutUnit)) * 0.9;
       const safeScale = Math.max(0.3, Math.min(targetScale, 5.0));
       setLayoutScale(safeScale);
       setLayoutOffset({
-          x: (container.clientWidth - layoutWidth * unit * safeScale) / 2,
-          y: (container.clientHeight - layoutHeight * unit * safeScale) / 2
+          x: (container.clientWidth - layoutWidth * layoutUnit * safeScale) / 2,
+          y: (container.clientHeight - layoutHeight * layoutUnit * safeScale) / 2
       });
   };
 
@@ -230,17 +230,19 @@ export const MapModal: React.FC<MapModalProps> = ({
 
   const selectSmallById = (id: string) => {
       const small = smallLocations.find(s => s.id === id) || null;
-      if (!small) return;
-      const mid = midLocations.find(m => m.id === small.parentId) || null;
-      setSelectedSmallId(id);
-      setSelectedMidId(small.parentId || mid?.id || null);
-      setSelectedMacroId(mid?.parentId || selectedMacroId || null);
-      setActiveSmall(small);
-      setActiveMid(mid);
-      setViewingFloor(0);
-      setViewMode('small');
-      if (small.layout) {
-          setTimeout(() => centerOnLayout(small.layout, small.area, small.coordinates), 0);
+      if (small) {
+          const mid = midLocations.find(m => m.id === small.parentId) || null;
+          setSelectedSmallId(id);
+          setSelectedMidId(small.parentId || mid?.id || null);
+          setSelectedMacroId(mid?.parentId || selectedMacroId || null);
+          setActiveSmall(small);
+          setActiveMid(mid);
+          setViewingFloor(0);
+          setViewMode('small');
+          if (small.layout) {
+              setTimeout(() => centerOnLayout(small.layout, small.area, small.coordinates), 0);
+          }
+          return;
       }
   };
 
@@ -331,6 +333,7 @@ export const MapModal: React.FC<MapModalProps> = ({
           resizeCanvasToContainer(canvas, container);
           const ctx = canvas.getContext('2d');
           if (!ctx) return;
+          const mapScope = viewingFloor === 0 && viewMode === 'macro' ? 'macro' : 'mid';
           drawWorldMapCanvas(ctx, mapData, {
               floor: viewingFloor,
               scale,
@@ -339,6 +342,8 @@ export const MapModal: React.FC<MapModalProps> = ({
               showNPCs,
               showPlayer: viewingFloor === floor || viewingFloor === 0,
               showLabels: true,
+              scope: mapScope,
+              focusMacroId: selectedMacroId,
               currentPos,
               confidants
           });
@@ -456,6 +461,32 @@ export const MapModal: React.FC<MapModalProps> = ({
       if (!rect) return;
       const mapX = (clientX - rect.left - offset.x) / scale;
       const mapY = (clientY - rect.top - offset.y) / scale;
+      const mapScope = viewingFloor === 0 && viewMode === 'macro' ? 'macro' : 'mid';
+      if (mapScope === 'macro') {
+          const macro = macroLocations.find(m => {
+              if (m.area?.shape === 'CIRCLE' && m.area.center && m.area.radius) {
+                  return Math.hypot(mapX - m.area.center.x, mapY - m.area.center.y) <= m.area.radius;
+              }
+              if (m.area?.shape === 'RECT' && m.area.center && m.area.width && m.area.height) {
+                  const left = m.area.center.x - m.area.width / 2;
+                  const right = m.area.center.x + m.area.width / 2;
+                  const top = m.area.center.y - m.area.height / 2;
+                  const bottom = m.area.center.y + m.area.height / 2;
+                  return mapX >= left && mapX <= right && mapY >= top && mapY <= bottom;
+              }
+              return false;
+          }) || null;
+          if (macro) {
+              setHoverInfo({
+                  title: macro.name,
+                  sub: macro.type || '区域',
+                  desc: macro.description,
+                  x: clientX,
+                  y: clientY
+              });
+              return;
+          }
+      }
       const loc = mapData.surfaceLocations
           .filter(l => (l.floor || 0) === viewingFloor)
           .find(l => {
@@ -503,9 +534,11 @@ export const MapModal: React.FC<MapModalProps> = ({
               </div>
           );
       }
-      const unit = 14;
+      const unit = layoutUnit;
       const layoutWidth = area?.width ?? layout.width;
       const layoutHeight = area?.height ?? layout.height;
+      const showRoomLabels = layoutScale >= 0.7;
+      const showFurnitureLabels = layoutScale >= 1.0;
       const center = area?.center || baseCenter;
       const toLocal = (point?: GeoPoint) => toLocalPoint(point, center, layoutWidth, layoutHeight);
       const playerLocal = toLocal(currentPos);
@@ -524,7 +557,7 @@ export const MapModal: React.FC<MapModalProps> = ({
               onWheel={handleWheel}
           >
               <div className="p-6 flex flex-col items-center gap-4">
-                  <div className="text-xs text-blue-300 font-mono uppercase tracking-widest">
+                  <div className="text-[11px] text-blue-300 font-mono uppercase tracking-widest">
                       {title}
                   </div>
                   <div className="flex items-center gap-2 text-[10px]">
@@ -560,7 +593,7 @@ export const MapModal: React.FC<MapModalProps> = ({
                       {layout.rooms.map(room => (
                           <div
                               key={room.id}
-                              className="absolute border-2 border-zinc-900/80 bg-white/70 text-[10px] text-zinc-800 font-bold flex items-center justify-center"
+                              className="absolute border-2 border-zinc-900/80 bg-white/70 text-[9px] text-zinc-800 font-bold flex items-center justify-center"
                               style={{
                                   left: room.bounds.x * unit,
                                   top: room.bounds.y * unit,
@@ -568,13 +601,13 @@ export const MapModal: React.FC<MapModalProps> = ({
                                   height: room.bounds.height * unit
                               }}
                           >
-                              {room.name}
+                              {showRoomLabels ? room.name : ''}
                           </div>
                       ))}
                       {layout.furniture.map(item => (
                           <div
                               key={item.id}
-                              className="absolute bg-amber-600/70 border border-amber-900 text-[8px] text-white flex items-center justify-center"
+                              className="absolute bg-amber-600/70 border border-amber-900 text-[7px] text-white flex items-center justify-center"
                               style={{
                                   left: item.position.x * unit,
                                   top: item.position.y * unit,
@@ -583,7 +616,7 @@ export const MapModal: React.FC<MapModalProps> = ({
                               }}
                               title={item.description || item.name}
                           >
-                              {item.name}
+                              {showFurnitureLabels ? item.name : ''}
                           </div>
                       ))}
                       {layout.entrances.map(entrance => (
@@ -606,7 +639,7 @@ export const MapModal: React.FC<MapModalProps> = ({
                       )}
                       {playerLocal && (
                           <div
-                              className="absolute text-[9px] text-emerald-800 font-bold bg-white/80 px-1 rounded"
+                              className="absolute text-[8px] text-emerald-800 font-bold bg-white/80 px-1 rounded"
                               style={{ left: playerLocal.x * unit + 6, top: playerLocal.y * unit - 10 }}
                           >
                               玩家 {Math.round(currentPos.x)},{Math.round(currentPos.y)}
@@ -622,17 +655,17 @@ export const MapModal: React.FC<MapModalProps> = ({
                       ))}
                       </div>
                   </div>
-                  <div className="text-[10px] text-zinc-400 font-mono">
+                  <div className="text-[9px] text-zinc-400 font-mono">
                       比例: {layout.scale} | 尺寸: {layoutWidth} × {layoutHeight} 米
                   </div>
-                  <div className="max-w-3xl w-full bg-black/60 border border-zinc-700 p-3 text-[11px] text-zinc-200 space-y-1">
+                  <div className="max-w-3xl w-full bg-black/60 border border-zinc-700 p-3 text-[10px] text-zinc-200 space-y-1">
                       <div>玩家坐标: {Math.round(currentPos.x)}, {Math.round(currentPos.y)}</div>
                       {npcLocals.length > 0 && (
                           <div>在场角色: {npcLocals.map(n => n.name).join(' / ')}</div>
                       )}
                   </div>
                   {layout.notes && layout.notes.length > 0 && (
-                      <div className="max-w-3xl w-full bg-black/60 border border-zinc-700 p-3 text-[11px] text-zinc-200 space-y-1">
+                      <div className="max-w-3xl w-full bg-black/60 border border-zinc-700 p-3 text-[10px] text-zinc-200 space-y-1">
                           {layout.notes.map((note, idx) => (
                               <div key={idx}>• {note}</div>
                           ))}
@@ -666,7 +699,7 @@ export const MapModal: React.FC<MapModalProps> = ({
                 className="bg-black/90 text-white border border-blue-500 px-4 py-2 rounded flex items-center gap-2 shadow-lg"
               >
                   <span className="font-bold font-mono">
-                      {viewingFloor === 0 ? "地表 (欧拉丽)" : `地下 ${viewingFloor} 层`}
+                      {viewingFloor === 0 ? "地表区域" : `地下 ${viewingFloor} 层`}
                   </span>
                   <ChevronDown size={14} className={`transition-transform ${isFloorMenuOpen ? 'rotate-180' : ''}`} />
               </button>
@@ -674,9 +707,9 @@ export const MapModal: React.FC<MapModalProps> = ({
               {isFloorMenuOpen && (
                   <div className="absolute top-full left-0 mt-1 w-48 bg-black border border-zinc-700 max-h-64 overflow-y-auto custom-scrollbar shadow-xl z-40">
                       <button onClick={() => { handleSelectFloor(0); setIsFloorMenuOpen(false); }} className="w-full text-left px-3 py-2 text-xs text-white hover:bg-blue-900 border-b border-zinc-800">
-                          欧拉丽地表
+                          地表区域
                       </button>
-                      {Array.from({length: 50}, (_, i) => i + 1).map(f => (
+                      {Array.from({length: 65}, (_, i) => i + 1).map(f => (
                           <button 
                             key={f} 
                             onClick={() => { handleSelectFloor(f); setIsFloorMenuOpen(false); }}
@@ -700,7 +733,9 @@ export const MapModal: React.FC<MapModalProps> = ({
       };
       const pickDefaultSmallId = () => {
           if (selectedSmallId) return selectedSmallId;
-          const fromMid = selectedMidId ? smallLocations.find(s => s.parentId === selectedMidId) : null;
+          const fromMid = selectedMidId
+              ? smallLocations.find(s => (s as any).parentId === selectedMidId)
+              : null;
           return fromMid?.id || smallLocations[0]?.id || null;
       };
       const enterMidView = () => {
@@ -720,19 +755,19 @@ export const MapModal: React.FC<MapModalProps> = ({
                               onClick={() => setViewMode('macro')}
                               className={`px-3 py-2 ${viewMode === 'macro' ? 'bg-blue-700 text-white' : 'text-zinc-400 hover:text-white'}`}
                           >
-                              大地图
+                              世界地图
                           </button>
                           <button
                               onClick={enterMidView}
                               className={`px-3 py-2 ${viewMode === 'mid' ? 'bg-blue-700 text-white' : midLocations.length > 0 ? 'text-zinc-400 hover:text-white' : 'text-zinc-600 cursor-not-allowed'}`}
                           >
-                              中地点
+                              地区地图
                           </button>
                           <button
                               onClick={enterSmallView}
-                              className={`px-3 py-2 ${viewMode === 'small' ? 'bg-blue-700 text-white' : smallLocations.length > 0 ? 'text-zinc-400 hover:text-white' : 'text-zinc-600 cursor-not-allowed'}`}
+                              className={`px-3 py-2 ${viewMode === 'small' ? 'bg-blue-700 text-white' : hasSmallView ? 'text-zinc-400 hover:text-white' : 'text-zinc-600 cursor-not-allowed'}`}
                           >
-                              小地点
+                              细分地点
                           </button>
                       </div>
                       <div className="grid grid-cols-1 gap-2 text-[11px]">
@@ -741,7 +776,7 @@ export const MapModal: React.FC<MapModalProps> = ({
                               onChange={(e) => selectMacroById(e.target.value)}
                               className="bg-zinc-900 text-zinc-200 border border-zinc-700 px-2 py-1"
                           >
-                              {macroLocations.length === 0 && <option value="">无大地图</option>}
+                              {macroLocations.length === 0 && <option value="">无世界地图</option>}
                               {macroLocations.map(m => (
                                   <option key={m.id} value={m.id}>{m.name}</option>
                               ))}
@@ -751,7 +786,7 @@ export const MapModal: React.FC<MapModalProps> = ({
                               onChange={(e) => selectMidById(e.target.value)}
                               className="bg-zinc-900 text-zinc-200 border border-zinc-700 px-2 py-1"
                           >
-                              <option value="">选择中地点</option>
+                              <option value="">选择地区/城市</option>
                               {midLocations
                                   .filter(m => !selectedMacroId || m.parentId === selectedMacroId)
                                   .map(m => (
@@ -763,9 +798,9 @@ export const MapModal: React.FC<MapModalProps> = ({
                               onChange={(e) => selectSmallById(e.target.value)}
                               className="bg-zinc-900 text-zinc-200 border border-zinc-700 px-2 py-1"
                           >
-                              <option value="">选择小地点</option>
+                              <option value="">选择细分地点</option>
                               {smallLocations
-                                  .filter(s => !selectedMidId || s.parentId === selectedMidId)
+                                  .filter(s => !selectedMidId || (s as any).parentId === selectedMidId)
                                   .map(s => (
                                       <option key={s.id} value={s.id}>{s.name}</option>
                                   ))}
@@ -927,9 +962,14 @@ export const MapModal: React.FC<MapModalProps> = ({
 
         {/* Map View */}
         {viewingFloor === 0 && viewMode === 'small' && activeSmall
-            ? renderLayoutView(activeSmall.layout, `小地点布局 · ${activeSmall.name}`, activeSmall.area, activeSmall.coordinates)
+            ? renderLayoutView(
+                activeSmall.layout,
+                `细分地点布局 · ${activeSmall.name}`,
+                activeSmall.area,
+                activeSmall.coordinates
+            )
             : viewingFloor === 0 && viewMode === 'mid' && activeMid?.layout
-                ? renderLayoutView(activeMid.layout, `中地点布局 · ${activeMid.name}`, activeMid.area, activeMid.coordinates)
+                ? renderLayoutView(activeMid.layout, `地区地图 · ${activeMid.name}`, activeMid.area, activeMid.coordinates)
                 : renderSurfaceMap()}
 
         {/* Tooltip */}

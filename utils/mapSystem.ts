@@ -273,7 +273,7 @@ export const generateDanMachiMap = (): WorldMapData => {
         { id: 'loc_guild', name: '公会本部', type: 'GUILD', coordinates: { x: CENTER_X - S(6000), y: CENTER_Y - S(6000) }, radius: S(1000), description: '统辖欧拉丽的行政中心。', icon: 'shield', floor: 0 },
     ];
 
-    const dungeonLocations: OrarioLocation[] = Array.from({ length: 50 }, (_, index) => {
+    const dungeonLocations: OrarioLocation[] = Array.from({ length: 65 }, (_, index) => {
         const floor = index + 1;
         const baseX = CENTER_X;
         const baseY = CENTER_Y;
@@ -302,7 +302,7 @@ export const generateDanMachiMap = (): WorldMapData => {
                 floor
             });
         }
-        if (floor < 50) {
+        if (floor < 65) {
             nodes.push({
                 id: `dungeon_stairs_down_f${floor}`,
                 name: '下行楼梯',
@@ -336,12 +336,48 @@ export const generateDanMachiMap = (): WorldMapData => {
                 floor
             });
         }
+        if (floor === 28) {
+            nodes.push({
+                id: 'dungeon_safe_f28',
+                name: '安全层·Under Garden',
+                type: 'SAFE_ZONE',
+                coordinates: { x: baseX - offset, y: baseY },
+                radius: S(180),
+                description: '第28层安全点，花园般的平原地带。',
+                icon: 'safe',
+                floor
+            });
+        }
+        if (floor === 39) {
+            nodes.push({
+                id: 'dungeon_safe_f39',
+                name: '安全层·Under Bridge',
+                type: 'SAFE_ZONE',
+                coordinates: { x: baseX - offset, y: baseY },
+                radius: S(180),
+                description: '第39层安全点，通道与桥梁交错的休整区。',
+                icon: 'safe',
+                floor
+            });
+        }
+        if (floor === 50) {
+            nodes.push({
+                id: 'dungeon_safe_f50',
+                name: '安全层·第50层',
+                type: 'SAFE_ZONE',
+                coordinates: { x: baseX - offset, y: baseY },
+                radius: S(180),
+                description: '第50层安全点，怪物不在此诞生。',
+                icon: 'safe',
+                floor
+            });
+        }
         return nodes;
     }).flat();
 
     const allLocations: OrarioLocation[] = [...surfaceLocations, ...dungeonLocations];
 
-    const macroLocations: MapMacroLocation[] = [
+    const worldRegions: MapMacroLocation[] = [
         {
             id: 'macro_orario',
             name: '欧拉丽',
@@ -464,130 +500,50 @@ export const generateDanMachiMap = (): WorldMapData => {
         }
     ];
 
-    const midLocations: MapMidLocation[] = [
+    const macroLocations: MapMacroLocation[] = [
         {
-            id: 'mid_guild',
-            name: '公会本部',
-            parentId: 'macro_orario',
-            coordinates: { x: CENTER_X - S(6000), y: CENTER_Y - S(6000) },
-            area: { shape: 'CIRCLE', center: { x: CENTER_X - S(6000), y: CENTER_Y - S(6000) }, radius: S(1000) },
-            size: { width: 120, height: 90, unit: 'm' },
-            buildings: [
-                { id: 'guild_floor1', name: '一层大厅', floors: 1, description: '登记、委托、公告板。' },
-                { id: 'guild_floor2', name: '二层事务区', floors: 1, description: '公会办公与档案管理。' },
-                { id: 'guild_floor3', name: '三层会议区', floors: 1, description: '会议室与重要访客接待。' }
-            ],
-            layout: {
-                scale: '1格=1米',
-                width: 60,
-                height: 45,
-                rooms: [
-                    { id: 'guild_lobby', name: '一层大厅', type: 'public', bounds: { x: 0, y: 0, width: 60, height: 20 } },
-                    { id: 'guild_counter', name: '委托柜台', type: 'service', bounds: { x: 0, y: 20, width: 35, height: 8 } },
-                    { id: 'guild_board', name: '公告板区', type: 'info', bounds: { x: 35, y: 20, width: 25, height: 8 } },
-                    { id: 'guild_office', name: '办公区', type: 'office', bounds: { x: 0, y: 28, width: 40, height: 10 } },
-                    { id: 'guild_meet', name: '会议区', type: 'meeting', bounds: { x: 40, y: 28, width: 20, height: 10 } },
-                    { id: 'guild_stairs', name: '楼梯间', type: 'stairs', bounds: { x: 0, y: 38, width: 10, height: 7 } }
-                ],
-                furniture: [
-                    { id: 'guild_notice', name: '公告板', type: 'board', position: { x: 42, y: 22 }, size: { width: 6, height: 3 } },
-                    { id: 'guild_counter', name: '柜台', type: 'counter', position: { x: 10, y: 22 }, size: { width: 10, height: 2 } },
-                    { id: 'guild_table', name: '情报桌', type: 'table', position: { x: 20, y: 8 }, size: { width: 4, height: 2 } }
-                ],
-                entrances: [
-                    { id: 'guild_entry', name: '正门', position: { x: 30, y: 0 }, connectsTo: '欧拉丽西北大街' }
-                ],
-                notes: ['大厅人流密集，公告板区域常有冒险者驻足。']
-            },
-            description: '冒险者登记与委托中心。',
-            floor: 0
-        },
-        {
-            id: 'mid_tavern',
-            name: '丰饶的女主人',
-            parentId: 'macro_orario',
-            coordinates: { x: CENTER_X - S(9000), y: CENTER_Y },
-            area: { shape: 'CIRCLE', center: { x: CENTER_X - S(9000), y: CENTER_Y }, radius: S(600) },
-            size: { width: 70, height: 50, unit: 'm' },
-            buildings: [
-                { id: 'tavern_floor1', name: '一层酒馆', floors: 1, description: '用餐区与吧台。' },
-                { id: 'tavern_floor2', name: '二层客房', floors: 1, description: '客房与员工休息区。' }
-            ],
-            layout: {
-                scale: '1格=1米',
-                width: 40,
-                height: 28,
-                rooms: [
-                    { id: 'tavern_hall', name: '酒馆大厅', type: 'public', bounds: { x: 0, y: 0, width: 40, height: 16 } },
-                    { id: 'tavern_bar', name: '吧台区', type: 'service', bounds: { x: 0, y: 16, width: 22, height: 6 } },
-                    { id: 'tavern_kitchen', name: '后厨', type: 'service', bounds: { x: 22, y: 16, width: 18, height: 6 } },
-                    { id: 'tavern_stairs', name: '楼梯间', type: 'stairs', bounds: { x: 0, y: 22, width: 10, height: 6 } }
-                ],
-                furniture: [
-                    { id: 'tavern_tables', name: '餐桌区', type: 'table', position: { x: 10, y: 6 }, size: { width: 8, height: 4 } },
-                    { id: 'tavern_bar', name: '吧台', type: 'counter', position: { x: 4, y: 18 }, size: { width: 10, height: 2 } }
-                ],
-                entrances: [
-                    { id: 'tavern_entry', name: '正门', position: { x: 20, y: 0 }, connectsTo: '欧拉丽西大街' }
-                ],
-                notes: ['酒馆大厅常用于情报交流。']
-            },
-            description: '西大街知名酒馆。',
+            id: 'macro_world',
+            name: '下界',
+            type: 'WORLD',
+            coordinates: { x: CENTER_X, y: CENTER_Y },
+            area: { shape: 'RECT', center: { x: CENTER_X, y: CENTER_Y }, width: MAP_SIZE, height: MAP_SIZE, note: '下界大陆与周边诸国范围' },
+            size: { width: MAP_SIZE, height: MAP_SIZE, unit: 'm' },
+            description: '包含欧拉丽与周边诸国的下界世界地图。',
             floor: 0
         }
     ];
 
-    const smallLocations: MapSmallLocation[] = [
-        {
-            id: 'small_guild_lobby',
-            name: '公会本部-一层大厅',
-            parentId: 'mid_guild',
-            coordinates: { x: CENTER_X - S(6000), y: CENTER_Y - S(6000) },
-            area: { shape: 'RECT', center: { x: CENTER_X - S(6000), y: CENTER_Y - S(6000) }, width: 40, height: 25 },
-            description: '公会本部一层对外开放区域。',
-            floor: 0,
-            layout: {
-                scale: '1格=1米',
-                width: 40,
-                height: 25,
-                rooms: [
-                    { id: 'room_lobby', name: '接待大厅', type: 'public', bounds: { x: 0, y: 0, width: 40, height: 14 }, connections: ['room_counter', 'room_board', 'room_corridor'] },
-                    { id: 'room_counter', name: '委托柜台区', type: 'service', bounds: { x: 0, y: 14, width: 24, height: 6 }, connections: ['room_lobby', 'room_corridor'] },
-                    { id: 'room_board', name: '公告板区', type: 'info', bounds: { x: 24, y: 14, width: 16, height: 6 }, connections: ['room_lobby'] },
-                    { id: 'room_corridor', name: '内部走廊', type: 'hall', bounds: { x: 0, y: 20, width: 32, height: 5 }, connections: ['room_counter', 'room_stairs'] },
-                    { id: 'room_stairs', name: '楼梯间', type: 'stairs', bounds: { x: 32, y: 20, width: 8, height: 5 }, connections: ['room_corridor'] }
-                ],
-                furniture: [
-                    { id: 'f_reception', name: '接待柜台', type: 'counter', position: { x: 8, y: 16 }, size: { width: 8, height: 2 }, roomId: 'room_counter', description: '公会职员办理委托与登记。' },
-                    { id: 'f_notice', name: '公告板', type: 'board', position: { x: 28, y: 15 }, size: { width: 6, height: 3 }, roomId: 'room_board', description: '张贴任务、警戒与公告。' },
-                    { id: 'f_bench_1', name: '长椅', type: 'bench', position: { x: 6, y: 6 }, size: { width: 4, height: 1 }, roomId: 'room_lobby' },
-                    { id: 'f_bench_2', name: '长椅', type: 'bench', position: { x: 20, y: 6 }, size: { width: 4, height: 1 }, roomId: 'room_lobby' },
-                    { id: 'f_map_table', name: '地图台', type: 'table', position: { x: 30, y: 8 }, size: { width: 3, height: 2 }, roomId: 'room_lobby', description: '公会公开地图与路线说明。' }
-                ],
-                entrances: [
-                    { id: 'entrance_main', name: '正门', position: { x: 20, y: 0 }, connectsTo: '欧拉丽西北大街' },
-                    { id: 'entrance_inner', name: '内部门', position: { x: 4, y: 25 }, connectsTo: '公会内部办公区' }
-                ],
-                paths: [
-                    { id: 'path_lobby_counter', from: 'room_lobby', to: 'room_counter', note: '接待大厅通往委托柜台' },
-                    { id: 'path_corridor_stairs', from: 'room_corridor', to: 'room_stairs', note: '内部走廊通往楼梯' }
-                ],
-                notes: ['大厅人流密集，声音嘈杂。', '公告板区常有冒险者驻足查看委托。']
-            }
-        }
-    ];
+    const midLocations: MapMidLocation[] = worldRegions.map(region => ({
+        id: region.id,
+        name: region.name,
+        parentId: 'macro_world',
+        coordinates: region.coordinates,
+        area: region.area,
+        size: region.size,
+        buildings: region.buildings,
+        layout: region.layout,
+        description: region.description,
+        floor: region.floor
+    }));
+
+    const smallLocations: MapSmallLocation[] = [];
 
     const dungeonStructure: DungeonLayer[] = [
-        { floorStart: 1, floorEnd: 4, name: "上层·起始之路", description: "浅蓝色墙壁。哥布林与狗头人的领域。适合Lv.1新手。", dangerLevel: "LOW", landmarks: [] },
-        { floorStart: 5, floorEnd: 7, name: "上层·杀人蚁层", description: "拥有坚硬甲壳的杀人蚁成群结队。新手的鬼门关。", dangerLevel: "LOW-MID", landmarks: [] },
-        { floorStart: 8, floorEnd: 12, name: "上层·迷雾层", description: "包括兽人、小恶魔等更强怪物。第10层很大。", dangerLevel: "MEDIUM", landmarks: [] },
-        { floorStart: 13, floorEnd: 17, name: "中层·岩窟迷宫", description: "死线(Dead Line)之后。光线昏暗，怪物强度骤升。Lv.1的禁区。", dangerLevel: "HIGH", landmarks: [] },
-        { floorStart: 18, floorEnd: 18, name: "迷宫乐园 (Rivira)", description: "安全楼层。冒险者的中转站。", dangerLevel: "SAFE", landmarks: [{ floor: 18, name: "里维拉镇", type: "SAFE_ZONE" }] },
-        { floorStart: 19, floorEnd: 24, name: "中层·大树迷宫", description: "巨大的树木迷宫，视线极差。", dangerLevel: "HIGH", landmarks: [] },
-        { floorStart: 25, floorEnd: 27, name: "下层·水之迷都", description: "拥有巨大瀑布的楼层。强化种出没。", dangerLevel: "EXTREME", landmarks: [] },
-        { floorStart: 28, floorEnd: 36, name: "下层·古城遗迹", description: "石柱与断壁构成的旧时代迷宫，魔物密度高。", dangerLevel: "EXTREME", landmarks: [] },
-        { floorStart: 37, floorEnd: 37, name: "深层·白之宫殿", description: "只有第一级冒险者才能踏足的死地。", dangerLevel: "HELL", landmarks: [] },
-        { floorStart: 38, floorEnd: 50, name: "深层·未知回廊", description: "地图与生态高度不稳定的区域，怪物强度极端。", dangerLevel: "HELL+", landmarks: [] }
+        { floorStart: 1, floorEnd: 12, name: "上层 (Upper Floors)", description: "入门层区，地图相对简洁。", dangerLevel: "LOW", landmarks: [] },
+        { floorStart: 13, floorEnd: 17, name: "中层 (Middle Floors)", description: "死线之后，结构复杂，17层出现楼层主。", dangerLevel: "HIGH", landmarks: [{ floor: 17, name: "楼层主·歌利亚", type: "BOSS" }] },
+        { floorStart: 18, floorEnd: 18, name: "安全层·Under Resort (里维拉)", description: "安全楼层，怪物不在此诞生。", dangerLevel: "SAFE", landmarks: [{ floor: 18, name: "里维拉镇", type: "SAFE_ZONE" }] },
+        { floorStart: 19, floorEnd: 24, name: "中层 (Middle Floors)", description: "迷宫与生态更复杂，通路易变。", dangerLevel: "HIGH", landmarks: [] },
+        { floorStart: 25, floorEnd: 27, name: "下层 (Lower Floors) · Water City", description: "Great Fall 瀑布区，27层有楼层主。", dangerLevel: "EXTREME", landmarks: [{ floor: 27, name: "楼层主·安菲斯比纳", type: "BOSS" }] },
+        { floorStart: 28, floorEnd: 28, name: "安全层·Under Garden", description: "花园般的安全楼层，怪物不在此诞生。", dangerLevel: "SAFE", landmarks: [{ floor: 28, name: "Under Garden", type: "SAFE_ZONE" }] },
+        { floorStart: 29, floorEnd: 36, name: "下层 (Lower Floors)", description: "生态极端，地形复杂，高危区域。", dangerLevel: "EXTREME", landmarks: [] },
+        { floorStart: 37, floorEnd: 38, name: "深层 (Deep Floors)", description: "极限区域，37层中心有楼层主。", dangerLevel: "HELL", landmarks: [{ floor: 37, name: "楼层主·乌代俄斯", type: "BOSS" }] },
+        { floorStart: 39, floorEnd: 39, name: "安全层·Under Bridge", description: "深层安全点，怪物不在此诞生。", dangerLevel: "SAFE", landmarks: [{ floor: 39, name: "Under Bridge", type: "SAFE_ZONE" }] },
+        { floorStart: 40, floorEnd: 43, name: "深层 (Deep Floors)", description: "记录稀少，生态不稳定。", dangerLevel: "HELL", landmarks: [] },
+        { floorStart: 44, floorEnd: 48, name: "深层·Crimson Mountains", description: "火山地貌与炽热岩层。", dangerLevel: "HELL+", landmarks: [] },
+        { floorStart: 49, floorEnd: 49, name: "深层·Moytura", description: "巨型荒野区域，存在楼层主。", dangerLevel: "HELL+", landmarks: [{ floor: 49, name: "楼层主·巴罗尔", type: "BOSS" }] },
+        { floorStart: 50, floorEnd: 50, name: "安全层·第50层", description: "深层安全点，怪物不在此诞生。", dangerLevel: "SAFE", landmarks: [{ floor: 50, name: "安全层·第50层", type: "SAFE_ZONE" }] },
+        { floorStart: 51, floorEnd: 58, name: "深层·Hall of the Grafite", description: "平整迷宫结构与石墨厅域。", dangerLevel: "HELL+", landmarks: [] },
+        { floorStart: 59, floorEnd: 65, name: "深层·Glacial Domain", description: "冰河与极寒环境，生态异常。", dangerLevel: "HELL+", landmarks: [] }
     ];
 
     const routes: TradeRoute[] = [

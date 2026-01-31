@@ -341,6 +341,7 @@ export const constructSocialContext = (confidants: Confidant[], params: any): st
                 简介: c.简介, 外貌: c.外貌,
                 生存数值: c.生存数值 || "需生成",
                 能力值: c.能力值 || "需生成",
+                隐藏基础能力: c.隐藏基础能力 || "需生成",
                 装备: c.装备 || "需生成",
                 背包: c.背包 || [],
                 最近记忆: focusMemories
@@ -421,7 +422,7 @@ export const constructMapContext = (gameState: GameState, params: any): string =
             : (matchByName(currentLocationName, macroLocations as any) as any) || (macroLocations.length === 1 ? macroLocations[0] : null);
 
         if (currentMacro || currentMid || currentSmall) {
-            output += `当前层级: ${currentMacro?.name || '未知'}${currentMid ? ` > ${currentMid.name}` : ''}${currentSmall ? ` > ${currentSmall.name}` : ''}\n`;
+        output += `当前层级: ${currentMacro?.name || '未知'}${currentMid ? ` > ${currentMid.name}` : ''}${currentSmall ? ` > ${currentSmall.name}` : ''}\n`;
         }
 
         const macroSummary = macroLocations.map(m => ({
@@ -454,8 +455,8 @@ export const constructMapContext = (gameState: GameState, params: any): string =
                 };
             });
 
-        output += `【大地图(常驻)】\n${JSON.stringify(macroSummary, null, 2)}\n`;
-        output += `【中地图(常驻)】\n${JSON.stringify(midSummary, null, 2)}\n`;
+        output += `【世界地图(常驻)】\n${JSON.stringify(macroSummary, null, 2)}\n`;
+        output += `【地区地图(常驻)】\n${JSON.stringify(midSummary, null, 2)}\n`;
         if (floor === 0 && currentSmall) {
             const smallPayload = {
                 id: currentSmall.id,
@@ -466,7 +467,7 @@ export const constructMapContext = (gameState: GameState, params: any): string =
                 description: currentSmall.description,
                 layout: currentSmall.layout
             };
-            output += `【小地图-当前】\n${JSON.stringify(smallPayload, null, 2)}\n`;
+            output += `【细分地点-当前】\n${JSON.stringify(smallPayload, null, 2)}\n`;
         }
         if (floor === 0) return output.trimEnd();
     }

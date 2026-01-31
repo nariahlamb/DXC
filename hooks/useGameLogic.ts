@@ -181,6 +181,25 @@ const migrateNpcActionsToTracking = (state: GameState): GameState => {
 
 const ensureDerivedStats = (state: GameState): GameState => {
     if (!state?.角色) return state;
+    const toNumber = (value: any, fallback = 0) => {
+        if (typeof value === 'number' && !Number.isNaN(value)) return value;
+        if (typeof value === 'string' && value.trim()) {
+            const parsed = Number(value);
+            return Number.isFinite(parsed) ? parsed : fallback;
+        }
+        return fallback;
+    };
+    const normalizeLevel = (value: any) => {
+        const parsed = toNumber(value, 1);
+        return Math.max(1, Math.floor(parsed));
+    };
+    const normalizeAbilities = (value?: any) => ({
+        力量: toNumber(value?.力量),
+        耐久: toNumber(value?.耐久),
+        灵巧: toNumber(value?.灵巧),
+        敏捷: toNumber(value?.敏捷),
+        魔力: toNumber(value?.魔力)
+    });
     const baseAbilities = state.角色.隐藏基础能力 || { 力量: 0, 耐久: 0, 灵巧: 0, 敏捷: 0, 魔力: 0 };
     const maxCarry = computeMaxCarry(state.角色);
     const maxHp = computeMaxHp(state.角色);
@@ -216,6 +235,38 @@ const ensureDerivedStats = (state: GameState): GameState => {
     const nextCurrentHp = hasBodyParts
         ? Object.values(nextBodyParts || {}).reduce((sum: number, p: any) => sum + (p?.当前 || 0), 0)
         : Math.min(state.角色.生命值 || maxHp, maxHp);
+    const nextSocial = Array.isArray(state.社交)
+        ? state.社交.map((confidant: Confidant) => {
+            if (!confidant?.是否队友) return confidant;
+            const nextLevel = normalizeLevel(confidant.等级);
+            const nextAbilities = normalizeAbilities(confidant.能力值);
+            const nextHidden = normalizeAbilities(confidant.隐藏基础能力);
+            const derived = {
+                等级: nextLevel,
+                能力值: nextAbilities,
+                隐藏基础能力: nextHidden
+            } as any;
+            const nextMaxHp = computeMaxHp(derived);
+            const nextMaxMind = computeMaxMind(derived);
+            const nextMaxStamina = computeMaxStamina(derived);
+            const existingVitals = confidant.生存数值 || ({} as any);
+            const nextVitals = {
+                当前生命: Math.min(toNumber(existingVitals.当前生命, nextMaxHp), nextMaxHp),
+                最大生命: nextMaxHp,
+                当前精神: Math.min(toNumber(existingVitals.当前精神, nextMaxMind), nextMaxMind),
+                最大精神: nextMaxMind,
+                当前体力: Math.min(toNumber(existingVitals.当前体力, nextMaxStamina), nextMaxStamina),
+                最大体力: nextMaxStamina
+            };
+            return {
+                ...confidant,
+                等级: nextLevel,
+                能力值: nextAbilities,
+                隐藏基础能力: nextHidden,
+                生存数值: nextVitals
+            };
+        })
+        : state.社交;
     return {
         ...state,
         角色: {
@@ -230,7 +281,8 @@ const ensureDerivedStats = (state: GameState): GameState => {
             体力: Math.min(state.角色.体力 ?? maxStamina, maxStamina),
             身体部位: nextBodyParts
         },
-        地图: nextMap
+        地图: nextMap,
+        社交: nextSocial
     };
 };
 

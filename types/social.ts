@@ -62,6 +62,13 @@ export interface Confidant {
       敏捷: number | string;
       魔力: number | string;
   };
+  隐藏基础能力?: {
+      力量: number | string;
+      耐久: number | string;
+      灵巧: number | string;
+      敏捷: number | string;
+      魔力: number | string;
+  };
 
   // 装备 (Equipment)
   装备?: {
