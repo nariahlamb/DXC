@@ -361,6 +361,7 @@ export const P_DYN_MAP = `<地图动态绘制>
 【地图动态绘制 (Dynamic Dungeon Generation)】
 ⚠️ **核心指令**: 当玩家进入一个新的、数据为空的楼层时，**必须**规划并生成该层的地图数据。
 ⚠️ **触发条件**: 地下城地图仅在玩家输入包含地图关键词且明确写出“第N层/ N层”，并且 N=当前楼层时才插入完整地图。
+⚠️ **坐标基准**: 地下城楼层使用独立坐标系，默认底图为 \`layer_dungeon\`，坐标范围 0~8000 (单位: 米)。
 
 ### 1. 规划阶段 (Planning)
 根据 \`gameState.当前楼层\` 决定地图风格：
@@ -441,6 +442,11 @@ export const P_MAP_DISCOVERY = `<新地点发现与绘制>
 - **地图比例**: 坐标 1:1 米。
 - *示例*: "在丰饶女主人(西)的更西边偏南一点的后巷" -> 估算 X: 47000, Y: 52000。
 
+### 2.1 Leaflet底图说明
+- 地图渲染使用 \`gameState.地图.leaflet.layers\` 作为底图来源。
+- **禁止**随意改动现有底图层；只有在发现全新的地区/城市且需要独立底图时，才允许新增一条 layer。
+- 地表默认使用 \`layer_world\`，欧拉丽等城市使用对应地区 layer（如 \`layer_orario\`），地下城使用 \`layer_dungeon\`。
+
 ### 3. 指令生成（按层级选择）
 - **世界层级**: \`push gameState.地图.macroLocations\`
 - **地区层级**: \`push gameState.地图.midLocations\`
@@ -449,24 +455,13 @@ export const P_MAP_DISCOVERY = `<新地点发现与绘制>
 **世界层级结构**:
 \`\`\`json
 {
-  "id": "macro_[Unique]",
-  "name": "欧拉丽",
-  "type": "CITY",
+  "id": "macro_world",
+  "name": "下界",
+  "type": "WORLD",
   "coordinates": { "x": 50000, "y": 50000 },
-  "area": { "shape": "CIRCLE", "center": { "x": 50000, "y": 50000 }, "radius": 4000 },
-  "size": { "width": 8000, "height": 8000, "unit": "m" },
-  "buildings": [
-    { "id": "b_guild", "name": "公会本部", "type": "GUILD", "floors": 6, "description": "冒险者登记与委托中心" }
-  ],
-  "layout": {
-    "scale": "1格=10米",
-    "width": 800,
-    "height": 800,
-    "rooms": [{ "id": "district_w", "name": "西区街区", "type": "district", "bounds": { "x": 0, "y": 0, "width": 320, "height": 320 } }],
-    "furniture": [],
-    "entrances": []
-  },
-  "description": "迷宫都市",
+  "area": { "shape": "RECT", "center": { "x": 50000, "y": 50000 }, "width": 100000, "height": 100000 },
+  "size": { "width": 100000, "height": 100000, "unit": "m" },
+  "description": "下界世界地图",
   "floor": 0
 }
 \`\`\`
@@ -474,28 +469,14 @@ export const P_MAP_DISCOVERY = `<新地点发现与绘制>
 **地区层级结构**:
 \`\`\`json
 {
-  "id": "mid_[Unique]",
-  "name": "公会本部",
-  "parentId": "macro_orario",
-  "coordinates": { "x": 48800, "y": 48800 },
-  "area": { "shape": "CIRCLE", "center": { "x": 48800, "y": 48800 }, "radius": 200 },
-  "size": { "width": 120, "height": 80, "unit": "m" },
-  "buildings": [
-    { "id": "b_main", "name": "本部主楼", "type": "PUBLIC", "floors": 6 }
-  ],
-  "layout": {
-    "scale": "1格=1米",
-    "width": 120,
-    "height": 80,
-    "rooms": [
-      { "id": "mid_lobby", "name": "入口大厅", "type": "public", "bounds": { "x": 0, "y": 0, "width": 120, "height": 30 } }
-    ],
-    "furniture": [],
-    "entrances": [
-      { "id": "mid_main", "name": "主入口", "position": { "x": 60, "y": 0 }, "connectsTo": "欧拉丽西北大街" }
-    ]
-  },
-  "description": "冒险者登记与委托中心",
+  "id": "mid_orario",
+  "name": "欧拉丽",
+  "parentId": "macro_world",
+  "coordinates": { "x": 50000, "y": 50000 },
+  "area": { "shape": "CIRCLE", "center": { "x": 50000, "y": 50000 }, "radius": 8000 },
+  "size": { "width": 16000, "height": 16000, "unit": "m" },
+  "mapLayerId": "layer_orario",
+  "description": "迷宫都市欧拉丽",
   "floor": 0
 }
 \`\`\`
@@ -505,7 +486,7 @@ export const P_MAP_DISCOVERY = `<新地点发现与绘制>
 {
   "id": "small_[Unique]",
   "name": "公会本部-一层大厅",
-  "parentId": "mid_guild",
+  "parentId": "mid_orario",
   "coordinates": { "x": 48800, "y": 48800 },
   "area": { "shape": "RECT", "center": { "x": 48800, "y": 48800 }, "width": 40, "height": 25 },
   "description": "公会本部一层对外开放区域",
@@ -532,6 +513,7 @@ export const P_MAP_DISCOVERY = `<新地点发现与绘制>
 - 必须标出关键家具/设施（柜台、桌椅、楼梯、床铺、货架等）。
 - 保持可读性与可探索性：每个房间至少一个连接或入口。
 - 细分地点命名建议：使用“地区地点-区域”形式，如“公会本部-一层大厅”。
+- 若仅记录“城区/街区/室外区域”，可先不填 layout；进入室内再补全 layout。
 ### 5. 世界/地区层级布局要求
 - 世界/地区层级也遵循“平面设计图”逻辑：以街区/楼层/公共区为房间块，保证完整布局与入口。
 - 世界/地区层级仅做“建筑与布局纲要”，不需要细分地点级别的家具细节。

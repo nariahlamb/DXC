@@ -1,8 +1,9 @@
 ﻿
 import React, { useState, useRef, useEffect } from 'react';
 import { Target, Plus, Minus, Layers, Eye, EyeOff, Map as MapIcon, Info, X, ChevronDown } from 'lucide-react';
+import L from 'leaflet';
 import { WorldMapData, GeoPoint, Confidant, MapMidLocation, MapSmallLocation } from '../../types';
-import { drawWorldMapCanvas, resizeCanvasToContainer } from '../../utils/mapCanvas';
+import { LeafletMapView } from '../map/LeafletMapView';
 
 interface MobileMapViewProps {
   worldMap: WorldMapData;
@@ -22,11 +23,7 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
   location
 }) => {
   const layoutUnit = 9;
-  // Zoom & Pan State
-  const [scale, setScale] = useState(0.5); // Default closer zoom for mobile
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const mapRef = useRef<L.Map | null>(null);
   const [viewMode, setViewMode] = useState<'macro' | 'mid' | 'small'>('macro');
   const [activeMid, setActiveMid] = useState<MapMidLocation | null>(null);
   const [activeSmall, setActiveSmall] = useState<MapSmallLocation | null>(null);
@@ -52,21 +49,19 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
     coordinates: GeoPoint;
     floor?: number;
   } | null>(null);
-  const [touchMoved, setTouchMoved] = useState(false);
   
   // Layers State
   const [showTerritories, setShowTerritories] = useState(true);
   const [showNPCs, setShowNPCs] = useState(true);
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const layoutContainerRef = useRef<HTMLDivElement>(null);
   const touchStartRef = useRef({ x: 0, y: 0 });
 
   // Initial Data (Fallback if undefined)
   const mapData = worldMap || { 
       config: { width: 100000, height: 100000 },
-      factions: [], territories: [], terrain: [], routes: [], surfaceLocations: [], dungeonStructure: [] 
+      factions: [], territories: [], terrain: [], routes: [], surfaceLocations: [], dungeonStructure: [],
+      leaflet: { layers: [] }
   };
 
   const isLayoutView = viewingFloor === 0 && (
@@ -127,7 +122,7 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
       return null;
   };
 
-  const getLayoutSize = (layout: MapSmallLocation["layout"], area?: { width?: number; height?: number }) => ({
+  const getLayoutSize = (layout: NonNullable<MapSmallLocation["layout"]>, area?: { width?: number; height?: number }) => ({
       width: area?.width ?? layout.width,
       height: area?.height ?? layout.height
   });
@@ -157,7 +152,7 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
       });
   };
 
-  const centerOnLayout = (layout: MapSmallLocation["layout"], area?: { center?: GeoPoint; width?: number; height?: number }, baseCenter?: GeoPoint) => {
+  const centerOnLayout = (layout: NonNullable<MapSmallLocation["layout"]>, area?: { center?: GeoPoint; width?: number; height?: number }, baseCenter?: GeoPoint) => {
       const { width: layoutWidth, height: layoutHeight } = getLayoutSize(layout, area);
       const center = area?.center || baseCenter;
       const playerLocal = toLocalPoint(currentPos, center, layoutWidth, layoutHeight);
@@ -246,16 +241,15 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
   };
 
   const centerOnArea = (center: GeoPoint, area?: { radius?: number; width?: number; height?: number }) => {
-      if (!containerRef.current) return;
-      const { clientWidth, clientHeight } = containerRef.current;
-      const diameter = area?.radius ? area.radius * 2 : (area?.width && area?.height ? Math.max(area.width, area.height) : 1200);
-      const desiredScale = Math.min(clientWidth / diameter, clientHeight / diameter) * 0.6;
-      const targetScale = Math.max(0.3, Math.min(desiredScale, 2.0));
-      setOffset({
-          x: -center.x * targetScale + clientWidth / 2,
-          y: -center.y * targetScale + clientHeight / 2
-      });
-      setScale(targetScale);
+      const map = mapRef.current;
+      if (!map) return;
+      const halfW = area?.width ? area.width / 2 : (area?.radius ?? 600);
+      const halfH = area?.height ? area.height / 2 : (area?.radius ?? 600);
+      const bounds: L.LatLngBoundsExpression = [
+          [center.y - halfH, center.x - halfW],
+          [center.y + halfH, center.x + halfW]
+      ];
+      map.fitBounds(bounds, { padding: [60, 60] });
       setViewingFloor(floor);
   };
 
@@ -267,14 +261,8 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
           centerOnLayout(layout, area, baseCenter);
           return;
       }
-      if (containerRef.current) {
-          const { clientWidth, clientHeight } = containerRef.current;
-          const targetScale = 0.5; 
-          setOffset({
-              x: -currentPos.x * targetScale + clientWidth / 2,
-              y: -currentPos.y * targetScale + clientHeight / 2
-          });
-          setScale(targetScale);
+      if (mapRef.current) {
+          mapRef.current.setView([currentPos.y, currentPos.x], mapRef.current.getZoom());
           setViewingFloor(floor);
       }
   };
@@ -324,53 +312,8 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
 
   useEffect(() => {
       if (isLayoutView) return;
-      const draw = () => {
-          const canvas = canvasRef.current;
-          const container = containerRef.current;
-          if (!canvas || !container) return;
-          resizeCanvasToContainer(canvas, container);
-          const ctx = canvas.getContext('2d');
-          if (!ctx) return;
-          const mapScope = viewingFloor === 0 && viewMode === 'macro' ? 'macro' : 'mid';
-          drawWorldMapCanvas(ctx, mapData, {
-              floor: viewingFloor,
-              scale,
-              offset,
-              showTerritories,
-              showNPCs,
-              showPlayer: viewingFloor === floor || viewingFloor === 0,
-              showLabels: true,
-              scope: mapScope,
-              focusMacroId: selectedMacroId,
-              currentPos,
-              confidants
-          });
-      };
-      draw();
-      window.addEventListener('resize', draw);
-      return () => window.removeEventListener('resize', draw);
-  }, [mapData, scale, offset, viewingFloor, showTerritories, showNPCs, floor, currentPos, confidants, viewMode, isLayoutView]);
-
-  // --- Zoom Logic (Visual Center) ---
-  const applyZoom = (deltaScale: number) => {
-      if (!containerRef.current) return;
-      const { clientWidth, clientHeight } = containerRef.current;
-      
-      const newScale = Math.min(Math.max(0.05, scale + deltaScale), 3.0);
-      if (Math.abs(newScale - scale) < 0.0001) return;
-
-      const cx = clientWidth / 2;
-      const cy = clientHeight / 2;
-
-      const mapX = (cx - offset.x) / scale;
-      const mapY = (cy - offset.y) / scale;
-
-      const newOffsetX = cx - (mapX * newScale);
-      const newOffsetY = cy - (mapY * newScale);
-
-      setScale(newScale);
-      setOffset({ x: newOffsetX, y: newOffsetY });
-  };
+      setSelectedLocation(null);
+  }, [viewMode, viewingFloor, isLayoutView]);
 
   const applyLayoutZoom = (deltaScale: number) => {
       const container = layoutContainerRef.current;
@@ -388,98 +331,30 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
       setLayoutOffset({ x: newOffsetX, y: newOffsetY });
   };
 
+  const zoomMap = (delta: number) => {
+      const map = mapRef.current;
+      if (!map) return;
+      if (delta > 0) map.zoomIn(delta);
+      else map.zoomOut(Math.abs(delta));
+  };
+
 
   // --- Touch Pan Logic ---
   const handleTouchStart = (e: React.TouchEvent) => {
-      if(e.touches.length === 1) {
-          if (isLayoutView) {
-              setLayoutDragging(true);
-              setTouchMoved(false);
-              touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-              setLayoutDragStart({ x: e.touches[0].clientX - layoutOffset.x, y: e.touches[0].clientY - layoutOffset.y });
-              return;
-          }
-          setIsDragging(true);
-          setTouchMoved(false);
-          touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-          setDragStart({ x: e.touches[0].clientX - offset.x, y: e.touches[0].clientY - offset.y });
-      }
+      if (!isLayoutView || e.touches.length !== 1) return;
+      setLayoutDragging(true);
+      touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      setLayoutDragStart({ x: e.touches[0].clientX - layoutOffset.x, y: e.touches[0].clientY - layoutOffset.y });
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-      if (isLayoutView) {
-          if (layoutDragging && e.touches.length === 1) {
-              const dx = e.touches[0].clientX - touchStartRef.current.x;
-              const dy = e.touches[0].clientY - touchStartRef.current.y;
-              if (!touchMoved && Math.hypot(dx, dy) > 6) setTouchMoved(true);
-              setLayoutOffset({ x: e.touches[0].clientX - layoutDragStart.x, y: e.touches[0].clientY - layoutDragStart.y });
-          }
-          return;
-      }
-      if (isDragging && e.touches.length === 1) {
-          const dx = e.touches[0].clientX - touchStartRef.current.x;
-          const dy = e.touches[0].clientY - touchStartRef.current.y;
-          if (!touchMoved && Math.hypot(dx, dy) > 6) setTouchMoved(true);
-          setOffset({ x: e.touches[0].clientX - dragStart.x, y: e.touches[0].clientY - dragStart.y });
-      }
+      if (!isLayoutView || !layoutDragging || e.touches.length !== 1) return;
+      setLayoutOffset({ x: e.touches[0].clientX - layoutDragStart.x, y: e.touches[0].clientY - layoutDragStart.y });
   };
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
-      if (isLayoutView) {
-          setLayoutDragging(false);
-          setTouchMoved(false);
-          return;
-      }
-      setIsDragging(false);
-      if (touchMoved) {
-          setTouchMoved(false);
-          return;
-      }
-      const touch = e.changedTouches[0];
-      if (!touch) return;
-      const loc = findLocationAt(touch.clientX, touch.clientY);
-      if (loc) {
-          setSelectedLocation({
-              name: loc.name,
-              type: loc.type,
-              description: loc.description,
-              coordinates: loc.coordinates,
-              floor: loc.floor
-          });
-      } else {
-          setSelectedLocation(null);
-      }
-  };
-
-  const findLocationAt = (clientX: number, clientY: number) => {
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (!rect) return null;
-      const mapX = (clientX - rect.left - offset.x) / scale;
-      const mapY = (clientY - rect.top - offset.y) / scale;
-      const mapScope = viewingFloor === 0 && viewMode === 'macro' ? 'macro' : 'mid';
-      if (mapScope === 'macro') {
-          const macro = macroLocations.find(m => {
-              if (m.area?.shape === 'CIRCLE' && m.area.center && m.area.radius) {
-                  return Math.hypot(mapX - m.area.center.x, mapY - m.area.center.y) <= m.area.radius;
-              }
-              if (m.area?.shape === 'RECT' && m.area.center && m.area.width && m.area.height) {
-                  const left = m.area.center.x - m.area.width / 2;
-                  const right = m.area.center.x + m.area.width / 2;
-                  const top = m.area.center.y - m.area.height / 2;
-                  const bottom = m.area.center.y + m.area.height / 2;
-                  return mapX >= left && mapX <= right && mapY >= top && mapY <= bottom;
-              }
-              return false;
-          });
-          if (macro) return { ...macro, coordinates: macro.coordinates } as any;
-      }
-      return mapData.surfaceLocations
-          .filter(l => (l.floor || 0) === viewingFloor)
-          .find(l => {
-              const dx = mapX - l.coordinates.x;
-              const dy = mapY - l.coordinates.y;
-              return Math.hypot(dx, dy) <= l.radius;
-          }) || null;
+  const handleTouchEnd = () => {
+      if (!isLayoutView) return;
+      setLayoutDragging(false);
   };
 
   const getLocationTypeLabel = (type?: string) => {
@@ -626,6 +501,7 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
 
   const handleSelectFloor = (nextFloor: number) => {
       setViewingFloor(nextFloor);
+      setSelectedLocation(null);
       if (nextFloor !== 0) {
           setViewMode('macro');
           setActiveMid(null);
@@ -640,19 +516,26 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
     <div className="w-full h-full relative bg-[#050a14] overflow-hidden flex flex-col font-sans">
         
         {/* Map Canvas / Small Layout */}
-        {viewingFloor === 0 && viewMode === 'small' && activeSmall ? (
+        {viewingFloor === 0 && viewMode === 'small' && activeSmall?.layout ? (
             renderLayoutView(activeSmall.layout, `细分地点布局 · ${activeSmall.name}`, activeSmall.area, activeSmall.coordinates)
         ) : viewingFloor === 0 && viewMode === 'mid' && activeMid?.layout ? (
             renderLayoutView(activeMid.layout, `地区地图 · ${activeMid.name}`, activeMid.area, activeMid.coordinates)
         ) : (
-            <div 
-                ref={containerRef}
-                className="flex-1 w-full h-full touch-none"
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-            >
-                <canvas ref={canvasRef} className="w-full h-full" />
+            <div className="flex-1 w-full h-full">
+                <LeafletMapView
+                    mapData={mapData}
+                    viewMode={viewMode}
+                    floor={viewingFloor}
+                    selectedMidId={selectedMidId}
+                    selectedSmallId={selectedSmallId}
+                    currentPos={currentPos}
+                    confidants={confidants}
+                    showTerritories={showTerritories}
+                    showNPCs={showNPCs}
+                    showLabels={true}
+                    onSelectLocation={setSelectedLocation}
+                    onMapReady={(map) => { mapRef.current = map; }}
+                />
             </div>
         )}
 
@@ -772,13 +655,9 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
                                 if (local) centerLayoutOnPoint(local.x, local.y);
                                 return;
                             }
-                            const container = containerRef.current;
-                            if (!container) return;
-                            const { clientWidth, clientHeight } = container;
-                            setOffset({
-                                x: -x * scale + clientWidth / 2,
-                                y: -y * scale + clientHeight / 2
-                            });
+                            if (mapRef.current) {
+                                mapRef.current.setView([y, x], mapRef.current.getZoom());
+                            }
                         }}
                         className="px-2 py-1 bg-blue-700 text-white border border-blue-500"
                     >
@@ -809,7 +688,7 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
                 <div className="absolute right-14 bottom-0 bg-black/90 border border-zinc-700 rounded-lg p-3 w-40 flex flex-col gap-2 shadow-xl animate-in slide-in-from-right-4 fade-in">
                     <div className="text-[10px] text-zinc-500 font-bold uppercase mb-1">图层控制</div>
                     <button onClick={() => setShowTerritories(!showTerritories)} className={`flex items-center gap-2 text-xs px-2 py-2 rounded border ${showTerritories ? 'bg-blue-900/30 text-blue-300 border-blue-800' : 'bg-transparent text-zinc-500 border-zinc-800'}`}>
-                        {showTerritories ? <Eye size={12}/> : <EyeOff size={12}/>} <span>领地</span>
+                        {showTerritories ? <Eye size={12}/> : <EyeOff size={12}/>} <span>区域</span>
                     </button>
                     <button onClick={() => setShowNPCs(!showNPCs)} className={`flex items-center gap-2 text-xs px-2 py-2 rounded border ${showNPCs ? 'bg-blue-900/30 text-blue-300 border-blue-800' : 'bg-transparent text-zinc-500 border-zinc-800'}`}>
                         {showNPCs ? <Eye size={12}/> : <EyeOff size={12}/>} <span>人物</span>
@@ -820,10 +699,10 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
             <div className="h-px bg-zinc-700/50 my-1" />
 
             {/* Zoom Controls */}
-            <button onClick={() => (isLayoutView ? applyLayoutZoom(0.1) : applyZoom(0.1))} className="w-12 h-12 bg-zinc-800/90 text-white rounded-full flex items-center justify-center border border-zinc-600 shadow-lg active:scale-95">
+            <button onClick={() => (isLayoutView ? applyLayoutZoom(0.1) : zoomMap(0.5))} className="w-12 h-12 bg-zinc-800/90 text-white rounded-full flex items-center justify-center border border-zinc-600 shadow-lg active:scale-95">
                 <Plus size={24}/>
             </button>
-            <button onClick={() => (isLayoutView ? applyLayoutZoom(-0.1) : applyZoom(-0.1))} className="w-12 h-12 bg-zinc-800/90 text-white rounded-full flex items-center justify-center border border-zinc-600 shadow-lg active:scale-95">
+            <button onClick={() => (isLayoutView ? applyLayoutZoom(-0.1) : zoomMap(-0.5))} className="w-12 h-12 bg-zinc-800/90 text-white rounded-full flex items-center justify-center border border-zinc-600 shadow-lg active:scale-95">
                 <Minus size={24}/>
             </button>
             <button onClick={centerOnPlayer} className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center border border-blue-400 shadow-lg active:scale-95">
@@ -851,7 +730,7 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
                     <div className="flex justify-between items-center mb-4">
                         <h4 className="text-white font-display uppercase tracking-widest text-sm flex items-center gap-2">
                             <Info size={16} className="text-blue-500" />
-                            {isLayoutView ? '布局图例' : '势力与地标'}
+                            {isLayoutView ? '布局图例' : '区域与地标'}
                         </h4>
                         <button onClick={() => setShowLegend(false)} className="bg-zinc-800 p-1.5 rounded-full text-zinc-400 hover:bg-zinc-700 hover:text-white transition-colors">
                             <X size={16}/>
@@ -897,18 +776,20 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
                                 )}
                             </div>
                             <div className="border-t border-zinc-800 pt-2">
-                                <div className="text-[10px] text-zinc-500 font-bold uppercase mb-2">势力分布</div>
+                                <div className="text-[10px] text-zinc-500 font-bold uppercase mb-2">区域范围</div>
                                 {showTerritories ? (
-                                    <div className="grid grid-cols-2 gap-3 max-h-52 overflow-y-auto custom-scrollbar">
-                                        {mapData.factions.map(f => (
-                                            <div key={f.id} className="flex items-center gap-3 bg-black/50 p-2.5 rounded border border-zinc-800/50">
-                                                <div className="w-3 h-3 rounded-full border shadow-[0_0_5px_currentColor]" style={{ backgroundColor: f.color, borderColor: f.borderColor, color: f.color }} />
-                                                <span className="text-xs text-zinc-300 font-bold truncate">{f.name}</span>
-                                            </div>
-                                        ))}
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-2 text-xs text-zinc-300">
+                                            <div className="w-3 h-3 rounded border border-blue-400 bg-blue-500/40" />
+                                            <span>地区范围</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-xs text-zinc-300">
+                                            <div className="w-3 h-3 rounded border border-amber-400 bg-amber-400/40" />
+                                            <span>细分范围</span>
+                                        </div>
                                     </div>
                                 ) : (
-                                    <div className="text-xs text-zinc-500">势力图层已关闭</div>
+                                    <div className="text-xs text-zinc-500">区域图层已关闭</div>
                                 )}
                             </div>
                         </div>

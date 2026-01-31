@@ -237,9 +237,10 @@
             "routes": "Array<{id, name, path, type, width, color, floor}>",
             "surfaceLocations": "Array<{id, name, type, coordinates, radius, description, icon, floor}>",
             "dungeonStructure": "Array<{floorStart, floorEnd, name, description, dangerLevel, landmarks}>",
-            "macroLocations": "Array<{id, name, type?, coordinates, area, size?, buildings?, layout?, description?, floor?}>",
-            "midLocations": "Array<{id, name, parentId, coordinates, area?, size?, buildings?, layout?, description?, floor?}>",
-            "smallLocations": "Array<{id, name, parentId, coordinates?, area?, description?, floor?, layout}>"
+            "macroLocations": "Array<{id, name, type?, coordinates, area, size?, buildings?, layout?, mapLayerId?, description?, floor?}>",
+            "midLocations": "Array<{id, name, parentId, coordinates, area?, size?, buildings?, layout?, mapLayerId?, description?, floor?}>",
+            "smallLocations": "Array<{id, name, parentId, coordinates?, area?, description?, floor?, layout?}>",
+            "leaflet": "{layers: Array<{id, name, scope, ownerId?, url, bounds{minX, minY, maxX, maxY}, minZoom?, maxZoom?, defaultZoom?}>}"
         }
     },
     {

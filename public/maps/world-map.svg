@@ -1,0 +1,19 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" width="100000" height="100000" viewBox="0 0 100000 100000" role="img" aria-label="Lower World schematic map">
+  <defs>
+    <pattern id="grid" width="2000" height="2000" patternUnits="userSpaceOnUse">
+      <path d="M 2000 0 L 0 0 0 2000" fill="none" stroke="#bda87f" stroke-width="40" opacity="0.15" />
+    </pattern>
+    <radialGradient id="vignette" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#f3ead6" />
+      <stop offset="100%" stop-color="#e2d2b1" />
+    </radialGradient>
+  </defs>
+  <rect width="100000" height="100000" fill="url(#vignette)" />
+  <rect width="100000" height="100000" fill="url(#grid)" />
+  <ellipse cx="52000" cy="52000" rx="38000" ry="30000" fill="#d8c7a2" stroke="#9e8963" stroke-width="200" opacity="0.9" />
+  <ellipse cx="38000" cy="62000" rx="15000" ry="12000" fill="#d0bc92" stroke="#9e8963" stroke-width="120" opacity="0.8" />
+  <path d="M18000,30000 C26000,18000 42000,14000 56000,22000 C70000,30000 82000,42000 86000,52000 C89000,64000 82000,76000 70000,82000 C56000,90000 38000,88000 26000,76000 C16000,64000 12000,48000 18000,30000 Z" fill="none" stroke="#8c7a56" stroke-width="160" opacity="0.35" />
+  <text x="50000" y="12000" font-size="1400" text-anchor="middle" fill="#7a6644" opacity="0.6">下界大陆(示意)</text>
+  <text x="84000" y="92000" font-size="900" text-anchor="end" fill="#7a6644" opacity="0.5">东南远海</text>
+  <text x="12000" y="9000" font-size="900" text-anchor="start" fill="#7a6644" opacity="0.5">西北山地</text>
+</svg>

@@ -26,6 +26,7 @@ export interface MapMacroLocation {
   size?: { width: number; height: number; unit?: string };
   buildings?: MapBuilding[];
   layout?: MapSmallLayout;
+  mapLayerId?: string;
   description?: string;
   floor?: number;
 }
@@ -39,6 +40,7 @@ export interface MapMidLocation {
   size?: { width: number; height: number; unit?: string };
   buildings?: MapBuilding[];
   layout?: MapSmallLayout;
+  mapLayerId?: string;
   description?: string;
   floor?: number;
 }
@@ -96,9 +98,33 @@ export interface MapSmallLocation {
   parentId: string;
   coordinates?: GeoPoint;
   area?: MapArea;
-  layout: MapSmallLayout;
+  layout?: MapSmallLayout;
   description?: string;
   floor?: number;
+}
+
+export interface LeafletBounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+export interface LeafletLayer {
+  id: string;
+  name: string;
+  scope: 'macro' | 'mid' | 'dungeon';
+  ownerId?: string;
+  url: string;
+  bounds: LeafletBounds;
+  minZoom?: number;
+  maxZoom?: number;
+  defaultZoom?: number;
+  attribution?: string;
+}
+
+export interface LeafletMapData {
+  layers: LeafletLayer[];
 }
 
 // --- Map Features ---
@@ -186,6 +212,7 @@ export interface WorldMapData {
     macroLocations?: MapMacroLocation[];
     midLocations?: MapMidLocation[];
     smallLocations?: MapSmallLocation[];
+    leaflet?: LeafletMapData;
 }
 
 export interface DenatusState {

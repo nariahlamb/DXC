@@ -433,7 +433,8 @@ export const constructMapContext = (gameState: GameState, params: any): string =
             area: m.area,
             description: m.description,
             size: m.size ?? (m.area?.radius ? { width: m.area.radius * 2, height: m.area.radius * 2, unit: 'm' } : undefined),
-            buildings: m.buildings || []
+            buildings: m.buildings || [],
+            mapLayerId: (m as any).mapLayerId
         }));
 
         const midSummary = midLocations
@@ -451,7 +452,8 @@ export const constructMapContext = (gameState: GameState, params: any): string =
                     range: m.area,
                     size: m.size ?? fallbackSize,
                     smallMaps: smallNames,
-                    description: m.description
+                    description: m.description,
+                    mapLayerId: (m as any).mapLayerId
                 };
             });
 
@@ -468,6 +470,9 @@ export const constructMapContext = (gameState: GameState, params: any): string =
                 layout: currentSmall.layout
             };
             output += `【细分地点-当前】\n${JSON.stringify(smallPayload, null, 2)}\n`;
+        }
+        if (mapData.leaflet?.layers) {
+            output += `【Leaflet底图】\n${JSON.stringify(mapData.leaflet.layers, null, 2)}\n`;
         }
         if (floor === 0) return output.trimEnd();
     }
@@ -487,7 +492,7 @@ export const constructMapContext = (gameState: GameState, params: any): string =
         output += `【地表节点 (Surface)】\n${JSON.stringify(floorLocations, null, 2)}\n`;
         output += `【道路 (Routes)】\n${JSON.stringify(floorRoutes, null, 2)}\n`;
         output += `【地形 (Terrain)】\n${JSON.stringify(floorTerrain, null, 2)}\n`;
-        output += `【势力范围 (Territories)】\n${JSON.stringify(floorTerritories, null, 2)}`;
+        output += `【区域范围 (Regions)】\n${JSON.stringify(floorTerritories, null, 2)}`;
     } else {
         const layerInfo = Array.isArray(mapData.dungeonStructure)
             ? mapData.dungeonStructure.find(l => floor >= l.floorStart && floor <= l.floorEnd)
@@ -501,7 +506,7 @@ export const constructMapContext = (gameState: GameState, params: any): string =
             if (floorLocations.length > 0) output += `【已探明节点 (Nodes)】\n${JSON.stringify(floorLocations, null, 2)}\n`;
             if (floorRoutes.length > 0) output += `【道路 (Routes)】\n${JSON.stringify(floorRoutes, null, 2)}\n`;
             if (floorTerrain.length > 0) output += `【地形 (Terrain)】\n${JSON.stringify(floorTerrain, null, 2)}\n`;
-            if (floorTerritories.length > 0) output += `【势力范围 (Territories)】\n${JSON.stringify(floorTerritories, null, 2)}`;
+            if (floorTerritories.length > 0) output += `【区域范围 (Regions)】\n${JSON.stringify(floorTerritories, null, 2)}`;
             output = output.trimEnd();
         } else {
             output += `【未知区域】本层尚未探索，请根据 <地图动态绘制> 规则生成节点。`;

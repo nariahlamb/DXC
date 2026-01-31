@@ -1,5 +1,5 @@
 ﻿
-import { Direction, Enemy, WorldMapData, OrarioLocation, DungeonLayer, MapFaction, TerritoryData, TradeRoute, TerrainFeature, MapMacroLocation, MapMidLocation, MapSmallLocation } from "../types";
+import { Direction, Enemy, WorldMapData, DungeonLayer, MapMacroLocation, MapMidLocation, MapSmallLocation } from "../types";
 
 // Helper to get opposite direction
 export const getOppositeDir = (dir: Direction): Direction => {
@@ -123,527 +123,281 @@ const createPolylinePath = (points: { x: number; y: number }[]): string => {
 // --- 欧拉丽全地图生成 (Strict layout) ---
 
 export const generateDanMachiMap = (): WorldMapData => {
-    // 基础配置
-    const SCALE = 0.2; // 统一坐标缩放系数（输出坐标为地图统一单位）
-    const S = (value: number) => value * SCALE;
-    const MAP_SIZE = S(500000);
-    const CENTER_X = S(250000);
-    const CENTER_Y = S(250000);
-
-    // 半径参数
-    const CITY_RADIUS = S(20000);  // 都市外墙
-    const PLAZA_RADIUS = S(2000);  // 中央广场
-    const BABEL_RADIUS = S(500);   // 巴别塔基座
-
-    // 1. 势力定义 (Factions)
-    const factions: MapFaction[] = [
-        { id: 'f_guild', name: '冒险者公会', color: '#1d4ed8', borderColor: '#1e3a8a', textColor: '#dbeafe', description: '都市管理者', strength: 100 },
-        { id: 'f_loki', name: '洛基眷族', color: '#dc2626', borderColor: '#7f1d1d', textColor: '#fee2e2', description: '黄昏之馆', strength: 95 },
-        { id: 'f_freya', name: '芙蕾雅眷族', color: '#ca8a04', borderColor: '#713f12', textColor: '#fef9c3', description: '战斗荒野', strength: 98 },
-        { id: 'f_heph', name: '赫菲斯托丝', color: '#b91c1c', borderColor: '#7f1d1d', textColor: '#fecaca', description: '工坊区域', strength: 85 },
-        { id: 'f_ishtar', name: '伊丝塔眷族', color: '#d946ef', borderColor: '#86198f', textColor: '#fae8ff', description: '欢乐街', strength: 80 },
-        { id: 'f_ganesha', name: '迦尼萨眷族', color: '#15803d', borderColor: '#14532d', textColor: '#dcfce7', description: '都市宪兵', strength: 90 },
-        { id: 'f_hestia', name: '赫斯缇雅眷族', color: '#3b82f6', borderColor: '#1d4ed8', textColor: '#ffffff', description: '废弃教堂', strength: 10 },
-        { id: 'f_slums', name: '贫民窟', color: '#525252', borderColor: '#171717', textColor: '#a3a3a3', description: '代达罗斯路', strength: 30 },
-        { id: 'f_neutral', name: '中立区', color: '#64748b', borderColor: '#334155', textColor: '#e2e8f0', description: '商业/居住', strength: 50 },
-    ];
-
-    // 2. 区域划分 (Territories - Sectors)
-    // 0°=东, 90°=南, 180°=西, 270°=北
-    const territories: TerritoryData[] = [
-        // 北 (247.5° - 292.5°): 洛基眷族
-        {
-            id: 't_north', factionId: 'f_loki', name: '北大街 (繁华区)',
-            centerX: CENTER_X, centerY: CENTER_Y - S(10000), color: factions[1].color,
-            boundary: createSectorPath(CENTER_X, CENTER_Y, CITY_RADIUS, 247.5, 292.5, PLAZA_RADIUS),
-            shape: 'SECTOR',
-            sector: { startAngle: 247.5, endAngle: 292.5, innerRadius: PLAZA_RADIUS, outerRadius: CITY_RADIUS },
-            opacity: 0.2, floor: 0
-        },
-        // 东北 (292.5° - 337.5°): 芙蕾雅眷族
-        {
-            id: 't_northeast', factionId: 'f_freya', name: '东北大街 (战斗荒野)',
-            centerX: CENTER_X + S(8000), centerY: CENTER_Y - S(8000), color: factions[2].color,
-            boundary: createSectorPath(CENTER_X, CENTER_Y, CITY_RADIUS, 292.5, 337.5, PLAZA_RADIUS),
-            shape: 'SECTOR',
-            sector: { startAngle: 292.5, endAngle: 337.5, innerRadius: PLAZA_RADIUS, outerRadius: CITY_RADIUS },
-            opacity: 0.2, floor: 0
-        },
-        // 东 (337.5° - 22.5°): 贫民窟/代达罗斯路 (Wrap around 0)
-        {
-            id: 't_east', factionId: 'f_slums', name: '东大街 (迷宫街)',
-            centerX: CENTER_X + S(10000), centerY: CENTER_Y, color: factions[7].color,
-            // Draw in two parts or normalize angles. Simple approach: -22.5 to 22.5
-            boundary: createSectorPath(CENTER_X, CENTER_Y, CITY_RADIUS, -22.5, 22.5, PLAZA_RADIUS),
-            shape: 'SECTOR',
-            sector: { startAngle: -22.5, endAngle: 22.5, innerRadius: PLAZA_RADIUS, outerRadius: CITY_RADIUS },
-            opacity: 0.3, floor: 0
-        },
-        // 东南 (22.5° - 67.5°): 欢乐街
-        {
-            id: 't_southeast', factionId: 'f_ishtar', name: '东南大街 (欢乐街)',
-            centerX: CENTER_X + S(8000), centerY: CENTER_Y + S(8000), color: factions[4].color,
-            boundary: createSectorPath(CENTER_X, CENTER_Y, CITY_RADIUS, 22.5, 67.5, PLAZA_RADIUS),
-            shape: 'SECTOR',
-            sector: { startAngle: 22.5, endAngle: 67.5, innerRadius: PLAZA_RADIUS, outerRadius: CITY_RADIUS },
-            opacity: 0.25, floor: 0
-        },
-        // 南 (67.5° - 112.5°): 正门/新手区
-        {
-            id: 't_south', factionId: 'f_neutral', name: '南大街 (正门)',
-            centerX: CENTER_X, centerY: CENTER_Y + S(12000), color: '#94a3b8',
-            boundary: createSectorPath(CENTER_X, CENTER_Y, CITY_RADIUS, 67.5, 112.5, PLAZA_RADIUS),
-            shape: 'SECTOR',
-            sector: { startAngle: 67.5, endAngle: 112.5, innerRadius: PLAZA_RADIUS, outerRadius: CITY_RADIUS },
-            opacity: 0.15, floor: 0
-        },
-        // 西南 (112.5° - 157.5°): 赫菲斯托丝
-        {
-            id: 't_southwest', factionId: 'f_heph', name: '西南大街 (工业区)',
-            centerX: CENTER_X - S(8000), centerY: CENTER_Y + S(8000), color: factions[3].color,
-            boundary: createSectorPath(CENTER_X, CENTER_Y, CITY_RADIUS, 112.5, 157.5, PLAZA_RADIUS),
-            shape: 'SECTOR',
-            sector: { startAngle: 112.5, endAngle: 157.5, innerRadius: PLAZA_RADIUS, outerRadius: CITY_RADIUS },
-            opacity: 0.2, floor: 0
-        },
-        // 西 (157.5° - 202.5°): 丰饶女主人/商业
-        {
-            id: 't_west', factionId: 'f_neutral', name: '西大街 (商业区)',
-            centerX: CENTER_X - S(10000), centerY: CENTER_Y, color: '#60a5fa',
-            boundary: createSectorPath(CENTER_X, CENTER_Y, CITY_RADIUS, 157.5, 202.5, PLAZA_RADIUS),
-            shape: 'SECTOR',
-            sector: { startAngle: 157.5, endAngle: 202.5, innerRadius: PLAZA_RADIUS, outerRadius: CITY_RADIUS },
-            opacity: 0.15, floor: 0
-        },
-        // 西北 (202.5° - 247.5°): 公会
-        {
-            id: 't_northwest', factionId: 'f_guild', name: '西北大街 (行政区)',
-            centerX: CENTER_X - S(8000), centerY: CENTER_Y - S(8000), color: factions[0].color,
-            boundary: createSectorPath(CENTER_X, CENTER_Y, CITY_RADIUS, 202.5, 247.5, PLAZA_RADIUS),
-            shape: 'SECTOR',
-            sector: { startAngle: 202.5, endAngle: 247.5, innerRadius: PLAZA_RADIUS, outerRadius: CITY_RADIUS },
-            opacity: 0.2, floor: 0
-        }
-    ];
-
-    // 3. 地形特征 (Terrain)
-    const terrain: TerrainFeature[] = [
-        {
-            id: 'wall_outer', name: '都市城墙', type: 'WALL',
-            color: 'none', strokeColor: '#e2e8f0', strokeWidth: S(80),
-            path: createCirclePath(CENTER_X, CENTER_Y, CITY_RADIUS), floor: 0
-        },
-        {
-            id: 'babel_base', name: '中央广场', type: 'OBSTACLE',
-            color: '#f8fafc', strokeColor: '#93c5fd', strokeWidth: S(20),
-            path: createCirclePath(CENTER_X, CENTER_Y, PLAZA_RADIUS), floor: 0
-        }
-    ];
-
-    // 4. 关键地点 (Locations)
-    // 必须与 Sector 对应
-    const surfaceLocations: OrarioLocation[] = [
-        // 中央
-        { id: 'loc_babel', name: '巴别塔', type: 'LANDMARK', coordinates: { x: CENTER_X, y: CENTER_Y }, radius: BABEL_RADIUS, description: '耸入云端的白塔，众神居住之地，地下城的盖子。', icon: 'tower', floor: 0 },
-        
-        // 北 (洛基)
-        { id: 'loc_twilight', name: '黄昏之馆', type: 'FAMILIA_HOME', coordinates: { x: CENTER_X, y: CENTER_Y - S(12000) }, radius: S(1500), description: '洛基眷族的大本营。', icon: 'flag', floor: 0 },
-        
-        // 东北 (芙蕾雅)
-        { id: 'loc_folkvangr', name: '战斗荒野', type: 'FAMILIA_HOME', coordinates: { x: CENTER_X + S(10000), y: CENTER_Y - S(10000) }, radius: S(1500), description: '芙蕾雅眷族的根据地。', icon: 'flag', floor: 0 },
-        
-        // 东 (贫民窟)
-        { id: 'loc_daedalus', name: '代达罗斯路', type: 'SLUM', coordinates: { x: CENTER_X + S(14000), y: CENTER_Y }, radius: S(2500), description: '错综复杂的贫民窟迷宫街。', icon: 'skull', floor: 0 },
-        
-        // 东南 (伊丝塔)
-        { id: 'loc_ishtar', name: '欢乐街', type: 'LANDMARK', coordinates: { x: CENTER_X + S(10000), y: CENTER_Y + S(10000) }, radius: S(3000), description: '夜之街，男人的销金窟。', icon: 'heart', floor: 0 },
-        
-        // 南 (正门)
-        { id: 'loc_gate', name: '都市正门', type: 'STREET', coordinates: { x: CENTER_X, y: CENTER_Y + S(18000) }, radius: S(1000), description: '宏伟的都市大门，新人聚集地。', icon: 'door', floor: 0 },
-        { id: 'loc_inn', name: '旅店街', type: 'SHOP', coordinates: { x: CENTER_X, y: CENTER_Y + S(14000) }, radius: S(1200), description: '廉价旅店林立的区域。', icon: 'bed', floor: 0 },
-        
-        // 西南 (赫菲斯托丝 & 赫斯缇雅)
-        { id: 'loc_heph', name: '赫菲斯托丝工坊', type: 'SHOP', coordinates: { x: CENTER_X - S(10000), y: CENTER_Y + S(10000) }, radius: S(1500), description: '最高级的武器店与锻造工坊。', icon: 'hammer', floor: 0 },
-        { id: 'loc_church', name: '废弃教堂', type: 'FAMILIA_HOME', coordinates: { x: CENTER_X - S(13000), y: CENTER_Y + S(13000) }, radius: S(500), description: '隐秘的废墟，赫斯缇雅眷族的据点。', icon: 'home', floor: 0 },
-        
-        // 西 (丰饶女主人)
-        { id: 'loc_pub', name: '丰饶的女主人', type: 'SHOP', coordinates: { x: CENTER_X - S(9000), y: CENTER_Y }, radius: S(600), description: '西大街著名的酒馆，店员全是女性。', icon: 'beer', floor: 0 },
-        
-        // 西北 (公会)
-        { id: 'loc_guild', name: '公会本部', type: 'GUILD', coordinates: { x: CENTER_X - S(6000), y: CENTER_Y - S(6000) }, radius: S(1000), description: '统辖欧拉丽的行政中心。', icon: 'shield', floor: 0 },
-    ];
-
-    const dungeonLocations: OrarioLocation[] = Array.from({ length: 65 }, (_, index) => {
-        const floor = index + 1;
-        const baseX = CENTER_X;
-        const baseY = CENTER_Y;
-        const offset = S(600);
-        const nodes: OrarioLocation[] = [];
-        if (floor === 1) {
-            nodes.push({
-                id: `dungeon_entrance_f${floor}`,
-                name: '地下城入口',
-                type: 'DUNGEON_ENTRANCE',
-                coordinates: { x: baseX, y: baseY - offset },
-                radius: S(160),
-                description: '通往地表的入口与检查点。',
-                icon: 'door',
-                floor
-            });
-        } else {
-            nodes.push({
-                id: `dungeon_stairs_up_f${floor}`,
-                name: '上行楼梯',
-                type: 'STAIRS_UP',
-                coordinates: { x: baseX, y: baseY - offset },
-                radius: S(140),
-                description: `通往第${floor - 1}层的楼梯。`,
-                icon: 'stairs-up',
-                floor
-            });
-        }
-        if (floor < 65) {
-            nodes.push({
-                id: `dungeon_stairs_down_f${floor}`,
-                name: '下行楼梯',
-                type: 'STAIRS_DOWN',
-                coordinates: { x: baseX, y: baseY + offset },
-                radius: S(140),
-                description: `通往第${floor + 1}层的楼梯。`,
-                icon: 'stairs-down',
-                floor
-            });
-        }
-        nodes.push({
-            id: `dungeon_node_f${floor}`,
-            name: `节点-第${floor}层`,
-            type: 'POINT',
-            coordinates: { x: baseX + offset, y: baseY },
-            radius: S(120),
-            description: `第${floor}层主要分岔节点。`,
-            icon: 'node',
-            floor
-        });
-        if (floor === 18) {
-            nodes.push({
-                id: 'dungeon_safe_f18',
-                name: '里维拉镇',
-                type: 'SAFE_ZONE',
-                coordinates: { x: baseX - offset, y: baseY },
-                radius: S(180),
-                description: '安全楼层中的城镇与补给站。',
-                icon: 'safe',
-                floor
-            });
-        }
-        if (floor === 28) {
-            nodes.push({
-                id: 'dungeon_safe_f28',
-                name: '安全层·Under Garden',
-                type: 'SAFE_ZONE',
-                coordinates: { x: baseX - offset, y: baseY },
-                radius: S(180),
-                description: '第28层安全点，花园般的平原地带。',
-                icon: 'safe',
-                floor
-            });
-        }
-        if (floor === 39) {
-            nodes.push({
-                id: 'dungeon_safe_f39',
-                name: '安全层·Under Bridge',
-                type: 'SAFE_ZONE',
-                coordinates: { x: baseX - offset, y: baseY },
-                radius: S(180),
-                description: '第39层安全点，通道与桥梁交错的休整区。',
-                icon: 'safe',
-                floor
-            });
-        }
-        if (floor === 50) {
-            nodes.push({
-                id: 'dungeon_safe_f50',
-                name: '安全层·第50层',
-                type: 'SAFE_ZONE',
-                coordinates: { x: baseX - offset, y: baseY },
-                radius: S(180),
-                description: '第50层安全点，怪物不在此诞生。',
-                icon: 'safe',
-                floor
-            });
-        }
-        return nodes;
-    }).flat();
-
-    const allLocations: OrarioLocation[] = [...surfaceLocations, ...dungeonLocations];
-
-    const worldRegions: MapMacroLocation[] = [
-        {
-            id: 'macro_orario',
-            name: '欧拉丽',
-            type: 'CITY',
-            coordinates: { x: CENTER_X, y: CENTER_Y },
-            area: { shape: 'CIRCLE', center: { x: CENTER_X, y: CENTER_Y }, radius: CITY_RADIUS, note: '城墙范围' },
-            size: { width: 8000, height: 8000, unit: 'm' },
-            buildings: [
-                { id: 'b_babel', name: '巴别塔', type: 'LANDMARK', floors: 50, description: '地下城入口与神明居所。' },
-                { id: 'b_guild', name: '公会本部', type: 'GUILD', floors: 5, description: '登记、委托、情报与公会运营中心。' },
-                { id: 'b_tavern', name: '丰饶的女主人', type: 'SHOP', floors: 2, description: '著名酒馆与情报据点。' }
-            ],
-            layout: {
-                scale: '1格=20米',
-                width: 200,
-                height: 200,
-                rooms: [
-                    { id: 'district_n', name: '北大街', type: 'district', bounds: { x: 60, y: 10, width: 80, height: 50 } },
-                    { id: 'district_ne', name: '东北大街', type: 'district', bounds: { x: 140, y: 20, width: 50, height: 60 } },
-                    { id: 'district_e', name: '东大街', type: 'district', bounds: { x: 150, y: 80, width: 40, height: 60 } },
-                    { id: 'district_se', name: '东南大街', type: 'district', bounds: { x: 120, y: 140, width: 60, height: 50 } },
-                    { id: 'district_s', name: '南大街', type: 'district', bounds: { x: 70, y: 150, width: 60, height: 40 } },
-                    { id: 'district_sw', name: '西南大街', type: 'district', bounds: { x: 20, y: 130, width: 60, height: 60 } },
-                    { id: 'district_w', name: '西大街', type: 'district', bounds: { x: 10, y: 80, width: 50, height: 50 } },
-                    { id: 'district_nw', name: '西北大街', type: 'district', bounds: { x: 20, y: 20, width: 60, height: 60 } },
-                    { id: 'center_plaza', name: '中央广场', type: 'plaza', bounds: { x: 80, y: 80, width: 40, height: 40 } }
-                ],
-                furniture: [
-                    { id: 'f_babel', name: '巴别塔', type: 'landmark', position: { x: 100, y: 100 }, size: { width: 6, height: 6 } },
-                    { id: 'f_guild', name: '公会本部', type: 'building', position: { x: 55, y: 45 }, size: { width: 6, height: 4 } },
-                    { id: 'f_tavern', name: '丰饶的女主人', type: 'building', position: { x: 25, y: 95 }, size: { width: 5, height: 3 } }
-                ],
-                entrances: [
-                    { id: 'entrance_gate', name: '都市正门', position: { x: 100, y: 190 }, connectsTo: '外部道路' }
-                ],
-                notes: ['中央广场与巴别塔为城市核心。', '各大街区呈放射分布，外围为城墙。']
-            },
-            description: '迷宫都市欧拉丽，位于大陆西端的独立都市。',
-            floor: 0
-        },
-        {
-            id: 'macro_rakia',
-            name: '拉基亚王国',
-            type: 'KINGDOM',
-            coordinates: { x: CENTER_X + 24000, y: CENTER_Y + 2000 },
-            area: { shape: 'RECT', center: { x: CENTER_X + 24000, y: CENTER_Y + 2000 }, width: 30000, height: 20000, note: '欧拉丽以东的军事强国' },
-            size: { width: 30000, height: 20000, unit: 'm' },
-            description: '崇尚军功与武力的王国，长期觊觎欧拉丽资源。',
-            floor: 0
-        },
-        {
-            id: 'macro_seolo',
-            name: '塞欧洛森林',
-            type: 'FOREST',
-            coordinates: { x: CENTER_X + 13000, y: CENTER_Y - 2000 },
-            area: { shape: 'CIRCLE', center: { x: CENTER_X + 13000, y: CENTER_Y - 2000 }, radius: 9000, note: '欧拉丽东侧的原始森林' },
-            size: { width: 18000, height: 18000, unit: 'm' },
-            description: '广袤森林，连接东侧山脉与商路。',
-            floor: 0
-        },
-        {
-            id: 'macro_alf_mountains',
-            name: '阿尔夫山脉',
-            type: 'MOUNTAIN',
-            coordinates: { x: CENTER_X + 19000, y: CENTER_Y - 8000 },
-            area: { shape: 'CIRCLE', center: { x: CENTER_X + 19000, y: CENTER_Y - 8000 }, radius: 12000, note: '东侧山脉，森林尽头的高地' },
-            size: { width: 24000, height: 24000, unit: 'm' },
-            description: '被视为精灵圣地的高山地带。',
-            floor: 0
-        },
-        {
-            id: 'macro_beol_mountains',
-            name: '贝奥尔山脉',
-            type: 'MOUNTAIN',
-            coordinates: { x: CENTER_X, y: CENTER_Y - 22000 },
-            area: { shape: 'CIRCLE', center: { x: CENTER_X, y: CENTER_Y - 22000 }, radius: 16000, note: '欧拉丽北方的连绵山系' },
-            size: { width: 32000, height: 32000, unit: 'm' },
-            description: '寒冷山地与险峻峡谷，北向交通要道。',
-            floor: 0
-        },
-        {
-            id: 'macro_melen',
-            name: '梅伦',
-            type: 'CITY',
-            coordinates: { x: CENTER_X - 3000, y: CENTER_Y + 3000 },
-            area: { shape: 'CIRCLE', center: { x: CENTER_X - 3000, y: CENTER_Y + 3000 }, radius: 1200, note: '欧拉丽西南约3公里的港镇' },
-            size: { width: 2400, height: 2400, unit: 'm' },
-            description: '欧拉丽西南侧的小型渔港与补给镇。',
-            floor: 0
-        },
-        {
-            id: 'macro_shreme_ruins',
-            name: '施雷姆古城遗迹',
-            type: 'RUINS',
-            coordinates: { x: CENTER_X + 18000, y: CENTER_Y + 19000 },
-            area: { shape: 'CIRCLE', center: { x: CENTER_X + 18000, y: CENTER_Y + 19000 }, radius: 4500, note: '欧拉丽东南方向的古城遗迹' },
-            size: { width: 9000, height: 9000, unit: 'm' },
-            description: '残破的古城遗迹，偶有冒险者前往探索。',
-            floor: 0
-        },
-        {
-            id: 'macro_agris',
-            name: '阿格里斯',
-            type: 'CITY',
-            coordinates: { x: CENTER_X + 23000, y: CENTER_Y + 16000 },
-            area: { shape: 'CIRCLE', center: { x: CENTER_X + 23000, y: CENTER_Y + 16000 }, radius: 3500, note: '靠近施雷姆遗迹的城镇' },
-            size: { width: 7000, height: 7000, unit: 'm' },
-            description: '临近遗迹的城镇，冒险者补给与交易集中。',
-            floor: 0
-        },
-        {
-            id: 'macro_telskyura',
-            name: '特尔斯库拉',
-            type: 'PENINSULA',
-            coordinates: { x: CENTER_X + 35000, y: CENTER_Y + 35000 },
-            area: { shape: 'RECT', center: { x: CENTER_X + 35000, y: CENTER_Y + 35000 }, width: 22000, height: 14000, note: '远东南的半岛区域' },
-            size: { width: 22000, height: 14000, unit: 'm' },
-            description: '远东南的半岛国家，距离欧拉丽较远。',
-            floor: 0
-        }
-    ];
+    const WORLD_SIZE = 100000;
+    const ORARIO_CENTER = { x: 50000, y: 50000 };
+    const ORARIO_RADIUS = 8000;
+    const ORARIO_BOUNDS = { minX: 40000, minY: 40000, maxX: 60000, maxY: 60000 };
+    const DUNGEON_BOUNDS = { minX: 0, minY: 0, maxX: 8000, maxY: 8000 };
 
     const macroLocations: MapMacroLocation[] = [
         {
             id: 'macro_world',
             name: '下界',
             type: 'WORLD',
-            coordinates: { x: CENTER_X, y: CENTER_Y },
-            area: { shape: 'RECT', center: { x: CENTER_X, y: CENTER_Y }, width: MAP_SIZE, height: MAP_SIZE, note: '下界大陆与周边诸国范围' },
-            size: { width: MAP_SIZE, height: MAP_SIZE, unit: 'm' },
-            description: '包含欧拉丽与周边诸国的下界世界地图。',
+            coordinates: { x: WORLD_SIZE / 2, y: WORLD_SIZE / 2 },
+            area: { shape: 'RECT', center: { x: WORLD_SIZE / 2, y: WORLD_SIZE / 2 }, width: WORLD_SIZE, height: WORLD_SIZE, note: '下界大陆范围(示意)' },
+            size: { width: WORLD_SIZE, height: WORLD_SIZE, unit: 'm' },
+            mapLayerId: 'layer_world',
+            description: '下界世界地图(示意)，包含欧拉丽与诸国。',
             floor: 0
         }
     ];
 
-    const midLocations: MapMidLocation[] = worldRegions.map(region => ({
-        id: region.id,
-        name: region.name,
-        parentId: 'macro_world',
-        coordinates: region.coordinates,
-        area: region.area,
-        size: region.size,
-        buildings: region.buildings,
-        layout: region.layout,
-        description: region.description,
-        floor: region.floor
-    }));
+    const midLocations: MapMidLocation[] = [
+        {
+            id: 'mid_orario',
+            name: '欧拉丽',
+            parentId: 'macro_world',
+            coordinates: ORARIO_CENTER,
+            area: { shape: 'CIRCLE', center: ORARIO_CENTER, radius: ORARIO_RADIUS, note: '迷宫都市范围(示意)' },
+            size: { width: ORARIO_RADIUS * 2, height: ORARIO_RADIUS * 2, unit: 'm' },
+            mapLayerId: 'layer_orario',
+            description: '迷宫都市欧拉丽，地下城入口位于巴别塔之下。',
+            floor: 0
+        },
+        {
+            id: 'mid_rakia',
+            name: '拉基亚王国',
+            parentId: 'macro_world',
+            coordinates: { x: 30000, y: 60000 },
+            area: { shape: 'RECT', center: { x: 30000, y: 60000 }, width: 14000, height: 9000, note: '大陆西侧的军事强国(示意)' },
+            size: { width: 14000, height: 9000, unit: 'm' },
+            description: '以军事实力著称的国家，位于大陆西侧。',
+            floor: 0
+        },
+        {
+            id: 'mid_melen',
+            name: '梅伦',
+            parentId: 'macro_world',
+            coordinates: { x: ORARIO_CENTER.x - 3000, y: ORARIO_CENTER.y + 3000 },
+            area: { shape: 'CIRCLE', center: { x: ORARIO_CENTER.x - 3000, y: ORARIO_CENTER.y + 3000 }, radius: 900, note: '欧拉丽西南约3公里的港镇(示意)' },
+            size: { width: 1800, height: 1800, unit: 'm' },
+            description: '欧拉丽西南约3公里的港镇。',
+            floor: 0
+        },
+        {
+            id: 'mid_telskyura',
+            name: '特尔斯库拉',
+            parentId: 'macro_world',
+            coordinates: { x: 82000, y: 82000 },
+            area: { shape: 'RECT', center: { x: 82000, y: 82000 }, width: 18000, height: 11000, note: '远东南半岛区域(示意)' },
+            size: { width: 18000, height: 11000, unit: 'm' },
+            description: '远东南方的半岛国家。',
+            floor: 0
+        }
+    ];
 
-    const smallLocations: MapSmallLocation[] = [];
+    const smallLocations: MapSmallLocation[] = [
+        {
+            id: 'small_orario_babel',
+            name: '巴别塔',
+            parentId: 'mid_orario',
+            coordinates: { x: ORARIO_CENTER.x, y: ORARIO_CENTER.y },
+            area: { shape: 'CIRCLE', center: ORARIO_CENTER, radius: 700, note: '地下城入口与都市核心' },
+            description: '50层高塔，被视为地下城的盖子。',
+            floor: 0
+        },
+        {
+            id: 'small_orario_abandoned_church',
+            name: '废弃教堂',
+            parentId: 'mid_orario',
+            coordinates: { x: ORARIO_CENTER.x, y: ORARIO_CENTER.y + 6000 },
+            area: { shape: 'CIRCLE', center: { x: ORARIO_CENTER.x, y: ORARIO_CENTER.y + 6000 }, radius: 500, note: '赫斯缇雅眷族旧居' },
+            description: '赫斯缇雅眷族旧居，曾被阿波罗眷族摧毁。',
+            floor: 0
+        },
+        {
+            id: 'small_orario_hostess',
+            name: '丰饶的女主人',
+            parentId: 'mid_orario',
+            coordinates: { x: ORARIO_CENTER.x - 3500, y: ORARIO_CENTER.y + 3000 },
+            area: { shape: 'CIRCLE', center: { x: ORARIO_CENTER.x - 3500, y: ORARIO_CENTER.y + 3000 }, radius: 400, note: '酒馆与情报据点' },
+            description: '米雅·格兰德经营的酒馆。',
+            floor: 0
+        },
+        {
+            id: 'small_orario_guild',
+            name: '万神殿（公会总部）',
+            parentId: 'mid_orario',
+            coordinates: { x: ORARIO_CENTER.x - 2500, y: ORARIO_CENTER.y - 2500 },
+            area: { shape: 'CIRCLE', center: { x: ORARIO_CENTER.x - 2500, y: ORARIO_CENTER.y - 2500 }, radius: 450, note: '公会总部大楼' },
+            description: '公会总部大楼所在。',
+            floor: 0
+        },
+        {
+            id: 'small_orario_hephaestus_shop',
+            name: '赫菲斯托丝眷族西北商铺',
+            parentId: 'mid_orario',
+            coordinates: { x: ORARIO_CENTER.x - 4200, y: ORARIO_CENTER.y - 4200 },
+            area: { shape: 'CIRCLE', center: { x: ORARIO_CENTER.x - 4200, y: ORARIO_CENTER.y - 4200 }, radius: 350, note: '西北商铺' },
+            description: '赫斯缇雅曾在此下跪请求的商铺。',
+            floor: 0
+        },
+        {
+            id: 'small_orario_amphitheatron',
+            name: '圆形竞技场',
+            parentId: 'mid_orario',
+            coordinates: { x: ORARIO_CENTER.x - 2500, y: ORARIO_CENTER.y - 5200 },
+            area: { shape: 'CIRCLE', center: { x: ORARIO_CENTER.x - 2500, y: ORARIO_CENTER.y - 5200 }, radius: 500, note: '怪物祭竞技场' },
+            description: '伽尼萨眷族举办怪物祭的竞技场。',
+            floor: 0
+        },
+        {
+            id: 'small_orario_daedalus',
+            name: '代达罗斯街',
+            parentId: 'mid_orario',
+            coordinates: { x: ORARIO_CENTER.x + 4200, y: ORARIO_CENTER.y + 3200 },
+            area: { shape: 'CIRCLE', center: { x: ORARIO_CENTER.x + 4200, y: ORARIO_CENTER.y + 3200 }, radius: 500, note: '第二迷宫' },
+            description: '被称为第二迷宫的街区。',
+            floor: 0
+        },
+        {
+            id: 'small_orario_amor_square',
+            name: '阿莫尔广场',
+            parentId: 'mid_orario',
+            coordinates: { x: ORARIO_CENTER.x + 3200, y: ORARIO_CENTER.y },
+            area: { shape: 'CIRCLE', center: { x: ORARIO_CENTER.x + 3200, y: ORARIO_CENTER.y }, radius: 450, note: '彩砖与花园广场' },
+            description: '彩色地砖与花园广场，矗立女神雕像。',
+            floor: 0
+        },
+        {
+            id: 'small_orario_blue_pharmacy',
+            name: '蓝色药铺',
+            parentId: 'mid_orario',
+            coordinates: { x: ORARIO_CENTER.x + 4200, y: ORARIO_CENTER.y - 2500 },
+            area: { shape: 'CIRCLE', center: { x: ORARIO_CENTER.x + 4200, y: ORARIO_CENTER.y - 2500 }, radius: 350, note: '米亚赫眷族据点' },
+            description: '米亚赫眷族据点。',
+            floor: 0
+        },
+        {
+            id: 'small_orario_training',
+            name: '艾丝训练贝尔之地',
+            parentId: 'mid_orario',
+            coordinates: { x: ORARIO_CENTER.x + 5200, y: ORARIO_CENTER.y - 500 },
+            area: { shape: 'CIRCLE', center: { x: ORARIO_CENTER.x + 5200, y: ORARIO_CENTER.y - 500 }, radius: 350, note: '训练场所' },
+            description: '艾丝训练贝尔的地点。',
+            floor: 0
+        },
+        {
+            id: 'small_orario_jagamaru',
+            name: '炸土豆球摊位',
+            parentId: 'mid_orario',
+            coordinates: { x: ORARIO_CENTER.x + 1500, y: ORARIO_CENTER.y + 3500 },
+            area: { shape: 'CIRCLE', center: { x: ORARIO_CENTER.x + 1500, y: ORARIO_CENTER.y + 3500 }, radius: 300, note: '赫斯缇雅打工处' },
+            description: '赫斯缇雅打工的土豆球摊位。',
+            floor: 0
+        },
+        {
+            id: 'small_orario_hephaestus_forge',
+            name: '赫菲斯托丝眷族锻造作坊',
+            parentId: 'mid_orario',
+            coordinates: { x: ORARIO_CENTER.x - 1500, y: ORARIO_CENTER.y - 3600 },
+            area: { shape: 'CIRCLE', center: { x: ORARIO_CENTER.x - 1500, y: ORARIO_CENTER.y - 3600 }, radius: 400, note: '锻造作坊群' },
+            description: '赫菲斯托丝眷族的锻造作坊群。',
+            floor: 0
+        },
+        {
+            id: 'small_orario_twilight_manor',
+            name: '暮光庄园',
+            parentId: 'mid_orario',
+            coordinates: { x: ORARIO_CENTER.x - 1200, y: ORARIO_CENTER.y - 6200 },
+            area: { shape: 'CIRCLE', center: { x: ORARIO_CENTER.x - 1200, y: ORARIO_CENTER.y - 6200 }, radius: 500, note: '洛基眷族据点' },
+            description: '洛基眷族据点。',
+            floor: 0
+        },
+        {
+            id: 'small_orario_dian_cecht',
+            name: '狄安·凯特眷族药铺',
+            parentId: 'mid_orario',
+            coordinates: { x: ORARIO_CENTER.x + 2000, y: ORARIO_CENTER.y - 4200 },
+            area: { shape: 'CIRCLE', center: { x: ORARIO_CENTER.x + 2000, y: ORARIO_CENTER.y - 4200 }, radius: 350, note: '白石药铺' },
+            description: '白色石材建筑，亦是眷族据点。',
+            floor: 0
+        },
+        {
+            id: 'small_orario_three_hammers',
+            name: '三锤铁匠铺',
+            parentId: 'mid_orario',
+            coordinates: { x: ORARIO_CENTER.x + 400, y: ORARIO_CENTER.y - 5600 },
+            area: { shape: 'CIRCLE', center: { x: ORARIO_CENTER.x + 400, y: ORARIO_CENTER.y - 5600 }, radius: 350, note: '戈比纽眷族作坊' },
+            description: '戈比纽眷族作坊兼据点。',
+            floor: 0
+        },
+        {
+            id: 'small_orario_clothing_shops',
+            name: '北大街服装店',
+            parentId: 'mid_orario',
+            coordinates: { x: ORARIO_CENTER.x + 1600, y: ORARIO_CENTER.y - 6600 },
+            area: { shape: 'CIRCLE', center: { x: ORARIO_CENTER.x + 1600, y: ORARIO_CENTER.y - 6600 }, radius: 350, note: '购物街服装店' },
+            description: '北部主街购物区的服装店。',
+            floor: 0
+        }
+    ];
 
     const dungeonStructure: DungeonLayer[] = [
-        { floorStart: 1, floorEnd: 12, name: "上层 (Upper Floors)", description: "入门层区，地图相对简洁。", dangerLevel: "LOW", landmarks: [] },
-        { floorStart: 13, floorEnd: 17, name: "中层 (Middle Floors)", description: "死线之后，结构复杂，17层出现楼层主。", dangerLevel: "HIGH", landmarks: [{ floor: 17, name: "楼层主·歌利亚", type: "BOSS" }] },
-        { floorStart: 18, floorEnd: 18, name: "安全层·Under Resort (里维拉)", description: "安全楼层，怪物不在此诞生。", dangerLevel: "SAFE", landmarks: [{ floor: 18, name: "里维拉镇", type: "SAFE_ZONE" }] },
-        { floorStart: 19, floorEnd: 24, name: "中层 (Middle Floors)", description: "迷宫与生态更复杂，通路易变。", dangerLevel: "HIGH", landmarks: [] },
-        { floorStart: 25, floorEnd: 27, name: "下层 (Lower Floors) · Water City", description: "Great Fall 瀑布区，27层有楼层主。", dangerLevel: "EXTREME", landmarks: [{ floor: 27, name: "楼层主·安菲斯比纳", type: "BOSS" }] },
-        { floorStart: 28, floorEnd: 28, name: "安全层·Under Garden", description: "花园般的安全楼层，怪物不在此诞生。", dangerLevel: "SAFE", landmarks: [{ floor: 28, name: "Under Garden", type: "SAFE_ZONE" }] },
-        { floorStart: 29, floorEnd: 36, name: "下层 (Lower Floors)", description: "生态极端，地形复杂，高危区域。", dangerLevel: "EXTREME", landmarks: [] },
-        { floorStart: 37, floorEnd: 38, name: "深层 (Deep Floors)", description: "极限区域，37层中心有楼层主。", dangerLevel: "HELL", landmarks: [{ floor: 37, name: "楼层主·乌代俄斯", type: "BOSS" }] },
-        { floorStart: 39, floorEnd: 39, name: "安全层·Under Bridge", description: "深层安全点，怪物不在此诞生。", dangerLevel: "SAFE", landmarks: [{ floor: 39, name: "Under Bridge", type: "SAFE_ZONE" }] },
-        { floorStart: 40, floorEnd: 43, name: "深层 (Deep Floors)", description: "记录稀少，生态不稳定。", dangerLevel: "HELL", landmarks: [] },
-        { floorStart: 44, floorEnd: 48, name: "深层·Crimson Mountains", description: "火山地貌与炽热岩层。", dangerLevel: "HELL+", landmarks: [] },
-        { floorStart: 49, floorEnd: 49, name: "深层·Moytura", description: "巨型荒野区域，存在楼层主。", dangerLevel: "HELL+", landmarks: [{ floor: 49, name: "楼层主·巴罗尔", type: "BOSS" }] },
-        { floorStart: 50, floorEnd: 50, name: "安全层·第50层", description: "深层安全点，怪物不在此诞生。", dangerLevel: "SAFE", landmarks: [{ floor: 50, name: "安全层·第50层", type: "SAFE_ZONE" }] },
-        { floorStart: 51, floorEnd: 58, name: "深层·Hall of the Grafite", description: "平整迷宫结构与石墨厅域。", dangerLevel: "HELL+", landmarks: [] },
-        { floorStart: 59, floorEnd: 65, name: "深层·Glacial Domain", description: "冰河与极寒环境，生态异常。", dangerLevel: "HELL+", landmarks: [] }
-    ];
-
-    const routes: TradeRoute[] = [
-        {
-            id: 'route_ring_inner',
-            name: '中央环路',
-            path: createCirclePath(CENTER_X, CENTER_Y, S(4500)),
-            type: 'MAIN_STREET',
-            width: S(140),
-            color: '#94a3b8',
-            floor: 0
-        },
-        {
-            id: 'route_ring_outer',
-            name: '外环干道',
-            path: createCirclePath(CENTER_X, CENTER_Y, S(15000)),
-            type: 'MAIN_STREET',
-            width: S(180),
-            color: '#64748b',
-            floor: 0
-        },
-        {
-            id: 'route_north_south',
-            name: '南北大道',
-            path: createPolylinePath([
-                { x: CENTER_X, y: CENTER_Y - S(19000) },
-                { x: CENTER_X, y: CENTER_Y },
-                { x: CENTER_X, y: CENTER_Y + S(19000) }
-            ]),
-            type: 'MAIN_STREET',
-            width: S(200),
-            color: '#cbd5f5',
-            floor: 0
-        },
-        {
-            id: 'route_east_west',
-            name: '东西大道',
-            path: createPolylinePath([
-                { x: CENTER_X - S(19000), y: CENTER_Y },
-                { x: CENTER_X, y: CENTER_Y },
-                { x: CENTER_X + S(19000), y: CENTER_Y }
-            ]),
-            type: 'MAIN_STREET',
-            width: S(200),
-            color: '#cbd5f5',
-            floor: 0
-        },
-        {
-            id: 'route_market_trade',
-            name: '商贸走廊',
-            path: createPolylinePath([
-                { x: CENTER_X - S(9000), y: CENTER_Y + S(12000) },
-                { x: CENTER_X - S(2000), y: CENTER_Y + S(6000) },
-                { x: CENTER_X + S(6000), y: CENTER_Y + S(2000) },
-                { x: CENTER_X + S(14000), y: CENTER_Y }
-            ]),
-            type: 'TRADE_ROUTE',
-            width: S(140),
-            color: '#f59e0b',
-            floor: 0
-        },
-        {
-            id: 'route_slum_alley',
-            name: '迷宫街小巷',
-            path: createPolylinePath([
-                { x: CENTER_X + S(11000), y: CENTER_Y - S(2000) },
-                { x: CENTER_X + S(14000), y: CENTER_Y },
-                { x: CENTER_X + S(12000), y: CENTER_Y + S(2500) }
-            ]),
-            type: 'ALLEY',
-            width: S(80),
-            color: '#475569',
-            floor: 0
-        },
-        {
-            id: 'route_heph_link',
-            name: '锻造街道',
-            path: createPolylinePath([
-                { x: CENTER_X - S(13000), y: CENTER_Y + S(13000) },
-                { x: CENTER_X - S(10000), y: CENTER_Y + S(10000) },
-                { x: CENTER_X - S(6000), y: CENTER_Y + S(6000) }
-            ]),
-            type: 'TRADE_ROUTE',
-            width: S(120),
-            color: '#f97316',
-            floor: 0
-        }
+        { floorStart: 1, floorEnd: 12, name: '上层 (Upper Floors)', description: '入门层区，地图相对简洁。', dangerLevel: 'LOW', landmarks: [] },
+        { floorStart: 13, floorEnd: 17, name: '中层 (Middle Floors)', description: '死线之后，结构复杂，17层出现楼层主。', dangerLevel: 'HIGH', landmarks: [{ floor: 17, name: '楼层主·歌利亚', type: 'BOSS' }] },
+        { floorStart: 18, floorEnd: 18, name: '安全层·Under Resort (里维拉)', description: '安全楼层，怪物不在此诞生。', dangerLevel: 'SAFE', landmarks: [{ floor: 18, name: '里维拉镇', type: 'SAFE_ZONE' }] },
+        { floorStart: 19, floorEnd: 24, name: '中层 (Middle Floors)', description: '迷宫与生态更复杂，通路易变。', dangerLevel: 'HIGH', landmarks: [] },
+        { floorStart: 25, floorEnd: 27, name: '下层 (Lower Floors) · Water City', description: 'Great Fall 瀑布区，27层有楼层主。', dangerLevel: 'EXTREME', landmarks: [{ floor: 27, name: '楼层主·安菲斯比纳', type: 'BOSS' }] },
+        { floorStart: 28, floorEnd: 28, name: '安全层·Under Garden', description: '花园般的安全楼层，怪物不在此诞生。', dangerLevel: 'SAFE', landmarks: [{ floor: 28, name: 'Under Garden', type: 'SAFE_ZONE' }] },
+        { floorStart: 29, floorEnd: 36, name: '下层 (Lower Floors)', description: '生态极端，地形复杂，高危区域。', dangerLevel: 'EXTREME', landmarks: [] },
+        { floorStart: 37, floorEnd: 38, name: '深层 (Deep Floors)', description: '极限区域，37层中心有楼层主。', dangerLevel: 'HELL', landmarks: [{ floor: 37, name: '楼层主·乌代俄斯', type: 'BOSS' }] },
+        { floorStart: 39, floorEnd: 39, name: '安全层·Under Bridge', description: '深层安全点，怪物不在此诞生。', dangerLevel: 'SAFE', landmarks: [{ floor: 39, name: 'Under Bridge', type: 'SAFE_ZONE' }] },
+        { floorStart: 40, floorEnd: 43, name: '深层 (Deep Floors)', description: '记录稀少，生态不稳定。', dangerLevel: 'HELL', landmarks: [] },
+        { floorStart: 44, floorEnd: 48, name: '深层·Crimson Mountains', description: '火山地貌与炽热岩层。', dangerLevel: 'HELL+', landmarks: [] },
+        { floorStart: 49, floorEnd: 49, name: '深层·Moytura', description: '巨型荒野区域，存在楼层主。', dangerLevel: 'HELL+', landmarks: [{ floor: 49, name: '楼层主·巴罗尔', type: 'BOSS' }] },
+        { floorStart: 50, floorEnd: 50, name: '安全层·第50层', description: '深层安全点，怪物不在此诞生。', dangerLevel: 'SAFE', landmarks: [{ floor: 50, name: '安全层·第50层', type: 'SAFE_ZONE' }] },
+        { floorStart: 51, floorEnd: 58, name: '深层·Hall of the Grafite', description: '平整迷宫结构与石墨厅域。', dangerLevel: 'HELL+', landmarks: [] },
+        { floorStart: 59, floorEnd: 65, name: '深层·Glacial Domain', description: '冰河与极寒环境，生态异常。', dangerLevel: 'HELL+', landmarks: [] }
     ];
 
     return {
-        config: { width: MAP_SIZE, height: MAP_SIZE },
-        factions,
-        territories,
-        terrain,
-        routes,
-        surfaceLocations: allLocations,
+        config: { width: WORLD_SIZE, height: WORLD_SIZE },
+        factions: [],
+        territories: [],
+        terrain: [],
+        routes: [],
+        surfaceLocations: [],
         dungeonStructure,
         macroLocations,
         midLocations,
-        smallLocations
+        smallLocations,
+        leaflet: {
+            layers: [
+                {
+                    id: 'layer_world',
+                    name: '下界世界地图',
+                    scope: 'macro',
+                    url: '/maps/world-map.svg',
+                    bounds: { minX: 0, minY: 0, maxX: WORLD_SIZE, maxY: WORLD_SIZE },
+                    minZoom: -2,
+                    maxZoom: 2,
+                    defaultZoom: -1
+                },
+                {
+                    id: 'layer_orario',
+                    name: '欧拉丽地区地图',
+                    scope: 'mid',
+                    ownerId: 'mid_orario',
+                    url: '/maps/orario-map.svg',
+                    bounds: ORARIO_BOUNDS,
+                    minZoom: -1,
+                    maxZoom: 4,
+                    defaultZoom: 0
+                },
+                {
+                    id: 'layer_dungeon',
+                    name: '地下城网格',
+                    scope: 'dungeon',
+                    url: '/maps/dungeon-grid.svg',
+                    bounds: DUNGEON_BOUNDS,
+                    minZoom: -1,
+                    maxZoom: 4,
+                    defaultZoom: 0
+                }
+            ]
+        }
     };
 };
 
@@ -671,4 +425,5 @@ export const resolveLocationHierarchy = (mapData: WorldMapData | undefined, loca
         small: currentSmall?.name
     };
 };
+
 

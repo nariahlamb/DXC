@@ -1,0 +1,22 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" width="20000" height="20000" viewBox="0 0 20000 20000" role="img" aria-label="Orario city map">
+  <defs>
+    <pattern id="grid" width="400" height="400" patternUnits="userSpaceOnUse">
+      <path d="M 400 0 L 0 0 0 400" fill="none" stroke="#b7a27b" stroke-width="16" opacity="0.18" />
+    </pattern>
+  </defs>
+  <rect width="20000" height="20000" fill="#f3ead6" />
+  <rect width="20000" height="20000" fill="url(#grid)" />
+  <circle cx="10000" cy="10000" r="8000" fill="#e0cfab" stroke="#8c7a56" stroke-width="120" />
+  <circle cx="10000" cy="10000" r="5800" fill="none" stroke="#9e8963" stroke-width="80" opacity="0.7" />
+  <circle cx="10000" cy="10000" r="2500" fill="none" stroke="#9e8963" stroke-width="70" opacity="0.6" />
+  <circle cx="10000" cy="10000" r="500" fill="#d2b57a" stroke="#7a6644" stroke-width="80" />
+  <line x1="10000" y1="2000" x2="10000" y2="18000" stroke="#8c7a56" stroke-width="60" opacity="0.5" />
+  <line x1="2000" y1="10000" x2="18000" y2="10000" stroke="#8c7a56" stroke-width="60" opacity="0.5" />
+  <line x1="3500" y1="3500" x2="16500" y2="16500" stroke="#8c7a56" stroke-width="50" opacity="0.4" />
+  <line x1="16500" y1="3500" x2="3500" y2="16500" stroke="#8c7a56" stroke-width="50" opacity="0.4" />
+  <text x="10000" y="950" font-size="900" text-anchor="middle" fill="#7a6644">北</text>
+  <text x="10000" y="19200" font-size="900" text-anchor="middle" fill="#7a6644">南</text>
+  <text x="19000" y="10300" font-size="900" text-anchor="end" fill="#7a6644">东</text>
+  <text x="1000" y="10300" font-size="900" text-anchor="start" fill="#7a6644">西</text>
+  <text x="10000" y="11200" font-size="800" text-anchor="middle" fill="#7a6644">巴别塔</text>
+</svg>

@@ -1,8 +1,9 @@
 ﻿
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Map as MapIcon, Target, Plus, Minus, RotateCcw, Info, Layers, Eye, EyeOff, ChevronDown } from 'lucide-react';
+import L from 'leaflet';
 import { WorldMapData, GeoPoint, Confidant, MapMidLocation, MapSmallLocation } from '../../../types';
-import { drawWorldMapCanvas, resizeCanvasToContainer } from '../../../utils/mapCanvas';
+import { LeafletMapView } from '../../map/LeafletMapView';
 
 interface MapModalProps {
   isOpen: boolean;
@@ -26,11 +27,7 @@ export const MapModal: React.FC<MapModalProps> = ({
   confidants = []
 }) => {
   const layoutUnit = 12;
-  // Enhanced Scale: Limit minimum scale to 0.1 to prevent crash
-  const [scale, setScale] = useState(0.5); 
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const mapRef = useRef<L.Map | null>(null);
   const [viewMode, setViewMode] = useState<'macro' | 'mid' | 'small'>('macro');
   const [activeMid, setActiveMid] = useState<MapMidLocation | null>(null);
   const [activeSmall, setActiveSmall] = useState<MapSmallLocation | null>(null);
@@ -53,17 +50,22 @@ export const MapModal: React.FC<MapModalProps> = ({
   const [showNPCs, setShowNPCs] = useState(true);
   const [jumpCoord, setJumpCoord] = useState({ x: '', y: '' });
 
-  // Hover State
-  const [hoverInfo, setHoverInfo] = useState<{title: string, sub?: string, desc?: string, x: number, y: number} | null>(null);
+  // Leaflet selection
   
-  const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const layoutContainerRef = useRef<HTMLDivElement>(null);
+  const [selectedLocation, setSelectedLocation] = useState<{
+      name: string;
+      type?: string;
+      description?: string;
+      coordinates: GeoPoint;
+      floor?: number;
+  } | null>(null);
 
   // Initial Data
   const mapData = worldMap || { 
       config: { width: 100000, height: 100000 },
-      factions: [], territories: [], terrain: [], routes: [], surfaceLocations: [], dungeonStructure: [] 
+      factions: [], territories: [], terrain: [], routes: [], surfaceLocations: [], dungeonStructure: [],
+      leaflet: { layers: [] }
   };
 
   const isLayoutView = viewingFloor === 0 && (
@@ -124,7 +126,7 @@ export const MapModal: React.FC<MapModalProps> = ({
       return null;
   };
 
-  const getLayoutSize = (layout: MapSmallLocation["layout"], area?: { width?: number; height?: number }) => ({
+  const getLayoutSize = (layout: NonNullable<MapSmallLocation["layout"]>, area?: { width?: number; height?: number }) => ({
       width: area?.width ?? layout.width,
       height: area?.height ?? layout.height
   });
@@ -156,20 +158,19 @@ export const MapModal: React.FC<MapModalProps> = ({
   };
 
   const centerOnArea = (center: GeoPoint, area?: { radius?: number; width?: number; height?: number }) => {
-      if (!containerRef.current) return;
-      const { clientWidth, clientHeight } = containerRef.current;
-      const diameter = area?.radius ? area.radius * 2 : (area?.width && area?.height ? Math.max(area.width, area.height) : 1200);
-      const desiredScale = Math.min(clientWidth / diameter, clientHeight / diameter) * 0.6;
-      const targetScale = Math.max(0.3, Math.min(desiredScale, 3.0));
-      setOffset({
-          x: -center.x * targetScale + clientWidth / 2,
-          y: -center.y * targetScale + clientHeight / 2
-      });
-      setScale(targetScale);
+      const map = mapRef.current;
+      if (!map) return;
+      const halfW = area?.width ? area.width / 2 : (area?.radius ?? 600);
+      const halfH = area?.height ? area.height / 2 : (area?.radius ?? 600);
+      const bounds: L.LatLngBoundsExpression = [
+          [center.y - halfH, center.x - halfW],
+          [center.y + halfH, center.x + halfW]
+      ];
+      map.fitBounds(bounds, { padding: [80, 80] });
       setViewingFloor(floor);
   };
 
-  const centerOnLayout = (layout: MapSmallLocation["layout"], area?: { center?: GeoPoint; width?: number; height?: number }, baseCenter?: GeoPoint) => {
+  const centerOnLayout = (layout: NonNullable<MapSmallLocation["layout"]>, area?: { center?: GeoPoint; width?: number; height?: number }, baseCenter?: GeoPoint) => {
       const { width: layoutWidth, height: layoutHeight } = getLayoutSize(layout, area);
       const center = area?.center || baseCenter;
       const playerLocal = toLocalPoint(currentPos, center, layoutWidth, layoutHeight);
@@ -177,7 +178,7 @@ export const MapModal: React.FC<MapModalProps> = ({
       centerLayoutOnPoint(target.x, target.y, layoutWidth, layoutHeight);
   };
 
-  const fitLayoutToScreen = (layout: MapSmallLocation["layout"], area?: { width?: number; height?: number }) => {
+  const fitLayoutToScreen = (layout: NonNullable<MapSmallLocation["layout"]>, area?: { width?: number; height?: number }) => {
       const container = layoutContainerRef.current;
       if (!container) return;
       const { width: layoutWidth, height: layoutHeight } = getLayoutSize(layout, area);
@@ -258,14 +259,9 @@ export const MapModal: React.FC<MapModalProps> = ({
           centerLayoutOnPoint(target.x, target.y, layoutWidth, layoutHeight);
           return;
       }
-      if (containerRef.current) {
-          const { clientWidth, clientHeight } = containerRef.current;
-          const targetScale = 1.0; 
-          setOffset({
-              x: -currentPos.x * targetScale + clientWidth / 2,
-              y: -currentPos.y * targetScale + clientHeight / 2
-          });
-          setScale(targetScale);
+      if (mapRef.current) {
+          const map = mapRef.current;
+          map.setView([currentPos.y, currentPos.x], map.getZoom());
           setViewingFloor(floor); 
       }
   };
@@ -284,13 +280,9 @@ export const MapModal: React.FC<MapModalProps> = ({
           if (local) centerLayoutOnPoint(local.x, local.y, layoutWidth, layoutHeight);
           return;
       }
-      const container = containerRef.current;
-      if (!container) return;
-      const { clientWidth, clientHeight } = container;
-      setOffset({
-          x: -x * scale + clientWidth / 2,
-          y: -y * scale + clientHeight / 2
-      });
+      if (mapRef.current) {
+          mapRef.current.setView([y, x], mapRef.current.getZoom());
+      }
   };
 
   useEffect(() => {
@@ -326,38 +318,8 @@ export const MapModal: React.FC<MapModalProps> = ({
   useEffect(() => {
       if (!isOpen) return;
       if (isLayoutView) return;
-      const draw = () => {
-          const canvas = canvasRef.current;
-          const container = containerRef.current;
-          if (!canvas || !container) return;
-          resizeCanvasToContainer(canvas, container);
-          const ctx = canvas.getContext('2d');
-          if (!ctx) return;
-          const mapScope = viewingFloor === 0 && viewMode === 'macro' ? 'macro' : 'mid';
-          drawWorldMapCanvas(ctx, mapData, {
-              floor: viewingFloor,
-              scale,
-              offset,
-              showTerritories,
-              showNPCs,
-              showPlayer: viewingFloor === floor || viewingFloor === 0,
-              showLabels: true,
-              scope: mapScope,
-              focusMacroId: selectedMacroId,
-              currentPos,
-              confidants
-          });
-      };
-      draw();
-      window.addEventListener('resize', draw);
-      return () => window.removeEventListener('resize', draw);
-  }, [isOpen, mapData, scale, offset, viewingFloor, showTerritories, showNPCs, floor, currentPos, confidants, viewMode, isLayoutView]);
-
-  useEffect(() => {
-      if (isLayoutView) {
-          setHoverInfo(null);
-      }
-  }, [viewMode, isLayoutView]);
+      setSelectedLocation(null);
+  }, [viewMode, viewingFloor, isOpen, isLayoutView]);
 
   useEffect(() => {
       if (!isLayoutView) return;
@@ -368,40 +330,14 @@ export const MapModal: React.FC<MapModalProps> = ({
 
   if (!isOpen) return null;
 
-  // --- Zoom Logic ---
-  const applyZoom = (deltaScale: number, containerCenterX?: number, containerCenterY?: number) => {
-      if (!containerRef.current) return;
-      const { clientWidth, clientHeight } = containerRef.current;
-      
-      // Safety: Prevent scale from going too small (crash risk) or too large
-      const safeScale = Math.max(0.1, Math.min(scale + deltaScale, 5.0));
-      if (Math.abs(safeScale - scale) < 0.001) return;
-
-      const cx = containerCenterX !== undefined ? containerCenterX : clientWidth / 2;
-      const cy = containerCenterY !== undefined ? containerCenterY : clientHeight / 2;
-
-      const mapX = (cx - offset.x) / scale;
-      const mapY = (cy - offset.y) / scale;
-
-      const newOffsetX = cx - (mapX * safeScale);
-      const newOffsetY = cy - (mapY * safeScale);
-
-      setScale(safeScale);
-      setOffset({ x: newOffsetX, y: newOffsetY });
-  };
-
   const handleWheel = (e: React.WheelEvent) => {
+      if (!isLayoutView) return;
       e.preventDefault();
-      const delta = -e.deltaY * 0.001; 
-      if (isLayoutView) {
-          const rect = layoutContainerRef.current?.getBoundingClientRect();
-          if (rect) {
-              applyLayoutZoom(delta, e.clientX - rect.left, e.clientY - rect.top);
-          }
-          return;
+      const delta = -e.deltaY * 0.001;
+      const rect = layoutContainerRef.current?.getBoundingClientRect();
+      if (rect) {
+          applyLayoutZoom(delta, e.clientX - rect.left, e.clientY - rect.top);
       }
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (rect) applyZoom(delta, e.clientX - rect.left, e.clientY - rect.top);
   };
 
   const applyLayoutZoom = (deltaScale: number, containerCenterX?: number, containerCenterY?: number) => {
@@ -420,21 +356,15 @@ export const MapModal: React.FC<MapModalProps> = ({
       setLayoutOffset({ x: newOffsetX, y: newOffsetY });
   };
 
+  const zoomMap = (delta: number) => {
+      const map = mapRef.current;
+      if (!map) return;
+      if (delta > 0) map.zoomIn(delta);
+      else map.zoomOut(Math.abs(delta));
+  };
 
-  // --- Pan Logic ---
-  const handleMapMouseDown = (e: React.MouseEvent) => {
-      if (isLayoutView) return;
-      setIsDragging(true);
-      setDragStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
-  };
-  const handleMapMouseMove = (e: React.MouseEvent) => {
-      if (isLayoutView) return;
-      if (isDragging) {
-          setOffset({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
-      } else {
-          updateHoverInfo(e.clientX, e.clientY);
-      }
-  };
+
+  // --- Pan Logic (Layout only) ---
   const handleLayoutMouseDown = (e: React.MouseEvent) => {
       if (!isLayoutView) return;
       setIsLayoutDragging(true);
@@ -456,68 +386,23 @@ export const MapModal: React.FC<MapModalProps> = ({
       return '地标';
   };
 
-  const updateHoverInfo = (clientX: number, clientY: number) => {
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const mapX = (clientX - rect.left - offset.x) / scale;
-      const mapY = (clientY - rect.top - offset.y) / scale;
-      const mapScope = viewingFloor === 0 && viewMode === 'macro' ? 'macro' : 'mid';
-      if (mapScope === 'macro') {
-          const macro = macroLocations.find(m => {
-              if (m.area?.shape === 'CIRCLE' && m.area.center && m.area.radius) {
-                  return Math.hypot(mapX - m.area.center.x, mapY - m.area.center.y) <= m.area.radius;
-              }
-              if (m.area?.shape === 'RECT' && m.area.center && m.area.width && m.area.height) {
-                  const left = m.area.center.x - m.area.width / 2;
-                  const right = m.area.center.x + m.area.width / 2;
-                  const top = m.area.center.y - m.area.height / 2;
-                  const bottom = m.area.center.y + m.area.height / 2;
-                  return mapX >= left && mapX <= right && mapY >= top && mapY <= bottom;
-              }
-              return false;
-          }) || null;
-          if (macro) {
-              setHoverInfo({
-                  title: macro.name,
-                  sub: macro.type || '区域',
-                  desc: macro.description,
-                  x: clientX,
-                  y: clientY
-              });
-              return;
-          }
-      }
-      const loc = mapData.surfaceLocations
-          .filter(l => (l.floor || 0) === viewingFloor)
-          .find(l => {
-              const dx = mapX - l.coordinates.x;
-              const dy = mapY - l.coordinates.y;
-              return Math.hypot(dx, dy) <= l.radius;
-          });
-      if (loc) {
-          setHoverInfo({
-              title: loc.name,
-              sub: getLocationTypeLabel(loc.type),
-              desc: loc.description,
-              x: clientX,
-              y: clientY
-          });
-      } else {
-          setHoverInfo(null);
-      }
-  };
 
   const renderSurfaceMap = () => (
-      <div 
-          ref={containerRef}
-          className="flex-1 bg-[#050a14] relative overflow-hidden cursor-move border-t-2 border-b-2 border-blue-900"
-          onMouseDown={handleMapMouseDown}
-          onMouseMove={handleMapMouseMove}
-          onMouseUp={() => setIsDragging(false)}
-          onMouseLeave={() => { setIsDragging(false); setHoverInfo(null); }}
-          onWheel={handleWheel}
-      >
-          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
+      <div className="flex-1 bg-[#050a14] relative overflow-hidden border-t-2 border-b-2 border-blue-900">
+          <LeafletMapView
+              mapData={mapData}
+              viewMode={viewMode}
+              floor={viewingFloor}
+              selectedMidId={selectedMidId}
+              selectedSmallId={selectedSmallId}
+              currentPos={currentPos}
+              confidants={confidants}
+              showTerritories={showTerritories}
+              showNPCs={showNPCs}
+              showLabels={true}
+              onSelectLocation={setSelectedLocation}
+              onMapReady={(map) => { mapRef.current = map; }}
+          />
       </div>
   );
 
@@ -682,7 +567,7 @@ export const MapModal: React.FC<MapModalProps> = ({
               <Layers size={12} /> 图层控制
           </div>
           <button onClick={() => setShowTerritories(!showTerritories)} className={`flex items-center gap-2 text-xs px-2 py-1 rounded ${showTerritories ? 'bg-blue-900/50 text-blue-200' : 'text-zinc-500'}`}>
-              {showTerritories ? <Eye size={12}/> : <EyeOff size={12}/>} 领地范围
+              {showTerritories ? <Eye size={12}/> : <EyeOff size={12}/>} 区域范围
           </button>
           <button onClick={() => setShowNPCs(!showNPCs)} className={`flex items-center gap-2 text-xs px-2 py-1 rounded ${showNPCs ? 'bg-blue-900/50 text-blue-200' : 'text-zinc-500'}`}>
               {showNPCs ? <Eye size={12}/> : <EyeOff size={12}/>} 人物定位
@@ -834,6 +719,7 @@ export const MapModal: React.FC<MapModalProps> = ({
 
   const handleSelectFloor = (nextFloor: number) => {
       setViewingFloor(nextFloor);
+      setSelectedLocation(null);
       if (nextFloor !== 0) {
           setViewMode('macro');
           setActiveMid(null);
@@ -865,14 +751,14 @@ export const MapModal: React.FC<MapModalProps> = ({
         {/* Controls */}
         <div className="absolute top-24 right-6 z-30 flex flex-col gap-2">
             <button
-                onClick={() => (isLayoutView ? applyLayoutZoom(0.1) : applyZoom(0.1))}
+                onClick={() => (isLayoutView ? applyLayoutZoom(0.1) : zoomMap(0.5))}
                 className="bg-zinc-800 border border-zinc-600 p-2 text-white hover:bg-blue-600 rounded"
                 title="放大"
             >
                 <Plus size={20}/>
             </button>
             <button
-                onClick={() => (isLayoutView ? applyLayoutZoom(-0.1) : applyZoom(-0.1))}
+                onClick={() => (isLayoutView ? applyLayoutZoom(-0.1) : zoomMap(-0.5))}
                 className="bg-zinc-800 border border-zinc-600 p-2 text-white hover:bg-blue-600 rounded"
                 title="缩小"
             >
@@ -943,25 +829,27 @@ export const MapModal: React.FC<MapModalProps> = ({
                     )}
                 </div>
                 <div className="mt-3 border-t border-zinc-700 pt-2">
-                    <div className="text-[10px] text-zinc-500 font-bold uppercase mb-2">势力分布</div>
+                    <div className="text-[10px] text-zinc-500 font-bold uppercase mb-2">区域范围</div>
                     {showTerritories ? (
-                        <div className="grid grid-cols-2 gap-2">
-                            {mapData.factions.map(f => (
-                                <div key={f.id} className="flex items-center gap-2">
-                                    <div className="w-3 h-3 border" style={{ backgroundColor: f.color, borderColor: f.borderColor }} />
-                                    <span style={{ color: f.textColor }}>{f.name}</span>
-                                </div>
-                            ))}
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded border border-blue-400 bg-blue-500/40" />
+                                <span>地区范围</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded border border-amber-400 bg-amber-400/40" />
+                                <span>细分范围</span>
+                            </div>
                         </div>
                     ) : (
-                        <div className="text-[10px] text-zinc-500">领地图层已关闭</div>
+                        <div className="text-[10px] text-zinc-500">区域图层已关闭</div>
                     )}
                 </div>
             </div>
         )}
 
         {/* Map View */}
-        {viewingFloor === 0 && viewMode === 'small' && activeSmall
+        {viewingFloor === 0 && viewMode === 'small' && activeSmall?.layout
             ? renderLayoutView(
                 activeSmall.layout,
                 `细分地点布局 · ${activeSmall.name}`,
@@ -972,18 +860,34 @@ export const MapModal: React.FC<MapModalProps> = ({
                 ? renderLayoutView(activeMid.layout, `地区地图 · ${activeMid.name}`, activeMid.area, activeMid.coordinates)
                 : renderSurfaceMap()}
 
-        {/* Tooltip */}
-        {hoverInfo && (
-            <div 
-                className="fixed z-50 bg-black/95 border-2 border-blue-500 p-4 shadow-2xl pointer-events-none max-w-xs transform -translate-y-full mt-[-10px]"
-                style={{ top: hoverInfo.y, left: hoverInfo.x }}
-            >
-                <div className="flex items-center gap-2 mb-2 border-b border-zinc-700 pb-2">
-                    <span className="text-xl">📍</span>
-                    <h4 className="text-blue-400 font-display text-lg uppercase tracking-wider">{hoverInfo.title}</h4>
+        {selectedLocation && (
+            <div className="absolute bottom-6 left-6 z-30 max-w-sm">
+                <div className="bg-black/90 border border-blue-600 rounded-xl p-4 shadow-2xl">
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <div className="text-[10px] uppercase tracking-widest text-blue-400">地点详情</div>
+                            <div className="text-lg font-display text-white">{selectedLocation.name}</div>
+                            <div className="text-[10px] text-blue-200 font-mono uppercase">
+                                {getLocationTypeLabel(selectedLocation.type)} · {selectedLocation.floor ? `地下 ${selectedLocation.floor} 层` : '地表'}
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setSelectedLocation(null)}
+                            className="text-zinc-400 hover:text-white transition-colors"
+                            aria-label="关闭地点详情"
+                        >
+                            <X size={16} />
+                        </button>
+                    </div>
+                    {selectedLocation.description && (
+                        <p className="mt-2 text-xs text-zinc-300 leading-relaxed">
+                            {selectedLocation.description}
+                        </p>
+                    )}
+                    <div className="mt-2 text-[10px] text-zinc-400 font-mono">
+                        坐标: {Math.round(selectedLocation.coordinates.x)}, {Math.round(selectedLocation.coordinates.y)}
+                    </div>
                 </div>
-                {hoverInfo.sub && <div className="text-[10px] bg-blue-900/30 text-blue-200 px-2 py-0.5 inline-block mb-1 font-bold uppercase">{hoverInfo.sub}</div>}
-                <p className="text-zinc-300 text-xs font-serif leading-relaxed">{hoverInfo.desc}</p>
             </div>
         )}
 
