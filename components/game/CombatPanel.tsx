@@ -26,7 +26,11 @@ export const CombatPanel: React.FC<CombatPanelProps> = ({
   const enemies = useMemo(() => {
       const raw = (combatState as any)?.敌方;
       if (!raw) return [] as Enemy[];
-      return Array.isArray(raw) ? raw.filter(Boolean) : [raw];
+      const list = Array.isArray(raw) ? raw.filter(Boolean) : [raw];
+      return list.map((enemy, idx) => ({
+          ...enemy,
+          id: enemy.id || `${enemy.名称 || 'enemy'}_${idx}`
+      }));
   }, [combatState]);
   const [selectedEnemyId, setSelectedEnemyId] = useState<string | null>(enemies[0]?.id ?? null);
 
@@ -53,6 +57,7 @@ export const CombatPanel: React.FC<CombatPanelProps> = ({
   }, [enemies, selectedEnemyId]);
 
   if (enemies.length === 0) return <div className="p-10 text-white animate-pulse">扫描敌对目标中...</div>;
+  const battleLogs = Array.isArray(combatState.战斗记录) ? combatState.战斗记录 : [];
 
   const validConsumables = inventory.filter(i => getItemCategory(i) === 'CONSUMABLE');
 
@@ -222,7 +227,7 @@ export const CombatPanel: React.FC<CombatPanelProps> = ({
              战斗进行中
          </div>
          <div className="text-zinc-400 font-mono text-xs truncate max-w-[50%]">
-             记录: {combatState.战斗记录[combatState.战斗记录.length - 1] || "战斗开始"}
+             记录: {battleLogs[battleLogs.length - 1] || "战斗开始"}
          </div>
       </div>
 

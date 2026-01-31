@@ -8,13 +8,15 @@ interface TasksModalProps {
   onClose: () => void;
   tasks: Task[];
   onDeleteTask?: (id: string) => void;
+  onUpdateTask?: (id: string, status: Task['状态'], note?: string) => void;
 }
 
 type TaskFilter = 'ACTIVE' | 'COMPLETED' | 'FAILED';
 
-export const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks = [], onDeleteTask }) => {
+export const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks = [], onDeleteTask, onUpdateTask }) => {
   const [filter, setFilter] = useState<TaskFilter>('ACTIVE');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [manualNote, setManualNote] = useState('');
 
   if (!isOpen) return null;
 
@@ -43,6 +45,11 @@ export const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks =
               setSelectedTask(null);
           }
       }
+  };
+  const handleStatusUpdate = (status: Task['状态']) => {
+      if (!selectedTask || !onUpdateTask) return;
+      onUpdateTask(selectedTask.id, status, manualNote);
+      setManualNote('');
   };
 
   return (
@@ -160,6 +167,44 @@ export const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks =
                                 <h4 className="text-xs font-bold uppercase tracking-widest text-[#8b7e66] mb-1">Rewards</h4>
                                 <p className="font-bold text-lg">{selectedTask.奖励}</p>
                             </div>
+
+                            {onUpdateTask && (
+                                <div className="bg-[#f7f0e2] p-4 border border-[#cfc4ad] mb-8">
+                                    <h4 className="text-xs font-bold uppercase tracking-widest text-[#8b7e66] mb-2">手动操作</h4>
+                                    <textarea
+                                        value={manualNote}
+                                        onChange={(e) => setManualNote(e.target.value)}
+                                        placeholder="可选：填写手动备注/结案说明"
+                                        className="w-full h-16 bg-white/70 border border-[#cfc4ad] p-2 text-xs resize-none"
+                                    />
+                                    <div className="flex flex-wrap gap-2 mt-3">
+                                        {selectedTask.状态 !== 'completed' && (
+                                            <button
+                                                onClick={() => handleStatusUpdate('completed')}
+                                                className="px-3 py-1 text-xs font-bold border-2 border-green-700 text-green-700 hover:bg-green-700 hover:text-white"
+                                            >
+                                                标记完成
+                                            </button>
+                                        )}
+                                        {selectedTask.状态 !== 'failed' && (
+                                            <button
+                                                onClick={() => handleStatusUpdate('failed')}
+                                                className="px-3 py-1 text-xs font-bold border-2 border-red-700 text-red-700 hover:bg-red-700 hover:text-white"
+                                            >
+                                                标记失败
+                                            </button>
+                                        )}
+                                        {selectedTask.状态 !== 'active' && (
+                                            <button
+                                                onClick={() => handleStatusUpdate('active')}
+                                                className="px-3 py-1 text-xs font-bold border-2 border-blue-700 text-blue-700 hover:bg-blue-700 hover:text-white"
+                                            >
+                                                重新激活
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* History Logs */}
                             {selectedTask.日志 && selectedTask.日志.length > 0 && (

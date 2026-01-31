@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { X, BookOpen, Clock, MapPin, GitBranch, Target, AlertTriangle } from 'lucide-react';
 import { StoryState } from '../../../types';
 
@@ -7,9 +7,17 @@ interface StoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   story: StoryState;
+  gameTime?: string;
+  onUpdateStory?: (patch: Partial<StoryState>, milestoneNote?: string) => void;
 }
 
-export const StoryModal: React.FC<StoryModalProps> = ({ isOpen, onClose, story }) => {
+export const StoryModal: React.FC<StoryModalProps> = ({ isOpen, onClose, story, gameTime, onUpdateStory }) => {
+  const [manualStage, setManualStage] = useState('');
+  const [manualNode, setManualNode] = useState('');
+  const [manualNodeStatus, setManualNodeStatus] = useState('');
+  const [manualGuideGoal, setManualGuideGoal] = useState('');
+  const [manualGuideHint, setManualGuideHint] = useState('');
+  const [manualMilestone, setManualMilestone] = useState('');
   if (!isOpen) return null;
 
   // Safe check for story object
@@ -37,6 +45,31 @@ export const StoryModal: React.FC<StoryModalProps> = ({ isOpen, onClose, story }
       },
       待触发: [],
       里程碑: []
+  };
+  const handleManualAdvance = () => {
+      if (!onUpdateStory) return;
+      const patch: Partial<StoryState> = {};
+      if (manualStage || manualNode || manualNodeStatus) {
+          patch.主线 = {
+              ...(manualStage ? { 当前阶段: manualStage } : {}),
+              ...(manualNode ? { 关键节点: manualNode } : {}),
+              ...(manualNodeStatus ? { 节点状态: manualNodeStatus } : {})
+          } as StoryState['主线'];
+      }
+      if (manualGuideGoal || manualGuideHint) {
+          patch.引导 = {
+              ...(manualGuideGoal ? { 当前目标: manualGuideGoal } : {}),
+              ...(manualGuideHint ? { 行动提示: manualGuideHint } : {})
+          } as StoryState['引导'];
+      }
+      if (Object.keys(patch).length === 0 && !manualMilestone.trim()) return;
+      onUpdateStory(patch, manualMilestone.trim() || undefined);
+      setManualStage('');
+      setManualNode('');
+      setManualNodeStatus('');
+      setManualGuideGoal('');
+      setManualGuideHint('');
+      setManualMilestone('');
   };
 
   return (
@@ -171,6 +204,61 @@ export const StoryModal: React.FC<StoryModalProps> = ({ isOpen, onClose, story }
                                 {m.影响 && <span className="text-[10px] text-zinc-500">影响: {m.影响}</span>}
                             </div>
                         ))}
+                    </div>
+                </div>
+            )}
+
+            {onUpdateStory && (
+                <div className="bg-black/40 border border-green-900/40 p-6 mb-8">
+                    <div className="flex items-center gap-2 text-green-400 font-bold uppercase tracking-wider text-sm mb-4">
+                        <Target size={14} /> 手动推进剧情
+                        {gameTime && <span className="text-[10px] text-zinc-500">({gameTime})</span>}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-zinc-300">
+                        <input
+                            value={manualStage}
+                            onChange={(e) => setManualStage(e.target.value)}
+                            placeholder="主线阶段（可选）"
+                            className="bg-zinc-900 border border-zinc-700 px-3 py-2"
+                        />
+                        <input
+                            value={manualNode}
+                            onChange={(e) => setManualNode(e.target.value)}
+                            placeholder="关键节点（可选）"
+                            className="bg-zinc-900 border border-zinc-700 px-3 py-2"
+                        />
+                        <input
+                            value={manualNodeStatus}
+                            onChange={(e) => setManualNodeStatus(e.target.value)}
+                            placeholder="节点状态（可选）"
+                            className="bg-zinc-900 border border-zinc-700 px-3 py-2"
+                        />
+                        <input
+                            value={manualGuideGoal}
+                            onChange={(e) => setManualGuideGoal(e.target.value)}
+                            placeholder="引导目标（可选）"
+                            className="bg-zinc-900 border border-zinc-700 px-3 py-2"
+                        />
+                        <textarea
+                            value={manualGuideHint}
+                            onChange={(e) => setManualGuideHint(e.target.value)}
+                            placeholder="行动提示（可选）"
+                            className="bg-zinc-900 border border-zinc-700 px-3 py-2 md:col-span-2 h-16 resize-none"
+                        />
+                        <textarea
+                            value={manualMilestone}
+                            onChange={(e) => setManualMilestone(e.target.value)}
+                            placeholder="里程碑记录（可选）"
+                            className="bg-zinc-900 border border-zinc-700 px-3 py-2 md:col-span-2 h-16 resize-none"
+                        />
+                    </div>
+                    <div className="mt-4 flex justify-end">
+                        <button
+                            onClick={handleManualAdvance}
+                            className="px-4 py-2 bg-green-700 text-white text-xs font-bold uppercase tracking-widest hover:bg-green-600"
+                        >
+                            应用更新
+                        </button>
                     </div>
                 </div>
             )}

@@ -21,7 +21,7 @@ export const createNewGameState = (
     };
     const displayRace = raceNameMap[race] || race;
     const worldMap = generateDanMachiMap();
-    const startLoc = { x: 5000, y: 5160 }; // 统一出生点：欧拉丽南大街 (1:1)
+    const startLoc = { x: 50000, y: 51600 }; // 统一出生点：欧拉丽南大街
 
     // 2. 差异化开局配置 (Difficulty Config)
     let startValis = 0;

@@ -124,11 +124,11 @@ const createPolylinePath = (points: { x: number; y: number }[]): string => {
 
 export const generateDanMachiMap = (): WorldMapData => {
     // 基础配置
-    const SCALE = 0.2; // 1:1 坐标比例
+    const SCALE = 0.2; // 统一坐标缩放系数（输出坐标为地图统一单位）
     const S = (value: number) => value * SCALE;
-    const MAP_SIZE = S(50000);
-    const CENTER_X = S(25000);
-    const CENTER_Y = S(25000);
+    const MAP_SIZE = S(500000);
+    const CENTER_X = S(250000);
+    const CENTER_Y = S(250000);
 
     // 半径参数
     const CITY_RADIUS = S(20000);  // 都市外墙
@@ -348,7 +348,7 @@ export const generateDanMachiMap = (): WorldMapData => {
             type: 'CITY',
             coordinates: { x: CENTER_X, y: CENTER_Y },
             area: { shape: 'CIRCLE', center: { x: CENTER_X, y: CENTER_Y }, radius: CITY_RADIUS, note: '城墙范围' },
-            size: { width: 4000, height: 4000, unit: 'm' },
+            size: { width: 8000, height: 8000, unit: 'm' },
             buildings: [
                 { id: 'b_babel', name: '巴别塔', type: 'LANDMARK', floors: 50, description: '地下城入口与神明居所。' },
                 { id: 'b_guild', name: '公会本部', type: 'GUILD', floors: 5, description: '登记、委托、情报与公会运营中心。' },
@@ -379,7 +379,87 @@ export const generateDanMachiMap = (): WorldMapData => {
                 ],
                 notes: ['中央广场与巴别塔为城市核心。', '各大街区呈放射分布，外围为城墙。']
             },
-            description: '迷宫都市欧拉丽。',
+            description: '迷宫都市欧拉丽，位于大陆西端的独立都市。',
+            floor: 0
+        },
+        {
+            id: 'macro_rakia',
+            name: '拉基亚王国',
+            type: 'KINGDOM',
+            coordinates: { x: CENTER_X + 24000, y: CENTER_Y + 2000 },
+            area: { shape: 'RECT', center: { x: CENTER_X + 24000, y: CENTER_Y + 2000 }, width: 30000, height: 20000, note: '欧拉丽以东的军事强国' },
+            size: { width: 30000, height: 20000, unit: 'm' },
+            description: '崇尚军功与武力的王国，长期觊觎欧拉丽资源。',
+            floor: 0
+        },
+        {
+            id: 'macro_seolo',
+            name: '塞欧洛森林',
+            type: 'FOREST',
+            coordinates: { x: CENTER_X + 13000, y: CENTER_Y - 2000 },
+            area: { shape: 'CIRCLE', center: { x: CENTER_X + 13000, y: CENTER_Y - 2000 }, radius: 9000, note: '欧拉丽东侧的原始森林' },
+            size: { width: 18000, height: 18000, unit: 'm' },
+            description: '广袤森林，连接东侧山脉与商路。',
+            floor: 0
+        },
+        {
+            id: 'macro_alf_mountains',
+            name: '阿尔夫山脉',
+            type: 'MOUNTAIN',
+            coordinates: { x: CENTER_X + 19000, y: CENTER_Y - 8000 },
+            area: { shape: 'CIRCLE', center: { x: CENTER_X + 19000, y: CENTER_Y - 8000 }, radius: 12000, note: '东侧山脉，森林尽头的高地' },
+            size: { width: 24000, height: 24000, unit: 'm' },
+            description: '被视为精灵圣地的高山地带。',
+            floor: 0
+        },
+        {
+            id: 'macro_beol_mountains',
+            name: '贝奥尔山脉',
+            type: 'MOUNTAIN',
+            coordinates: { x: CENTER_X, y: CENTER_Y - 22000 },
+            area: { shape: 'CIRCLE', center: { x: CENTER_X, y: CENTER_Y - 22000 }, radius: 16000, note: '欧拉丽北方的连绵山系' },
+            size: { width: 32000, height: 32000, unit: 'm' },
+            description: '寒冷山地与险峻峡谷，北向交通要道。',
+            floor: 0
+        },
+        {
+            id: 'macro_melen',
+            name: '梅伦',
+            type: 'CITY',
+            coordinates: { x: CENTER_X - 3000, y: CENTER_Y + 3000 },
+            area: { shape: 'CIRCLE', center: { x: CENTER_X - 3000, y: CENTER_Y + 3000 }, radius: 1200, note: '欧拉丽西南约3公里的港镇' },
+            size: { width: 2400, height: 2400, unit: 'm' },
+            description: '欧拉丽西南侧的小型渔港与补给镇。',
+            floor: 0
+        },
+        {
+            id: 'macro_shreme_ruins',
+            name: '施雷姆古城遗迹',
+            type: 'RUINS',
+            coordinates: { x: CENTER_X + 18000, y: CENTER_Y + 19000 },
+            area: { shape: 'CIRCLE', center: { x: CENTER_X + 18000, y: CENTER_Y + 19000 }, radius: 4500, note: '欧拉丽东南方向的古城遗迹' },
+            size: { width: 9000, height: 9000, unit: 'm' },
+            description: '残破的古城遗迹，偶有冒险者前往探索。',
+            floor: 0
+        },
+        {
+            id: 'macro_agris',
+            name: '阿格里斯',
+            type: 'CITY',
+            coordinates: { x: CENTER_X + 23000, y: CENTER_Y + 16000 },
+            area: { shape: 'CIRCLE', center: { x: CENTER_X + 23000, y: CENTER_Y + 16000 }, radius: 3500, note: '靠近施雷姆遗迹的城镇' },
+            size: { width: 7000, height: 7000, unit: 'm' },
+            description: '临近遗迹的城镇，冒险者补给与交易集中。',
+            floor: 0
+        },
+        {
+            id: 'macro_telskyura',
+            name: '特尔斯库拉',
+            type: 'PENINSULA',
+            coordinates: { x: CENTER_X + 35000, y: CENTER_Y + 35000 },
+            area: { shape: 'RECT', center: { x: CENTER_X + 35000, y: CENTER_Y + 35000 }, width: 22000, height: 14000, note: '远东南的半岛区域' },
+            size: { width: 22000, height: 14000, unit: 'm' },
+            description: '远东南的半岛国家，距离欧拉丽较远。',
             floor: 0
         }
     ];

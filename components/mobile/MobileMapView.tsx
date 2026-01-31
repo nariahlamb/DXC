@@ -64,7 +64,7 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
 
   // Initial Data (Fallback if undefined)
   const mapData = worldMap || { 
-      config: { width: 10000, height: 10000 },
+      config: { width: 100000, height: 100000 },
       factions: [], territories: [], terrain: [], routes: [], surfaceLocations: [], dungeonStructure: [] 
   };
 

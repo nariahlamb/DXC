@@ -3,7 +3,7 @@ import { AppSettings, GameState, PromptModule, AIEndpointConfig, Confidant, Memo
 import { GoogleGenAI } from "@google/genai";
 import { 
     P_SYS_FORMAT, P_SYS_CORE, P_SYS_STATS, P_SYS_LEVELING, P_SYS_COMBAT,
-    P_WORLD_FOUNDATION, P_WORLD_DUNGEON, P_WORLD_PHONE, P_WORLD_ECO, P_WORLD_GUILD_REG, P_WORLD_FACTIONS, P_WORLD_EQUIPMENT, P_WORLD_IF_BELL_NO_H, P_WORLD_IF_NO_BELL, P_WORLD_IF_DAY3, P_DYN_NPC, P_NPC_MEMORY, P_WORLD_NEWS, P_WORLD_DENATUS, P_WORLD_RUMORS, P_WORLD_EVENTS, P_DYN_MAP, P_MAP_DISCOVERY,
+    P_WORLD_FOUNDATION, P_WORLD_DUNGEON, P_WORLD_DUNGEON_SPAWN, P_WORLD_PHONE, P_WORLD_ECO, P_WORLD_GUILD_REG, P_WORLD_FACTIONS, P_WORLD_EQUIPMENT, P_WORLD_IF_BELL_NO_H, P_WORLD_IF_NO_BELL, P_WORLD_IF_DAY3, P_DYN_NPC, P_NPC_MEMORY, P_WORLD_NEWS, P_WORLD_DENATUS, P_WORLD_RUMORS, P_WORLD_EVENTS, P_DYN_MAP, P_MAP_DISCOVERY,
     P_COT_LOGIC, P_START_REQ, P_MEM_S2M, P_MEM_M2L, P_DATA_STRUCT,
     P_WRITING_REQ, P_WORLD_VALUES, P_LOOT_SYSTEM,
     P_PHYSIOLOGY_EASY, P_PHYSIOLOGY_NORMAL, P_PHYSIOLOGY_HARD, P_PHYSIOLOGY_HELL,
@@ -31,6 +31,7 @@ export const DEFAULT_PROMPT_MODULES: PromptModule[] = [
     // 【世界观设定】
     { id: 'world_foundation', name: '0. 神时代与眷族契约', group: '世界观设定', usage: 'CORE', isActive: true, content: P_WORLD_FOUNDATION, order: 18 },
     { id: 'world_dungeon_law', name: '1. 地下城绝对法则', group: '世界观设定', usage: 'CORE', isActive: true, content: P_WORLD_DUNGEON, order: 20 },
+    { id: 'world_dungeon_spawn', name: '1.1 地下城刷怪逻辑', group: '世界观设定', usage: 'CORE', isActive: true, content: P_WORLD_DUNGEON_SPAWN, order: 20.5 },
     { id: 'world_guild_reg', name: '2. 公会与登记流程', group: '世界观设定', usage: 'CORE', isActive: true, content: P_WORLD_GUILD_REG, order: 21 },
     { id: 'world_phone', name: '3. 魔石通讯终端', group: '世界观设定', usage: 'CORE', isActive: true, content: P_WORLD_PHONE, order: 22 },
     { id: 'world_eco_social', name: '4. 经济与社会', group: '世界观设定', usage: 'CORE', isActive: true, content: P_WORLD_ECO, order: 23 },
@@ -389,6 +390,7 @@ export const constructMapContext = (gameState: GameState, params: any): string =
     let output = `[地图环境 (Map Context)]\n`;
     output += `当前位置: ${gameState.当前地点} (Floor: ${floor})\n`;
     output += `坐标: X:${gameState.世界坐标?.x || 0} Y:${gameState.世界坐标?.y || 0}\n`;
+    output += `坐标单位: 米 (世界坐标)\n`;
 
     const mapData = gameState.地图;
     if (!mapData) return output + '(地图数据丢失)';
@@ -416,50 +418,57 @@ export const constructMapContext = (gameState: GameState, params: any): string =
             : (matchByName(currentLocationName, midLocations as any) as any);
         const currentMacro = currentMid
             ? macroLocations.find(m => m.id === currentMid.parentId)
-            : (macroLocations.length === 1 ? macroLocations[0] : null);
+            : (matchByName(currentLocationName, macroLocations as any) as any) || (macroLocations.length === 1 ? macroLocations[0] : null);
 
-        if (currentMacro) output += `当前层级: ${currentMacro.name}${currentMid ? ` > ${currentMid.name}` : ''}${currentSmall ? ` > ${currentSmall.name}` : ''}\n`;
+        if (currentMacro || currentMid || currentSmall) {
+            output += `当前层级: ${currentMacro?.name || '未知'}${currentMid ? ` > ${currentMid.name}` : ''}${currentSmall ? ` > ${currentSmall.name}` : ''}\n`;
+        }
 
         const macroSummary = macroLocations.map(m => ({
             id: m.id,
             name: m.name,
             type: m.type,
             coordinates: m.coordinates,
+            area: m.area,
             description: m.description,
             size: m.size ?? (m.area?.radius ? { width: m.area.radius * 2, height: m.area.radius * 2, unit: 'm' } : undefined),
             buildings: m.buildings || []
         }));
+
         const midSummary = midLocations
             .filter(m => !currentMacro || m.parentId === currentMacro.id)
-            .map(m => ({
-                id: m.id,
-                name: m.name,
-                coordinates: m.coordinates,
-                parentId: m.parentId,
-                description: m.description,
-                size: m.size ?? (m.area?.radius ? { width: m.area.radius * 2, height: m.area.radius * 2, unit: 'm' } : undefined),
-                buildings: m.buildings || []
-            }));
-
-        output += `【大地点(常驻)】\n${JSON.stringify(macroSummary, null, 2)}\n`;
-        output += `【中地点(常驻)】\n${JSON.stringify(midSummary, null, 2)}\n`;
-        if (floor === 0) {
-            if (currentSmall) {
-                const smallPayload = {
-                    id: currentSmall.id,
-                    name: currentSmall.name,
-                    parentId: currentSmall.parentId,
-                    coordinates: currentSmall.coordinates,
-                    area: currentSmall.area,
-                    description: currentSmall.description,
-                    layout: currentSmall.layout
+            .map(m => {
+                const smallNames = smallLocations.filter(s => s.parentId === m.id).map(s => s.name);
+                const fallbackSize = m.area?.radius
+                    ? { width: m.area.radius * 2, height: m.area.radius * 2, unit: 'm' }
+                    : (m.area?.width && m.area?.height ? { width: m.area.width, height: m.area.height, unit: 'm' } : undefined);
+                return {
+                    id: m.id,
+                    name: m.name,
+                    coordinates: m.coordinates,
+                    parentId: m.parentId,
+                    range: m.area,
+                    size: m.size ?? fallbackSize,
+                    smallMaps: smallNames,
+                    description: m.description
                 };
-                output += `【小地点-当前】\n${JSON.stringify(smallPayload, null, 2)}\n`;
-            } else {
-                output += `【小地点-当前】\n（未进入小地点内部，完整结构不载入）\n`;
-            }
-            return output.trimEnd();
+            });
+
+        output += `【大地图(常驻)】\n${JSON.stringify(macroSummary, null, 2)}\n`;
+        output += `【中地图(常驻)】\n${JSON.stringify(midSummary, null, 2)}\n`;
+        if (floor === 0 && currentSmall) {
+            const smallPayload = {
+                id: currentSmall.id,
+                name: currentSmall.name,
+                parentId: currentSmall.parentId,
+                coordinates: currentSmall.coordinates,
+                area: currentSmall.area,
+                description: currentSmall.description,
+                layout: currentSmall.layout
+            };
+            output += `【小地图-当前】\n${JSON.stringify(smallPayload, null, 2)}\n`;
         }
+        if (floor === 0) return output.trimEnd();
     }
 
     const surfaceLocations = Array.isArray(mapData.surfaceLocations) ? mapData.surfaceLocations : [];
@@ -624,7 +633,8 @@ export const constructPhoneContext = (phoneState: PhoneState | undefined, params
             const messages = Array.isArray(t.消息) ? t.消息.slice().sort((a, b) => getSortValue(a) - getSortValue(b)) : [];
             const trimmed = limitOverride > 0 ? messages.slice(-limitOverride) : messages;
             if (trimmed.length === 0) return;
-            output += `- ${t.标题} (${t.类型})\n`;
+            const idTag = t.id ? `, id:${t.id}` : '';
+            output += `- ${t.标题} (${t.类型}${idTag})\n`;
             if (t.摘要) {
                 const summaryStamp = t.摘要时间 ? ` 截至 ${t.摘要时间}` : '';
                 output += `  [摘要${summaryStamp}] ${t.摘要}\n`;
@@ -691,7 +701,9 @@ const constructPhoneTrackingBrief = (gameState: GameState): string => {
     const tracks = Array.isArray(gameState.世界?.NPC后台跟踪) ? gameState.世界.NPC后台跟踪 : [];
     if (tracks.length === 0) return `[NPC后台跟踪]\n（暂无在跟踪的NPC行动）`;
     const contactSet = new Set((gameState.社交 || []).filter(c => c.已交换联系方式).map(c => c.姓名));
-    const filtered = tracks.filter(t => !contactSet.size || contactSet.has(t.NPC));
+    const specialSet = new Set((gameState.社交 || []).filter(c => c.特别关注).map(c => c.姓名));
+    const hasFilter = contactSet.size > 0 || specialSet.size > 0;
+    const filtered = tracks.filter(t => !hasFilter || contactSet.has(t.NPC) || specialSet.has(t.NPC));
     const trimmed = (filtered.length > 0 ? filtered : tracks).slice(0, 8).map(t => ({
         NPC: t.NPC,
         当前行动: t.当前行动,

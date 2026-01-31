@@ -22,7 +22,6 @@ interface RightPanelProps {
     onOpenMemory: () => void;
     onOpenNotes: () => void;
     onOpenLibrary: () => void;
-    onOpenPresent?: () => void;
     onOpenParty?: () => void;
     isHellMode?: boolean;
     hasPhone?: boolean;
@@ -58,7 +57,6 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     onOpenMemory,
     onOpenNotes,
     onOpenLibrary,
-    onOpenPresent,
     onOpenParty,
     isHellMode,
     hasPhone = true,
@@ -179,14 +177,6 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                 onClick={onOpenParty || (() => {})}
             />
             <div className="border-t border-zinc-700 my-2" />
-            <MenuButton 
-                label="周围" 
-                icon={<Radar className="w-5 h-5 lg:w-5 lg:h-5" />} 
-                delay={175} 
-                colorClass="bg-zinc-800"
-                hoverColorClass="group-hover:bg-teal-500 group-hover:border-white"
-                onClick={onOpenPresent || (() => {})}
-            />
             <MenuButton 
                 label="地图" 
                 icon={<Navigation className="w-5 h-5 lg:w-5 lg:h-5" />} 

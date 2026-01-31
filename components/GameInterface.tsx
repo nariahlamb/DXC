@@ -26,7 +26,6 @@ import { ContractModal } from './game/modals/ContractModal';
 import { LootModal } from './game/modals/LootModal';
 import { LootVaultModal } from './game/modals/LootVaultModal';
 import { FamiliaModal } from './game/modals/FamiliaModal';
-import { PresentCharactersModal } from './game/modals/PresentCharactersModal';
 import { PartyModal } from './game/modals/PartyModal';
 import { MapModal } from './game/modals/MapModal';
 import { MemoryModal } from './game/modals/MemoryModal';
@@ -58,7 +57,6 @@ type ActiveModal =
     | 'LOOT'
     | 'LOOT_VAULT'
     | 'FAMILIA'
-    | 'PRESENT'
     | 'PARTY'
     | 'MAP'
     | 'MEMORY'
@@ -77,7 +75,7 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
       memorySummaryState, confirmMemorySummary, applyMemorySummary, cancelMemorySummary,
       handlePlayerAction, handlePlayerInput, handleSendMessage, handleCreateMoment, handleCreatePublicPost, handleCreateThread, handleMarkThreadRead, handleSilentWorldUpdate, handleWaitForPhoneReply,
       stopInteraction, handleEditLog, handleDeleteLog, handleEditUserLog, handleUpdateLogText, handleUserRewrite,
-      manualSave, loadGame, handleReroll, handleDeleteTask,
+      manualSave, loadGame, handleReroll, handleDeleteTask, handleUpdateTaskStatus, handleUpdateStory,
       handleEditPhoneMessage, handleDeletePhoneMessage,
       phoneNotifications,
   } = useGameLogic(initialState, onExit);
@@ -237,7 +235,6 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
                         onOpenLoot={() => setActiveModal('LOOT')}
                         onOpenLootVault={() => setActiveModal('LOOT_VAULT')}
                         onOpenMemory={() => setActiveModal('MEMORY')}
-                        onOpenPresent={() => setActiveModal('PRESENT')}
                         onOpenParty={() => setActiveModal('PARTY')}
                         onOpenSaveManager={() => setActiveModal('SAVE_MANAGER')}
                         isHellMode={isHellMode}
@@ -320,7 +317,6 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
                             onOpenSaveManager: () => setActiveModal('SAVE_MANAGER'),
                             onOpenMemory: () => setActiveModal('MEMORY'),
                             onOpenLibrary: () => openSettings('LIBRARY'),
-                            onOpenPresent: () => setActiveModal('PRESENT'),
                             onOpenParty: () => setActiveModal('PARTY'),
                             onOpenNotes: () => setActiveModal('NOTES'),
                         }}
@@ -386,6 +382,7 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
             onClose={closeModal} 
             tasks={gameState.任务} 
             onDeleteTask={handleDeleteTask}
+            onUpdateTask={handleUpdateTaskStatus}
         />
 
         <SkillsModal 
@@ -398,7 +395,9 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
         <StoryModal 
             isOpen={activeModal === 'STORY'} 
             onClose={closeModal} 
-            story={gameState.剧情} 
+            story={gameState.剧情}
+            gameTime={gameState.游戏时间}
+            onUpdateStory={handleUpdateStory}
         />
 
         <ContractModal 
@@ -424,12 +423,6 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
             isOpen={activeModal === 'FAMILIA'} 
             onClose={closeModal} 
             familia={gameState.眷族} 
-        />
-
-        <PresentCharactersModal 
-            isOpen={activeModal === 'PRESENT'} 
-            onClose={closeModal} 
-            characters={gameState.社交.filter(c => c.是否在场)} 
         />
 
         <PartyModal 

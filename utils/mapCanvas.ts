@@ -33,7 +33,7 @@ export const drawWorldMapCanvas = (
     options: MapDrawOptions
 ) => {
     const { floor, scale, offset, showTerritories, showNPCs, showPlayer, showLabels, currentPos, confidants } = options;
-    const sizeFactor = Math.max(0.3, mapData.config.width / 50000);
+    const sizeFactor = Math.max(0.3, Math.min(1.6, mapData.config.width / 50000));
     const canvas = ctx.canvas;
     const dpr = window.devicePixelRatio || 1;
     ctx.setTransform(1, 0, 0, 1, 0, 0);

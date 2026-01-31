@@ -19,7 +19,7 @@ export const MapModal: React.FC<MapModalProps> = ({
   isOpen, 
   onClose, 
   worldMap,
-  currentPos = { x: 5000, y: 5000 }, 
+  currentPos = { x: 50000, y: 50000 }, 
   floor = 0,
   location,
   playerName = "YOU",
@@ -61,7 +61,7 @@ export const MapModal: React.FC<MapModalProps> = ({
 
   // Initial Data
   const mapData = worldMap || { 
-      config: { width: 10000, height: 10000 },
+      config: { width: 100000, height: 100000 },
       factions: [], territories: [], terrain: [], routes: [], surfaceLocations: [], dungeonStructure: [] 
   };
 
