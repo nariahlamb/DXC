@@ -118,6 +118,17 @@ export interface PhonePendingMessage {
   };
 }
 
+export interface PhonePlanEntry {
+  时间: string;
+  内容: string;
+  类型?: 'auto' | 'sync' | 'manual' | string;
+}
+
+export interface PhoneAutoPlanState {
+  上次规划?: string;
+  记录?: PhonePlanEntry[];
+}
+
 export interface PhoneThread {
   id: string;
   类型: 'private' | 'group' | 'public';
@@ -172,4 +183,5 @@ export interface PhoneState {
     帖子: PhonePost[];
   };
   待发送?: PhonePendingMessage[];
+  自动规划?: PhoneAutoPlanState;
 }

@@ -1,4 +1,4 @@
-export const P_COT_LOGIC = `<COT预思考协议>
+﻿export const P_COT_LOGIC = `<COT预思考协议>
 # 【COT 预思考协议 | JSON thinking 字段专用】
 # - 思考输出位置: 仅写入 JSON 字段 "thinking_pre" 与 "thinking_post"，并使用 <thinking>...</thinking> 包裹。
 # - thinking 只包含推理/规划/取舍，不写剧情文本，不写 tavern_commands。
@@ -34,13 +34,13 @@ export const P_COT_LOGIC = `<COT预思考协议>
   [记忆流 (Memory Stream)] / [指令历史] / [玩家输入]
 - 未出现在上下文中的信息一律视为未知，禁止凭空补全变量或事实。
 ## 0.2 手机联动规划
-- 若系统提示词明确启用“手机独立API”（包含相关规则），当剧情涉及**手机聊天/通知/论坛/联系人推进**时，在最终 JSON 顶层**新增** "phone_sync_plan" 字段，输出结构化要点（供手机 API 生成消息）。
+- 若系统提示词明确启用“手机独立API”（包含相关规则），当剧情涉及**手机聊天/通知/论坛/联系人推进**时，在最终 JSON 顶层**新增** "phone_sync_plan" 字段，输出结构化规划（供手机 API 生成消息）。
 - 若系统提示词明确未启用手机独立API，则**禁止输出** "phone_sync_plan"，改用 \`tavern_commands\` 更新手机内容。
-- "phone_sync_plan" 只描述“计划与触发要点”，不直接写剧情文本，不替代 logs。
+- "phone_sync_plan" 只描述**规划意图**（对象/触发/节奏/语气），不直接写剧情文本，不替代 logs。
+- 允许基于 phone context 与剧情需要制定计划，不要求 logs 中出现具体消息内容。
 - 手机消息/帖子更新优先通过 "phone_sync_plan" 触发手机系统生成，避免在 tavern_commands 中重复写入手机内容。
 - 若出现“等待对方回复/约定稍后联系/延时回信”等情节，需在 "phone_sync_plan" 中明确时间或触发条件。
-- 若发生**交换联系方式/添加好友**，在 "phone_sync_plan" 里注明“新增好友”，并提示手机侧可补 0-3 条符合人设的历史朋友圈。
-
+- 若发生**交换联系方式/添加好友**，在 "phone_sync_plan" 里注明“新增好友”，并提示手机侧可补 0-3 条符合人设的历史朋友圈主题。
 ## 1. 场景与指令解析
 - 情况概述：总结角色当前所处的直接环境与核心问题。
 - 时间与地点（仅从 [当前世界时间] 读取）：
@@ -175,3 +175,4 @@ export const P_COT_LOGIC = `<COT预思考协议>
 
 </thinkform>
 </COT预思考协议>`;
+

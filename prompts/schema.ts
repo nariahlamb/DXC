@@ -207,6 +207,7 @@
 - \`gameState.手机.朋友圈\`: { "仅好友可见": Boolean, "帖子": PhonePost[] }
 - \`gameState.手机.公共帖子\`: { "板块?": String[], "帖子": PhonePost[] }
   - \`PhonePost\`: { "id", "发布者", "头像?", "内容", "时间戳", "timestampValue", "点赞数", "评论": Array<{ "用户", "内容" }>, "图片描述?", "可见性":"friends"|"public", "话题?", "来源?" }
+- \`gameState.手机.自动规划\`: { "上次规划": String, "记录": Array<{ "时间": String, "类型": String, "内容": String }> }
 
 ## 9. 世界动态 (gameState.世界)
 - \`gameState.世界.异常指数\`: Number (0-100)

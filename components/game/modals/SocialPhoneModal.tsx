@@ -1,6 +1,6 @@
 ﻿
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { X, MessageCircle, Users, Send, BookUser, Camera, ChevronRight, Heart, MessageSquare, ArrowLeft, Plus, Check, Image as ImageIcon, Clock, Lock, Battery, Signal, Edit2, Trash2, Globe, Loader2 } from 'lucide-react';
+import { X, MessageCircle, Users, Send, BookUser, Camera, ChevronRight, Heart, MessageSquare, ArrowLeft, Plus, Check, Image as ImageIcon, Clock, Lock, Battery, Signal, Edit2, Trash2, Globe, Loader2, Settings } from 'lucide-react';
 import { PhoneState, PhoneThread, PhoneMessage, PhonePost, Confidant, NpcBackgroundTracking } from '../../../types';
 import { getAvatarColor } from '../../../utils/uiUtils';
 
@@ -12,7 +12,7 @@ interface SocialPhoneModalProps {
   npcTracking?: NpcBackgroundTracking[];
   playerName: string;
   hasPhone?: boolean;
-  initialTab?: 'CHAT' | 'CONTACTS' | 'MOMENTS' | 'FORUM';
+  initialTab?: 'CHAT' | 'CONTACTS' | 'MOMENTS' | 'FORUM' | 'SETTINGS';
   onSendMessage: (text: string, thread: PhoneThread) => void;
   onEditMessage?: (id: string, content: string) => void;
   onDeleteMessage?: (id: string) => void;
@@ -23,10 +23,10 @@ interface SocialPhoneModalProps {
   onWaitReply?: (thread: PhoneThread) => void;
   isPhoneProcessing?: boolean;
   phoneProcessingThreadId?: string | null;
-  phoneProcessingScope?: 'chat' | 'moment' | 'forum' | 'sync' | null;
+  phoneProcessingScope?: 'chat' | 'moment' | 'forum' | 'sync' | 'auto' | null;
 }
 
-type PhoneTab = 'CHAT' | 'CONTACTS' | 'MOMENTS' | 'FORUM';
+type PhoneTab = 'CHAT' | 'CONTACTS' | 'MOMENTS' | 'FORUM' | 'SETTINGS';
 type ChatType = 'private' | 'group' | 'public';
 
 const DEFAULT_PHONE: PhoneState = {
@@ -35,7 +35,8 @@ const DEFAULT_PHONE: PhoneState = {
   对话: { 私聊: [], 群聊: [], 公共频道: [] },
   朋友圈: { 仅好友可见: true, 帖子: [] },
   公共帖子: { 板块: [], 帖子: [] },
-  待发送: []
+  待发送: [],
+  自动规划: { 上次规划: '', 记录: [] }
 };
 
 export const SocialPhoneModal: React.FC<SocialPhoneModalProps> = ({
@@ -72,6 +73,7 @@ export const SocialPhoneModal: React.FC<SocialPhoneModalProps> = ({
   const [inputText, setInputText] = useState('');
   const [momentText, setMomentText] = useState('');
   const [momentImage, setMomentImage] = useState('');
+  const [momentFilter, setMomentFilter] = useState<string | null>(null);
   const [forumText, setForumText] = useState('');
   const [forumImage, setForumImage] = useState('');
   const [forumBoard, setForumBoard] = useState('');
@@ -130,6 +132,7 @@ export const SocialPhoneModal: React.FC<SocialPhoneModalProps> = ({
     if (phoneProcessingScope === 'moment') return '动态已提交，AI处理中…';
     if (phoneProcessingScope === 'forum') return '帖子已提交，AI处理中…';
     if (phoneProcessingScope === 'sync') return '剧情联动处理中…';
+    if (phoneProcessingScope === 'auto') return '每小时规划处理中…';
     if (phoneProcessingScope === 'chat') {
       return isActiveThreadProcessing ? '已提交消息，等待AI回复…' : 'AI正在处理手机消息…';
     }
@@ -145,6 +148,7 @@ export const SocialPhoneModal: React.FC<SocialPhoneModalProps> = ({
       setIsCreatingGroup(false);
       setIsStartingPrivate(false);
       setEditingMessageId(null);
+      setMomentFilter(null);
     }
   }, [isOpen, initialTab]);
 
@@ -208,6 +212,7 @@ export const SocialPhoneModal: React.FC<SocialPhoneModalProps> = ({
     setViewingContact(null);
     setIsCreatingGroup(false);
     setIsStartingPrivate(false);
+    if (tab !== 'MOMENTS') setMomentFilter(null);
   };
 
   const openThreadByTitle = (type: ChatType, title: string, members: string[]) => {
@@ -292,9 +297,12 @@ export const SocialPhoneModal: React.FC<SocialPhoneModalProps> = ({
 
   const visibleMoments = useMemo(() => {
     const posts = Array.isArray(phone.朋友圈?.帖子) ? phone.朋友圈.帖子 : [];
-    if (!phone.朋友圈?.仅好友可见) return posts;
-    return posts.filter(p => p.发布者 === playerName || friendSet.has(p.发布者));
-  }, [phoneState, playerName]);
+    const baseList = phone.朋友圈?.仅好友可见
+      ? posts.filter(p => p.发布者 === playerName || friendSet.has(p.发布者))
+      : posts;
+    if (!momentFilter) return baseList;
+    return baseList.filter(p => p.发布者 === momentFilter);
+  }, [phoneState, playerName, momentFilter]);
 
   const publicPosts = useMemo(() => {
     const posts = Array.isArray(phone.公共帖子?.帖子) ? phone.公共帖子.帖子 : [];
@@ -330,7 +338,15 @@ export const SocialPhoneModal: React.FC<SocialPhoneModalProps> = ({
             </button>
           ) : (
             <h2 className="text-lg font-display font-bold italic tracking-wide">
-              {activeTab === 'CHAT' ? 'MESSAGES' : activeTab === 'CONTACTS' ? 'CONTACTS' : activeTab === 'MOMENTS' ? 'FRIENDS' : 'FORUM'}
+              {activeTab === 'CHAT'
+                ? 'MESSAGES'
+                : activeTab === 'CONTACTS'
+                  ? 'CONTACTS'
+                  : activeTab === 'MOMENTS'
+                    ? 'FRIENDS'
+                    : activeTab === 'FORUM'
+                      ? 'FORUM'
+                      : 'SETTINGS'}
             </h2>
           )}
 
@@ -360,6 +376,7 @@ export const SocialPhoneModal: React.FC<SocialPhoneModalProps> = ({
             <PhoneTabBtn icon={<BookUser size={20} />} active={activeTab === 'CONTACTS'} onClick={() => handleTabChange('CONTACTS')} />
             <PhoneTabBtn icon={<Camera size={20} />} active={activeTab === 'MOMENTS'} onClick={() => handleTabChange('MOMENTS')} />
             <PhoneTabBtn icon={<Globe size={20} />} active={activeTab === 'FORUM'} onClick={() => handleTabChange('FORUM')} />
+            <PhoneTabBtn icon={<Settings size={20} />} active={activeTab === 'SETTINGS'} onClick={() => handleTabChange('SETTINGS')} />
           </div>
         )}
 
@@ -646,6 +663,18 @@ export const SocialPhoneModal: React.FC<SocialPhoneModalProps> = ({
                     >
                       发送信息
                     </button>
+                    {friendSet.has(viewingContact.姓名) && (
+                      <button
+                        onClick={() => {
+                          setViewingContact(null);
+                          setActiveTab('MOMENTS');
+                          setMomentFilter(viewingContact.姓名);
+                        }}
+                        className="flex-1 border border-black text-black py-3 font-display uppercase hover:bg-black hover:text-white transition-colors text-sm"
+                      >
+                        查看朋友圈
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -665,6 +694,18 @@ export const SocialPhoneModal: React.FC<SocialPhoneModalProps> = ({
             <div className="flex-1 overflow-y-auto custom-scrollbar relative bg-zinc-100">
               <div className="bg-white border-b border-zinc-200 p-4">
                 <div className="text-[10px] text-zinc-500 font-bold uppercase mb-2">发布动态 · 仅好友可见</div>
+                {momentFilter && (
+                  <div className="mb-2 flex items-center justify-between text-[10px] text-blue-700 bg-blue-50 border border-blue-100 px-2 py-1">
+                    <span>只看：{momentFilter}</span>
+                    <button
+                      type="button"
+                      onClick={() => setMomentFilter(null)}
+                      className="text-blue-700 hover:text-blue-900 font-bold"
+                    >
+                      清除
+                    </button>
+                  </div>
+                )}
                 <textarea
                   value={momentText}
                   onChange={(e) => setMomentText(e.target.value)}
@@ -740,6 +781,57 @@ export const SocialPhoneModal: React.FC<SocialPhoneModalProps> = ({
               </div>
             </div>
           )}
+
+          {activeTab === 'SETTINGS' && (
+            <div className="flex-1 overflow-y-auto custom-scrollbar relative bg-zinc-100">
+              <div className="p-4 space-y-4">
+                <div className="bg-white border border-zinc-200 p-4">
+                  <div className="text-[10px] text-zinc-500 font-bold uppercase mb-2">延迟消息</div>
+                  {Array.isArray(phone.待发送) && phone.待发送.length > 0 ? (
+                    <div className="space-y-2">
+                      {phone.待发送.slice(0, 20).map(item => (
+                        <div key={item.id} className="border border-zinc-200 p-3 text-xs bg-zinc-50">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-zinc-800">{item.threadTitle || item.threadId || '未知线程'}</span>
+                            <span className="text-[10px] text-zinc-500">{item.deliverAt || '未知时间'}</span>
+                          </div>
+                          {item.payload?.内容 && (
+                            <div className="mt-1 text-[11px] text-zinc-700">
+                              {(item.payload.内容 || '').slice(0, 60)}{(item.payload.内容 || '').length > 60 ? '…' : ''}
+                            </div>
+                          )}
+                          {item.status && (
+                            <div className="mt-1 text-[10px] text-zinc-400 uppercase">状态: {item.status}</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-zinc-400">暂无延迟消息。</div>
+                  )}
+                </div>
+
+                <div className="bg-white border border-zinc-200 p-4">
+                  <div className="text-[10px] text-zinc-500 font-bold uppercase mb-2">每小时规划</div>
+                  {Array.isArray(phone.自动规划?.记录) && phone.自动规划!.记录!.length > 0 ? (
+                    <div className="space-y-2">
+                      {[...phone.自动规划!.记录!].slice(-12).reverse().map((entry, idx) => (
+                        <div key={`${entry.时间 || 'plan'}_${idx}`} className="border border-zinc-200 p-3 text-xs bg-zinc-50">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-zinc-800">{entry.类型 || 'auto'}</span>
+                            <span className="text-[10px] text-zinc-500">{entry.时间 || '未知时间'}</span>
+                          </div>
+                          <div className="mt-1 text-[11px] text-zinc-700">{entry.内容 || '无规划内容'}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-zinc-400">暂无规划记录。</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {activeTab === 'CHAT' && activeThread && !isCreatingGroup && !isStartingPrivate && (
@@ -765,6 +857,21 @@ export const SocialPhoneModal: React.FC<SocialPhoneModalProps> = ({
                 placeholder={editingMessageId ? '编辑内容...' : `发送给 ${activeThread.标题}...`}
                 className="flex-1 bg-white border border-zinc-300 px-3 py-2 text-xs text-black outline-none focus:border-blue-600 rounded"
               />
+              {onWaitReply && !editingMessageId && (
+                <button
+                  type="button"
+                  onClick={() => onWaitReply(activeThread)}
+                  title="完成手机操作"
+                  disabled={showPhoneProcessing}
+                  className={`px-2 py-2 border rounded font-bold uppercase transition-colors ${
+                    showPhoneProcessing
+                      ? 'border-zinc-300 text-zinc-300'
+                      : 'border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white'
+                  }`}
+                >
+                  <Check size={16} />
+                </button>
+              )}
               <button
                 onClick={handleSend}
                 className="bg-black text-white px-3 py-2 font-bold uppercase hover:bg-blue-600 transition-colors rounded"
