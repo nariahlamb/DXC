@@ -205,14 +205,7 @@ const ensureDerivedStats = (state: GameState): GameState => {
     const maxHp = computeMaxHp(state.角色);
     const maxMind = computeMaxMind(state.角色);
     const maxStamina = computeMaxStamina(state.角色);
-    const nextMap = state.地图 ? {
-        ...state.地图,
-        macroLocations: Array.isArray(state.地图.macroLocations) ? state.地图.macroLocations : [],
-        midLocations: Array.isArray(state.地图.midLocations) ? state.地图.midLocations : [],
-        smallLocations: Array.isArray(state.地图.smallLocations) ? state.地图.smallLocations : [],
-        surfaceLocations: Array.isArray(state.地图.surfaceLocations) ? state.地图.surfaceLocations : [],
-        dungeonStructure: Array.isArray(state.地图.dungeonStructure) ? state.地图.dungeonStructure : []
-    } : state.地图;
+    const nextMap = state.地图;
     const hasBodyParts = !!state.角色.身体部位;
     let nextBodyParts = state.角色.身体部位;
     if (hasBodyParts) {

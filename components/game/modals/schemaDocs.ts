@@ -228,19 +228,13 @@
     {
         title: "10. 地图 (Map)",
         path: "gameState.地图",
-        desc: "地表与地下层地图数据。",
+        desc: "世界/区域/建筑/地下城的统一地图数据。",
         structure: {
-            "config": "{width, height}",
-            "factions": "Array<{id, name, color, borderColor, textColor, description, strength}>",
-            "territories": "Array<{id, factionId, name, centerX, centerY, color, floor, shape?, sector?, points?, boundary?}>",
-            "terrain": "Array<{id, type, name, path, color, strokeColor, strokeWidth, floor}>",
-            "routes": "Array<{id, name, path, type, width, color, floor}>",
-            "surfaceLocations": "Array<{id, name, type, coordinates, radius, description, icon, floor}>",
-            "dungeonStructure": "Array<{floorStart, floorEnd, name, description, dangerLevel, landmarks}>",
-            "macroLocations": "Array<{id, name, type?, coordinates, area, size?, buildings?, layout?, mapLayerId?, description?, floor?}>",
-            "midLocations": "Array<{id, name, parentId, coordinates, area?, size?, buildings?, layout?, mapLayerId?, description?, floor?}>",
-            "smallLocations": "Array<{id, name, parentId, coordinates?, area?, description?, floor?, layout?}>",
-            "leaflet": "{layers: Array<{id, name, scope, ownerId?, url, bounds{minX, minY, maxX, maxY}, minZoom?, maxZoom?, defaultZoom?}>}"
+            "world": "{id, name, bounds{width,height}, center{x,y}, size{width,height,unit?}, locations:[{id,name,center{x,y},size{width,height,unit?}}]}",
+            "regions": "Array<{id, name, worldLocationId, bounds{width,height}, center{x,y}, size{width,height,unit?}, landmarks:[{id,name,position{x,y},radius?,type?,description?}], buildings:[{id,name,description,type?}], dungeonId?}>",
+            "buildings": "{[buildingId]: {id, regionId, name, description?, bounds{width,height}, anchor{x,y}, layout{scale?, width, height, rooms, furniture, entrances, notes?}}}",
+            "dungeons": "{[dungeonId]: {id, regionId, name, description?, entrance{x,y}, floors:[{floor, bounds{width,height}, rooms, edges}]}}",
+            "current": "{mode: WORLD|REGION|BUILDING|DUNGEON, regionId?, buildingId?, dungeonId?, floor?}"
         }
     },
     {

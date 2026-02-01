@@ -7,42 +7,58 @@ export interface GeoPoint {
     y: number;
 }
 
-export interface MapArea {
-  shape: 'CIRCLE' | 'RECT' | 'POLYGON';
-  center?: GeoPoint;
-  radius?: number;
-  width?: number;
-  height?: number;
-  points?: GeoPoint[];
-  note?: string;
+export interface MapBounds {
+  width: number;
+  height: number;
 }
 
-export interface MapMacroLocation {
+export interface MapWorldLocation {
   id: string;
   name: string;
   type?: string;
-  coordinates: GeoPoint;
-  area: MapArea;
-  size?: { width: number; height: number; unit?: string };
-  buildings?: MapBuilding[];
-  layout?: MapSmallLayout;
-  mapLayerId?: string;
   description?: string;
-  floor?: number;
+  center: GeoPoint;
+  size: { width: number; height: number; unit?: string };
+  regionId?: string;
 }
 
-export interface MapMidLocation {
+export interface MapWorld {
   id: string;
   name: string;
-  parentId: string;
-  coordinates: GeoPoint;
-  area?: MapArea;
-  size?: { width: number; height: number; unit?: string };
-  buildings?: MapBuilding[];
-  layout?: MapSmallLayout;
-  mapLayerId?: string;
   description?: string;
-  floor?: number;
+  bounds: MapBounds;
+  center: GeoPoint;
+  size: { width: number; height: number; unit?: string };
+  locations: MapWorldLocation[];
+}
+
+export interface MapRegionLandmark {
+  id: string;
+  name: string;
+  type?: string;
+  description?: string;
+  position: GeoPoint;
+  radius?: number;
+}
+
+export interface MapRegionBuildingRef {
+  id: string;
+  name: string;
+  description: string;
+  type?: string;
+}
+
+export interface MapRegion {
+  id: string;
+  name: string;
+  description?: string;
+  worldLocationId: string;
+  bounds: MapBounds;
+  center: GeoPoint;
+  size: { width: number; height: number; unit?: string };
+  landmarks: MapRegionLandmark[];
+  buildings: MapRegionBuildingRef[];
+  dungeonId?: string;
 }
 
 export interface MapRoom {
@@ -71,148 +87,77 @@ export interface MapEntrance {
   connectsTo?: string;
 }
 
-export interface MapSmallLayout {
-  scale: string;
+export interface MapBuildingLayout {
+  scale?: string;
   width: number;
   height: number;
   rooms: MapRoom[];
   furniture: MapFurniture[];
   entrances: MapEntrance[];
-  paths?: { id: string; from: string; to: string; note?: string }[];
   notes?: string[];
 }
 
 export interface MapBuilding {
   id: string;
+  regionId: string;
+  name: string;
+  description?: string;
+  bounds: MapBounds;
+  anchor: GeoPoint;
+  layout: MapBuildingLayout;
+}
+
+export interface DungeonRoom {
+  id: string;
   name: string;
   type?: string;
-  floors?: number;
-  size?: { width: number; height: number; unit?: string };
-  description?: string;
-  notes?: string[];
-}
-
-export interface MapSmallLocation {
-  id: string;
-  name: string;
-  parentId: string;
-  coordinates?: GeoPoint;
-  area?: MapArea;
-  layout?: MapSmallLayout;
-  description?: string;
-  floor?: number;
-}
-
-export interface LeafletBounds {
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
-}
-
-export interface LeafletLayer {
-  id: string;
-  name: string;
-  scope: 'macro' | 'mid' | 'dungeon';
-  ownerId?: string;
-  url: string;
-  bounds: LeafletBounds;
-  minZoom?: number;
-  maxZoom?: number;
-  defaultZoom?: number;
-  attribution?: string;
-}
-
-export interface LeafletMapData {
-  layers: LeafletLayer[];
-}
-
-// --- Map Features ---
-export interface MapFaction {
-  id: string;
-  name: string; 
-  color: string; 
-  borderColor: string;
-  textColor: string;
-  emblem?: string; 
-  description: string;
-  strength: number; 
-}
-
-export interface TerritoryData {
-  id: string;
-  factionId: string;
-  name: string;
-  boundary?: string; // SVG path (legacy)
-  centerX: number;
-  centerY: number;
-  color: string;
-  opacity?: number;
-  floor?: number;
-  shape?: 'SECTOR' | 'CIRCLE' | 'POLYGON';
-  sector?: { startAngle: number; endAngle: number; innerRadius?: number; outerRadius: number };
-  points?: GeoPoint[];
-}
-
-export interface TerrainFeature {
-  id: string;
-  type: 'WALL' | 'WATER' | 'MOUNTAIN' | 'FOREST' | 'OBSTACLE';
-  name: string;
-  path: string; 
-  color: string;
-  strokeColor?: string;
-  strokeWidth?: number;
-  floor?: number;
-}
-
-export interface TradeRoute {
-  id: string;
-  name: string;
-  path: string; 
-  type: 'MAIN_STREET' | 'ALLEY' | 'TRADE_ROUTE';
-  width: number;
-  color: string;
-  floor?: number;
-}
-
-export interface OrarioLocation {
-    id: string;
-    name: string; 
-    type: 'LANDMARK' | 'SHOP' | 'GUILD' | 'FAMILIA_HOME' | 'SLUM' | 'STREET' | 'DUNGEON_ENTRANCE' | 'SAFE_ZONE' | 'STAIRS_UP' | 'STAIRS_DOWN' | 'POINT';
-    coordinates: GeoPoint; 
-    radius: number; 
-    description: string;
-    icon?: string;
-    floor?: number; 
-}
-
-export interface DungeonLayer {
-    floorStart: number;
-    floorEnd: number;
-    name: string; 
-    description: string;
-    dangerLevel: string;
-    landmarks: { floor: number, name: string, type: 'SAFE_ZONE' | 'BOSS' | 'POINT' }[];
-}
-
-export interface WorldMapConfig {
+  x: number;
+  y: number;
   width: number;
   height: number;
+  discovered?: boolean;
+  description?: string;
 }
 
-// Keep technical map data in English for compatibility with the map renderer
+export interface DungeonEdge {
+  id: string;
+  from: string;
+  to: string;
+  points: GeoPoint[];
+  discovered?: boolean;
+  type?: string;
+}
+
+export interface DungeonFloor {
+  floor: number;
+  bounds: MapBounds;
+  rooms: DungeonRoom[];
+  edges: DungeonEdge[];
+}
+
+export interface DungeonGraph {
+  id: string;
+  regionId: string;
+  name: string;
+  description?: string;
+  entrance: GeoPoint;
+  floors: DungeonFloor[];
+}
+
+export interface MapViewState {
+  mode: 'WORLD' | 'REGION' | 'BUILDING' | 'DUNGEON';
+  regionId?: string;
+  buildingId?: string;
+  dungeonId?: string;
+  floor?: number;
+}
+
 export interface WorldMapData {
-    config: WorldMapConfig;
-    factions: MapFaction[];
-    territories: TerritoryData[];
-    terrain: TerrainFeature[];
-    routes: TradeRoute[];
-    surfaceLocations: OrarioLocation[];
-    dungeonStructure: DungeonLayer[];
-    macroLocations?: MapMacroLocation[];
-    midLocations?: MapMidLocation[];
-    smallLocations?: MapSmallLocation[];
-    leaflet?: LeafletMapData;
+  world: MapWorld;
+  regions: MapRegion[];
+  buildings: Record<string, MapBuilding>;
+  dungeons: Record<string, DungeonGraph>;
+  current: MapViewState;
 }
 
 export interface DenatusState {

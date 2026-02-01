@@ -387,143 +387,87 @@ export const constructSocialContext = (confidants: Confidant[], params: any): st
  * 地图上下文 (Optimized: Raw Data based on Floor)
  */
 export const constructMapContext = (gameState: GameState, params: any): string => {
-    const floor = typeof params?.forceFloor === 'number' ? params.forceFloor : (gameState.当前楼层 || 0);
     let output = `[地图环境 (Map Context)]\n`;
-    output += `当前位置: ${gameState.当前地点} (Floor: ${floor})\n`;
-    output += `坐标: X:${gameState.世界坐标?.x || 0} Y:${gameState.世界坐标?.y || 0}\n`;
-    output += `坐标单位: 米 (世界坐标)\n`;
-
     const mapData = gameState.地图;
+    const currentPos = gameState.世界坐标 || { x: 0, y: 0 };
     if (!mapData) return output + '(地图数据丢失)';
 
-    const macroLocations = Array.isArray(mapData.macroLocations) ? mapData.macroLocations : [];
-    const midLocations = Array.isArray(mapData.midLocations) ? mapData.midLocations : [];
-    const smallLocations = Array.isArray(mapData.smallLocations) ? mapData.smallLocations : [];
+    const current = mapData.current || { mode: 'REGION' as const };
+    const region = mapData.regions.find(r => r.id === current.regionId) || mapData.regions[0];
+    const floor = typeof params?.forceFloor === 'number'
+        ? params.forceFloor
+        : (current.floor ?? gameState.当前楼层 ?? 0);
 
-    const normalizeName = (value?: string) => (value || '').toString().trim().toLowerCase().replace(/\s+/g, '');
-    const matchByName = (name: string, target: { name: string; id: string }[]) => {
-        const normalized = normalizeName(name);
-        if (!normalized) return null;
-        return (
-            target.find(t => normalizeName(t.name) === normalized)
-            || target.find(t => normalized.includes(normalizeName(t.name)))
-            || null
-        );
-    };
+    output += `当前位置: ${gameState.当前地点} (Mode: ${current.mode}${current.mode === 'DUNGEON' && floor ? ` Floor ${floor}` : ''})\n`;
+    output += `坐标: X:${currentPos.x} Y:${currentPos.y}\n`;
+    output += `坐标单位: 像素 (当前地图坐标系)\n`;
 
-    if (macroLocations.length > 0 || midLocations.length > 0 || smallLocations.length > 0) {
-        const currentLocationName = gameState.当前地点 || '';
-        const currentSmall = matchByName(currentLocationName, smallLocations as any) as any;
-        const currentMid = currentSmall
-            ? midLocations.find(m => m.id === currentSmall.parentId)
-            : (matchByName(currentLocationName, midLocations as any) as any);
-        const currentMacro = currentMid
-            ? macroLocations.find(m => m.id === currentMid.parentId)
-            : (matchByName(currentLocationName, macroLocations as any) as any) || (macroLocations.length === 1 ? macroLocations[0] : null);
-
-        if (currentMacro || currentMid || currentSmall) {
-        output += `当前层级: ${currentMacro?.name || '未知'}${currentMid ? ` > ${currentMid.name}` : ''}${currentSmall ? ` > ${currentSmall.name}` : ''}\n`;
+    const worldPayload = mapData.world
+        ? {
+            id: mapData.world.id,
+            name: mapData.world.name,
+            center: mapData.world.center,
+            size: mapData.world.size,
+            locations: (mapData.world.locations || []).map(loc => ({
+                id: loc.id,
+                name: loc.name,
+                center: loc.center,
+                size: loc.size
+            }))
         }
+        : null;
 
-        const macroSummary = macroLocations.map(m => ({
-            id: m.id,
-            name: m.name,
-            type: m.type,
-            coordinates: m.coordinates,
-            area: m.area,
-            description: m.description,
-            size: m.size ?? (m.area?.radius ? { width: m.area.radius * 2, height: m.area.radius * 2, unit: 'm' } : undefined),
-            buildings: m.buildings || [],
-            mapLayerId: (m as any).mapLayerId
-        }));
-
-        const midSummary = midLocations
-            .filter(m => !currentMacro || m.parentId === currentMacro.id)
-            .map(m => {
-                const smallNames = smallLocations.filter(s => s.parentId === m.id).map(s => s.name);
-                const fallbackSize = m.area?.radius
-                    ? { width: m.area.radius * 2, height: m.area.radius * 2, unit: 'm' }
-                    : (m.area?.width && m.area?.height ? { width: m.area.width, height: m.area.height, unit: 'm' } : undefined);
-                return {
-                    id: m.id,
-                    name: m.name,
-                    coordinates: m.coordinates,
-                    parentId: m.parentId,
-                    range: m.area,
-                    size: m.size ?? fallbackSize,
-                    smallMaps: smallNames,
-                    description: m.description,
-                    mapLayerId: (m as any).mapLayerId
-                };
-            });
-
-        output += `【世界地图(常驻)】\n${JSON.stringify(macroSummary, null, 2)}\n`;
-        output += `【地区地图(常驻)】\n${JSON.stringify(midSummary, null, 2)}\n`;
-        if (floor === 0 && currentSmall) {
-            const smallPayload = {
-                id: currentSmall.id,
-                name: currentSmall.name,
-                parentId: currentSmall.parentId,
-                coordinates: currentSmall.coordinates,
-                area: currentSmall.area,
-                description: currentSmall.description,
-                layout: currentSmall.layout
-            };
-            output += `【细分地点-当前】\n${JSON.stringify(smallPayload, null, 2)}\n`;
+    const regionPayload = region
+        ? {
+            id: region.id,
+            name: region.name,
+            center: region.center,
+            size: region.size,
+            buildings: (region.buildings || []).map(b => ({ name: b.name, description: b.description }))
         }
-        if (mapData.leaflet?.layers) {
-            output += `【Leaflet底图】\n${JSON.stringify(mapData.leaflet.layers, null, 2)}\n`;
-        }
-        if (floor === 0) return output.trimEnd();
-    }
+        : null;
 
-    const surfaceLocations = Array.isArray(mapData.surfaceLocations) ? mapData.surfaceLocations : [];
-    const routes = Array.isArray(mapData.routes) ? mapData.routes : [];
-    const terrain = Array.isArray(mapData.terrain) ? mapData.terrain : [];
-    const territories = Array.isArray(mapData.territories) ? mapData.territories : [];
-    const filterByFloor = (items: any[]) => items.filter(item => (item?.floor ?? 0) === floor);
-
-    const floorLocations = filterByFloor(surfaceLocations);
-    const floorRoutes = filterByFloor(routes);
-    const floorTerrain = filterByFloor(terrain);
-    const floorTerritories = filterByFloor(territories);
-
-    if (floor === 0) {
-        output += `【地表节点 (Surface)】\n${JSON.stringify(floorLocations, null, 2)}\n`;
-        output += `【道路 (Routes)】\n${JSON.stringify(floorRoutes, null, 2)}\n`;
-        output += `【地形 (Terrain)】\n${JSON.stringify(floorTerrain, null, 2)}\n`;
-        output += `【区域范围 (Regions)】\n${JSON.stringify(floorTerritories, null, 2)}`;
-    } else {
-        const layerInfo = Array.isArray(mapData.dungeonStructure)
-            ? mapData.dungeonStructure.find(l => floor >= l.floorStart && floor <= l.floorEnd)
-            : null;
-
-        if (layerInfo) {
-            output += `【区域信息 (Layer)】${JSON.stringify(layerInfo)}\n`;
-        }
-
-        if (floorLocations.length > 0 || floorRoutes.length > 0 || floorTerrain.length > 0 || floorTerritories.length > 0) {
-            if (floorLocations.length > 0) output += `【已探明节点 (Nodes)】\n${JSON.stringify(floorLocations, null, 2)}\n`;
-            if (floorRoutes.length > 0) output += `【道路 (Routes)】\n${JSON.stringify(floorRoutes, null, 2)}\n`;
-            if (floorTerrain.length > 0) output += `【地形 (Terrain)】\n${JSON.stringify(floorTerrain, null, 2)}\n`;
-            if (floorTerritories.length > 0) output += `【区域范围 (Regions)】\n${JSON.stringify(floorTerritories, null, 2)}`;
-            output = output.trimEnd();
+    if (current.mode === 'BUILDING') {
+        if (regionPayload) output += `【地区地图(常驻)】\n${JSON.stringify(regionPayload, null, 2)}\n`;
+        const building = current.buildingId ? mapData.buildings[current.buildingId] : undefined;
+        if (building) {
+            output += `【建筑内部】\n${JSON.stringify(building, null, 2)}\n`;
         } else {
-            output += `【未知区域】本层尚未探索，请根据 <地图动态绘制> 规则生成节点。`;
+            output += `【建筑内部】(未找到对应建筑数据)\n`;
         }
+        return output.trimEnd();
     }
-    return output;
+
+    if (current.mode === 'DUNGEON') {
+        if (regionPayload) output += `【地区地图(常驻)】\n${JSON.stringify(regionPayload, null, 2)}\n`;
+        const dungeonId = current.dungeonId || region?.dungeonId;
+        const dungeon = dungeonId ? mapData.dungeons[dungeonId] : undefined;
+        if (dungeon) {
+            const floorData = dungeon.floors.find(f => f.floor === floor) || dungeon.floors[0];
+            const dungeonPayload = {
+                id: dungeon.id,
+                name: dungeon.name,
+                floor: floorData?.floor,
+                bounds: floorData?.bounds,
+                rooms: floorData?.rooms || [],
+                edges: floorData?.edges || []
+            };
+            output += `【地下城楼层】\n${JSON.stringify(dungeonPayload, null, 2)}\n`;
+        } else {
+            output += `【地下城楼层】(未找到对应地下城数据)\n`;
+        }
+        return output.trimEnd();
+    }
+
+    if (worldPayload) output += `【世界地图(常驻)】\n${JSON.stringify(worldPayload, null, 2)}\n`;
+    if (regionPayload) output += `【地区地图(常驻)】\n${JSON.stringify(regionPayload, null, 2)}\n`;
+    return output.trimEnd();
 };
 
 const constructMapBaseContext = (mapData?: WorldMapData): string => {
     if (!mapData) return "";
-    const factions = Array.isArray(mapData.factions) ? mapData.factions : [];
-    const basePayload = {
-        config: mapData.config || undefined,
-        factions: factions.length > 0 ? factions : undefined
-    };
-    if (!basePayload.config && !basePayload.factions) return "";
-    return `【地图基础】\n${JSON.stringify(basePayload, null, 2)}`;
+    if (mapData.current?.mode === 'BUILDING' || mapData.current?.mode === 'DUNGEON') return "";
+    return "";
 };
 
 /**
@@ -941,12 +885,18 @@ export const generateSingleModuleContext = (mod: ContextModuleConfig, gameState:
             const hasFamilia = gameState.角色.所属眷族 && gameState.角色.所属眷族 !== '无' && gameState.角色.所属眷族 !== 'None';
             
             // Map Generation Check
-            const currentFloor = gameState.当前楼层 || 0;
             const mapData = gameState.地图;
+            const mapState = mapData?.current;
+            const currentFloor = mapState?.floor ?? gameState.当前楼层 ?? 0;
+            const regionForDungeon = mapState?.regionId
+                ? mapData?.regions?.find(r => r.id === mapState.regionId)
+                : mapData?.regions?.[0];
+            const dungeonId = mapState?.dungeonId || regionForDungeon?.dungeonId;
+            const dungeon = dungeonId ? mapData?.dungeons?.[dungeonId] : undefined;
             // Check if map data exists for THIS floor
             const hasMapDataForFloor = currentFloor === 0 
                 ? true 
-                : mapData.surfaceLocations.some(l => l.floor === currentFloor);
+                : !!dungeon?.floors?.some(f => f.floor === currentFloor);
             
             let activePromptModules = settings.promptModules.filter(m => {
                 if (!m.isActive) {
@@ -1088,12 +1038,11 @@ export const generateSingleModuleContext = (mod: ContextModuleConfig, gameState:
             // Optimization: Remove heavy avatar base64 data from context
             return buildPlayerDataContext(gameState.角色, gameState.游戏难度 || Difficulty.NORMAL);
         case 'MAP_CONTEXT': {
-            const mapFloor = gameState.当前楼层 || 0;
+            const mapState = gameState.地图?.current;
+            const mapFloor = mapState?.floor ?? gameState.当前楼层 ?? 0;
             const triggerFloor = parseDungeonFloorTrigger(playerInput);
-            const hasKeyword = hasMapKeyword(playerInput, mod.params);
-            if (mapFloor > 0 && !mod.params?.alwaysIncludeDungeon) {
-                const floorMatch = triggerFloor !== null && triggerFloor === mapFloor;
-                if (!hasKeyword || !floorMatch) return "";
+            if (mapState?.mode === 'BUILDING' || mapState?.mode === 'DUNGEON') {
+                return constructMapContext(gameState, { ...mod.params, forceFloor: mapFloor });
             }
             return constructMapContext(gameState, { ...mod.params, forceFloor: triggerFloor ?? mapFloor });
         }

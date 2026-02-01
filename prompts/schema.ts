@@ -218,18 +218,12 @@
 - \`gameState.世界.下次更新\`: String（每回合需确认是否已经抵达下次更新时间，若抵达则更具体的日期如：第一日 18:00）
 
 ## 10. 地图系统 (gameState.地图)
-- \`gameState.地图.config\`: { "width": Number, "height": Number }
-- \`gameState.地图.factions\`: Array<{ "id", "name", "color", "borderColor", "textColor", "description", "strength" }>
-- \`gameState.地图.territories\`: Array<{ "id", "factionId", "name", "centerX", "centerY", "color", "floor", "shape", "sector", "points", "boundary" }>
-- \`gameState.地图.terrain\`: Array<{ "id", "type", "name", "path", "color", "strokeColor", "strokeWidth", "floor" }>
-- \`gameState.地图.routes\`: Array<{ "id", "name", "path", "type", "width", "color", "floor" }>
-- \`gameState.地图.surfaceLocations\`: Array<{ "id", "name", "type", "coordinates", "radius", "description", "icon", "floor" }>
-- \`gameState.地图.dungeonStructure\`: Array<{ "floorStart", "floorEnd", "name", "description", "dangerLevel", "landmarks" }>
-- \`gameState.地图.macroLocations\`: Array<{ "id", "name", "type?", "coordinates", "area": { "shape", "center?", "radius?", "width?", "height?", "points?", "note?" }, "size?", "buildings?", "layout?", "mapLayerId?", "description?", "floor?" }>
-- \`gameState.地图.midLocations\`: Array<{ "id", "name", "parentId", "coordinates", "area?", "size?", "buildings?", "layout?", "mapLayerId?", "description?", "floor?" }>
-- \`gameState.地图.smallLocations\`: Array<{ "id", "name", "parentId", "coordinates?", "area?", "description?", "floor?", "layout?" }>
-  - \`layout\`: { "scale", "width", "height", "rooms", "furniture", "entrances", "paths?", "notes?" }
-- \`gameState.地图.leaflet.layers\`: Array<{ "id", "name", "scope", "ownerId?", "url", "bounds": { "minX", "minY", "maxX", "maxY" }, "minZoom?", "maxZoom?", "defaultZoom?" }>
+- 坐标单位：像素坐标（每个地图层独立坐标系）
+- `gameState.地图.world`: { "id", "name", "bounds": { "width", "height" }, "center": { "x", "y" }, "size": { "width", "height", "unit?" }, "locations": Array<{ "id", "name", "center": { "x", "y" }, "size": { "width", "height", "unit?" } }> }
+- `gameState.地图.regions`: Array<{ "id", "name", "worldLocationId", "bounds": { "width", "height" }, "center": { "x", "y" }, "size": { "width", "height", "unit?" }, "landmarks": Array<{ "id", "name", "position": { "x", "y" }, "radius?", "type?", "description?" }>, "buildings": Array<{ "id", "name", "description", "type?" }>, "dungeonId?" }>
+- `gameState.地图.buildings`: { [buildingId]: { "id", "regionId", "name", "description?", "bounds": { "width", "height" }, "anchor": { "x", "y" }, "layout": { "scale?", "width", "height", "rooms", "furniture", "entrances", "notes?" } } }
+- `gameState.地图.dungeons`: { [dungeonId]: { "id", "regionId", "name", "description?", "entrance": { "x", "y" }, "floors": Array<{ "floor", "bounds": { "width", "height" }, "rooms": Array<{ "id", "name", "type?", "x", "y", "width", "height", "discovered?", "description?" }>, "edges": Array<{ "id", "from", "to", "points": Array<{ "x", "y" }>, "discovered?", "type?" }> }> } }
+- `gameState.地图.current`: { "mode": "WORLD|REGION|BUILDING|DUNGEON", "regionId?", "buildingId?", "dungeonId?", "floor?" }
 
 ## 11. 剧情进度 (gameState.剧情)
 - \`gameState.剧情.主线\`: { "当前卷数": Number, "当前篇章": String, "当前阶段": String, "关键节点": String, "节点状态": String }
@@ -262,6 +256,7 @@
   - \`更新时间\`: String (可选)
   - \`重要\`: Boolean (可选)
 </数据结构定义>`;
+
 
 
 

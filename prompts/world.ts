@@ -359,165 +359,112 @@ export const P_WORLD_EVENTS = `<世界动态与事件管理>
 
 export const P_DYN_MAP = `<地图动态绘制>
 【地图动态绘制 (Dynamic Dungeon Generation)】
-⚠️ **核心指令**: 当玩家进入一个新的、数据为空的楼层时，**必须**规划并生成该层的地图数据。
-⚠️ **触发条件**: 地下城地图仅在玩家输入包含地图关键词且明确写出“第N层/ N层”，并且 N=当前楼层时才插入完整地图。
-⚠️ **坐标基准**: 地下城楼层使用独立坐标系，默认底图为 \`layer_dungeon\`，坐标范围 0~8000 (单位: 米)。
+⚠️ **核心指令**: 当玩家进入新的地下城楼层，且该楼层数据为空时，**必须**生成该楼层完整拓扑数据。
+⚠️ **触发条件**: 仅在玩家位于地下城时触发；并且楼层应与 `gameState.地图.current.floor` 一致。
+⚠️ **坐标基准**: 地下城使用**像素坐标**，必须落在 `gameState.地图.dungeons[DungeonId].floors[Floor].bounds` 范围内。
 
 ### 1. 规划阶段 (Planning)
-根据 \`gameState.当前楼层\` 决定地图风格：
-- **Floor 1-4**: 面积 300x300m。简单的迷宫，直路多。
-- **Floor 5-12**: 面积 800x800m。复杂迷宫，多房间 (Rooms)，开始出现“窟室”。
-- **Floor 13-17**: 面积 2000x2000m。中层结构，岩窟，光线昏暗，有"竖井"连接，视野受限。
-- **Floor 18**: **安全楼层 (Under Resort)**。巨大空洞，有森林、湖泊、城镇(Rivira)。
-- **Floor 19-24**: 中层深处，通路复杂、地形落差更大。
-- **Floor 25-27**: **下层/水之迷都**，巨大瀑布与水域。
-- **Floor 28**: **安全楼层 (Under Garden)**。
-- **Floor 29-36**: 下层深处，生态极端且高危。
-- **Floor 37-38**: 深层入口，结构稳定但危险度陡升。
-- **Floor 39**: **安全楼层 (Under Bridge)**。
-- **Floor 40-43**: 深层区域，生态恶劣。
-- **Floor 44-48**: Crimson Mountains（火山/炽热岩层）。
-- **Floor 49**: Moytura，楼层主领地。
-- **Floor 50**: 安全楼层。
-- **Floor 51+**: 资料稀少，按“未知深层”逐层设定。
+根据当前楼层深度决定规模与风格（示例尺度，单位: 像素）：
+- 1-4层: 800~1200
+- 5-12层: 1200~1800
+- 13-17层: 1600~2200
+- 18层: 安全层（可更大、空洞结构）
+- 19-24层: 1800~2400
+- 25-27层: 水域与瀑布地形
+- 28层: 安全层
+- 29-36层: 大尺度高危
+- 37+层: 结构复杂、通路收束
 
-### 2. 节点生成 (Node Generation)
-请使用 \`push gameState.地图.surfaceLocations\` 添加以下节点（每层至少 4-6 个关键点）：
+### 2. 拓扑结构 (Rooms + Edges)
+每层至少包含：
+- 入口房（ENTRANCE）
+- 上行/下行连接点（STAIRS_UP / STAIRS_DOWN）
+- 2~6 个探索房间（ROOM）
 
-**A. 关键出入口 (Mandatory)**
-- \`{"id": "stairs_up_f{F}", "name": "上行楼梯", "type": "STAIRS_UP", "floor": {F}, "coordinates": {x,y}, "radius": 150}\`
-- \`{"id": "stairs_down_f{F}", "name": "下行楼梯", "type": "STAIRS_DOWN", "floor": {F}, "coordinates": {x,y}, "radius": 150}\`
-*逻辑*: 入口和出口应保持较远距离（直线距离 > 地图宽度的 60%）。
+**房间结构**：
+`{ "id", "name", "type", "x", "y", "width", "height", "discovered", "description?" }`
 
-**B. 资源与探索点 (Resources)**
-- **资源点**: 矿脉、药草丛、泉水、掉落物堆积处。
-  - \`{"id": "res_f{F}_1", "name": "发光矿脉", "type": "POINT", "icon": "gem", "floor": {F}, "coordinates": {x,y}, "radius": 100}\`
-- **宝箱/隐藏房**: 藏在死胡同或墙壁后。
-  - \`{"id": "chest_f{F}_1", "name": "隐蔽宝箱", "type": "POINT", "icon": "box", "floor": {F}, "coordinates": {x,y}, "radius": 80}\`
+**通路结构**（折线）：
+`{ "id", "from", "to", "points": [{x,y},...], "discovered" }`
 
-**C. 危机与陷阱 (Hazards)**
-- **怪物屋 (Monster Party)**: 封闭房间，进入后大量刷怪。
-- **陷阱区**: 落穴、毒沼、落石区。
-  - \`{"id": "trap_f{F}_1", "name": "怪物潜伏区", "type": "POINT", "icon": "skull", "floor": {F}, "coordinates": {x,y}, "radius": 300, "description": "似乎有杀人蚁的气味。"}\`
-
-**D. 特殊地标 (Landmarks)**
-- 仅在特定层生成（如第18层的"世界树残骸"）。
-
-### 3. 生成示例指令
-\`\`\`json
+### 3. 生成指令（新增楼层）
+```json
 {
   "action": "push",
-  "key": "gameState.地图.surfaceLocations",
+  "key": "gameState.地图.dungeons[dungeon_orario].floors",
   "value": {
-    "id": "node_f5_start",
-    "name": "第5层入口",
-    "type": "STAIRS_UP",
-    "floor": 5,
-    "coordinates": {"x": 4000, "y": 4000},
-    "radius": 200,
-    "description": "通往第4层的宽阔阶梯。"
+    "floor": 3,
+    "bounds": { "width": 1200, "height": 1200 },
+    "rooms": [
+      { "id": "f3_entrance", "name": "入口大厅", "type": "ENTRANCE", "x": 520, "y": 520, "width": 180, "height": 180, "discovered": true }
+    ],
+    "edges": []
   }
 }
-\`\`\
+```
+
+### 4. 追加指令（在已有楼层中新增房间/通路）
+- 使用 `push` 向 `rooms` 或 `edges` 追加。
+- 只新增**发现的新地点**，不要重写整层。
 </地图动态绘制>`;
 
 export const P_MAP_DISCOVERY = `<新地点发现与绘制>
 【新地点发现与绘制 (Map Discovery Protocol)】
-当玩家在探索过程中，发现了一个当前地图(\`gameState.地图\`)中不存在的重要地点时，**必须**生成指令将其永久记录到地图上。
+当玩家探索到**尚未记录的新地点**时，必须生成指令将其写入地图结构。
 
-### 0. 地图层级：世界层级 / 地区层级 / 细分地点
-- **世界层级（macro）**：世界/大陆级别，如“下界”。记录在 \`gameState.地图.macroLocations\`。
-- **地区层级（mid）**：世界中的国家/城市/区域，如“欧拉丽/拉基亚王国”。记录在 \`gameState.地图.midLocations\`，并用 \`parentId\` 归属于世界层级。
-- **细分地点（small）**：地区内部的具体地点（建筑/室内/地下室等），如“公会本部-一层大厅”。记录在 \`gameState.地图.smallLocations\`，并用 \`parentId\` 归属于地区层级。
+### 0. 地图层级
+- **世界地图**: `gameState.地图.world`
+- **区域地图**: `gameState.地图.regions`
+- **建筑内部**: `gameState.地图.buildings`
+- **地下城拓扑**: `gameState.地图.dungeons`
 
-### 1. 触发条件
-- 玩家到达了一个有名字、有功能或有剧情意义的新地点。
-- 当玩家进入“地区层级内部”的具体区域（室内/建筑内部），且该细分地点未建档时，必须生成细分地点布局。
+### 1. 坐标规则
+- 所有坐标均为**像素坐标**。
+- 进入建筑/地下城后，玩家坐标使用该层独立坐标系。
+- 世界/区域/建筑/地下城各自有 bounds，坐标必须落入范围内。
 
-### 2. 坐标推算 (Triangulation)
-你必须根据剧情描述，估算该地点相对于已知地标的位置。
-- **中心点**: (50000, 50000) 巴别塔。
-- **已知参照**: 参考 \`gameState.地图.surfaceLocations\` 或 \`gameState.地图.midLocations\` 中的其他点。
-- **坐标统一**: 世界/地区/细分地点与玩家/NPC 坐标共用同一世界坐标。
-- **地图比例**: 坐标 1:1 米。
-- *示例*: "在丰饶女主人(西)的更西边偏南一点的后巷" -> 估算 X: 47000, Y: 52000。
+### 2. 区域地图更新（建筑清单）
+- 在区域地图中新增建筑时，只追加**名称 + 简介**（不包含大小）。
+- 使用：`push gameState.地图.regions[Index].buildings`
 
-### 2.1 Leaflet底图说明
-- 地图渲染使用 \`gameState.地图.leaflet.layers\` 作为底图来源。
-- **禁止**随意改动现有底图层；只有在发现全新的地区/城市且需要独立底图时，才允许新增一条 layer。
-- 地表默认使用 \`layer_world\`，欧拉丽等城市使用对应地区 layer（如 \`layer_orario\`），地下城使用 \`layer_dungeon\`。
+**建筑清单结构**:
+```json
+{ "id": "building_guild_pantheon", "name": "公会本部·一层大厅", "description": "冒险者登记与任务受理区" }
+```
 
-### 3. 指令生成（按层级选择）
-- **世界层级**: \`push gameState.地图.macroLocations\`
-- **地区层级**: \`push gameState.地图.midLocations\`
-- **细分地点**: \`push gameState.地图.smallLocations\`
+### 3. 建筑内部布局
+- 当玩家进入建筑内部且该建筑未建档，必须创建完整布局。
+- 使用：`set gameState.地图.buildings[buildingId]`
 
-**世界层级结构**:
-\`\`\`json
+**建筑结构示例**:
+```json
 {
-  "id": "macro_world",
-  "name": "下界",
-  "type": "WORLD",
-  "coordinates": { "x": 50000, "y": 50000 },
-  "area": { "shape": "RECT", "center": { "x": 50000, "y": 50000 }, "width": 100000, "height": 100000 },
-  "size": { "width": 100000, "height": 100000, "unit": "m" },
-  "description": "下界世界地图",
-  "floor": 0
-}
-\`\`\`
-
-**地区层级结构**:
-\`\`\`json
-{
-  "id": "mid_orario",
-  "name": "欧拉丽",
-  "parentId": "macro_world",
-  "coordinates": { "x": 50000, "y": 50000 },
-  "area": { "shape": "CIRCLE", "center": { "x": 50000, "y": 50000 }, "radius": 8000 },
-  "size": { "width": 16000, "height": 16000, "unit": "m" },
-  "mapLayerId": "layer_orario",
-  "description": "迷宫都市欧拉丽",
-  "floor": 0
-}
-\`\`\`
-
-**细分地点结构（室内平面图）**:
-\`\`\`json
-{
-  "id": "small_[Unique]",
-  "name": "公会本部-一层大厅",
-  "parentId": "mid_orario",
-  "coordinates": { "x": 48800, "y": 48800 },
-  "area": { "shape": "RECT", "center": { "x": 48800, "y": 48800 }, "width": 40, "height": 25 },
-  "description": "公会本部一层对外开放区域",
-  "floor": 0,
+  "id": "building_guild_pantheon",
+  "regionId": "region_orario",
+  "name": "公会本部·一层大厅",
+  "bounds": { "width": 80, "height": 50 },
+  "anchor": { "x": 9000, "y": 9300 },
   "layout": {
     "scale": "1格=1米",
-    "width": 40,
-    "height": 25,
+    "width": 80,
+    "height": 50,
     "rooms": [
-      { "id": "room_lobby", "name": "接待大厅", "type": "public", "bounds": { "x": 0, "y": 0, "width": 40, "height": 14 }, "connections": ["room_counter"] }
+      { "id": "guild_lobby", "name": "大厅", "bounds": { "x": 4, "y": 4, "width": 72, "height": 20 } }
     ],
-    "furniture": [
-      { "id": "f_reception", "name": "接待柜台", "type": "counter", "position": { "x": 8, "y": 16 }, "size": { "width": 8, "height": 2 }, "roomId": "room_counter" }
-    ],
-    "entrances": [
-      { "id": "entrance_main", "name": "正门", "position": { "x": 20, "y": 0 }, "connectsTo": "欧拉丽西北大街" }
-    ]
+    "furniture": [],
+    "entrances": []
   }
 }
-\`\`\`
+```
 
-### 4. 细分地点布局要求
-- 细分地点必须像“房屋平面设计图”：规划完整建筑区域、房间边界、通道与入口。
-- 必须标出关键家具/设施（柜台、桌椅、楼梯、床铺、货架等）。
-- 保持可读性与可探索性：每个房间至少一个连接或入口。
-- 细分地点命名建议：使用“地区地点-区域”形式，如“公会本部-一层大厅”。
-- 若仅记录“城区/街区/室外区域”，可先不填 layout；进入室内再补全 layout。
-### 5. 世界/地区层级布局要求
-- 世界/地区层级也遵循“平面设计图”逻辑：以街区/楼层/公共区为房间块，保证完整布局与入口。
-- 世界/地区层级仅做“建筑与布局纲要”，不需要细分地点级别的家具细节。
+### 4. 地下城楼层更新
+- 当进入地下城新楼层且数据为空时，必须生成楼层拓扑（rooms + edges）。
+- 使用：`push gameState.地图.dungeons[dungeonId].floors`
 
+### 5. 状态切换
+- 进入建筑：`set gameState.地图.current.mode "BUILDING"` 并设置 `buildingId`
+- 进入地下城：`set gameState.地图.current.mode "DUNGEON"` 并设置 `dungeonId` / `floor`
+- 返回区域：`set gameState.地图.current.mode "REGION"`
 </新地点发现与绘制>`;
 
 export const P_SYS_STATS = `<能力值与精神力>
@@ -629,5 +576,6 @@ export const P_SYS_COMBAT = `<战斗法则与死亡>
    - 每回合/关键动作需 \`push gameState.战斗.战斗记录\`（保持最近 5-10 条，超出可删除旧记录）。
    - 战斗结束：\`set gameState.战斗.是否战斗中 false\`，并清空敌方与战斗记录。
 </战斗法则与死亡>`;
+
 
 

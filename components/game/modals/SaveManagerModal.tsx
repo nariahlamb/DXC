@@ -96,7 +96,6 @@ export const SaveManagerModal: React.FC<SaveManagerModalProps> = ({
 
         if (stateToLoad.character && !stateToLoad.角色) stateToLoad.角色 = stateToLoad.character;
         if (stateToLoad.inventory && !stateToLoad.背包) stateToLoad.背包 = stateToLoad.inventory;
-        if (stateToLoad.worldMap && !stateToLoad.地图) stateToLoad.地图 = stateToLoad.worldMap;
         if (stateToLoad.logs && !stateToLoad.日志) stateToLoad.日志 = stateToLoad.logs;
 
         const missingFields = [];
