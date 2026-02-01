@@ -1,6 +1,6 @@
-
+﻿
 import React from 'react';
-import { Briefcase, Users, ClipboardList, Zap, Settings, Navigation, Smartphone, Globe, Shield, BookOpen, Scroll, Flag, Gem, Brain, Radar, Swords, Archive, HardDrive, Loader2, StickyNote, Scale, Bell, Database } from 'lucide-react';
+import { Briefcase, Users, ClipboardList, Zap, Settings, Smartphone, Globe, Shield, BookOpen, Scroll, Flag, Gem, Brain, Radar, Swords, Archive, HardDrive, Loader2, StickyNote, Scale, Bell, Database } from 'lucide-react';
 import { MenuButton } from './right/MenuButton';
 
 interface RightPanelProps {
@@ -10,7 +10,6 @@ interface RightPanelProps {
     onOpenSocial: () => void;
     onOpenTasks: () => void;
     onOpenSkills: () => void;
-    onOpenMap: () => void;
     onOpenPhone: () => void;
     onOpenWorld: () => void;
     onOpenFamilia: () => void;
@@ -45,7 +44,6 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     onOpenSocial,
     onOpenTasks,
     onOpenSkills,
-    onOpenMap,
     onOpenPhone,
     onOpenWorld,
     onOpenFamilia,
@@ -68,7 +66,6 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   const bgTexture = isHellMode ? 'bg-red-900/10' : 'bg-halftone-blue opacity-10';
   const primaryHover = isHellMode ? 'group-hover:bg-red-600' : 'group-hover:bg-blue-600';
   const secondaryHover = isHellMode ? 'group-hover:bg-orange-600' : 'group-hover:bg-orange-600'; // Keep orange or change
-  const mapHover = isHellMode ? 'group-hover:bg-red-500' : 'group-hover:bg-blue-500';
   const settingsBorder = isHellMode ? 'group-hover:border-red-600' : 'group-hover:border-blue-600';
   const phoneIndicator = phoneProcessing ? (
         <div className={`w-5 h-5 rounded-full flex items-center justify-center ${phoneProcessingScope === 'sync' ? 'bg-blue-500' : 'bg-orange-500'} shadow-lg animate-pulse`}>
@@ -137,7 +134,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                 onClick={onOpenInventory}
             />
             <MenuButton 
-                label="战利品仓库" 
+                label="战利品仓库"
                 icon={<Archive className="w-5 h-5 lg:w-5 lg:h-5" />} 
                 delay={70} 
                 colorClass="bg-zinc-800"
@@ -145,7 +142,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                 onClick={onOpenLootVault}
             />
             <MenuButton 
-                label="公共战利品" 
+                label="公共战利品"
                 icon={<Gem className="w-5 h-5 lg:w-5 lg:h-5" />} 
                 delay={75} 
                 colorClass="bg-zinc-800"
@@ -161,7 +158,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                 onClick={onOpenEquipment}
             />
             <MenuButton 
-                label="技能/魔法" 
+                label="技能/魔法"
                 icon={<Zap className="w-5 h-5 lg:w-5 lg:h-5" />} 
                 delay={150} 
                 colorClass="bg-zinc-800"
@@ -178,15 +175,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
             />
             <div className="border-t border-zinc-700 my-2" />
             <MenuButton 
-                label="地图" 
-                icon={<Navigation className="w-5 h-5 lg:w-5 lg:h-5" />} 
-                delay={200} 
-                colorClass="bg-zinc-800"
-                hoverColorClass={`${mapHover} group-hover:border-white`}
-                onClick={onOpenMap}
-            />
-            <MenuButton 
-                label="资料库" 
+                label="资料库"
                 icon={<Database className="w-5 h-5 lg:w-5 lg:h-5" />} 
                 delay={210} 
                 colorClass="bg-zinc-800"

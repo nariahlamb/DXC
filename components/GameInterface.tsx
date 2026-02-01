@@ -1,4 +1,4 @@
-
+﻿
 import React, { useMemo, useState } from 'react';
 import { GameState, Difficulty, InventoryItem, Confidant } from '../types';
 import { TopNav } from './game/TopNav';
@@ -10,7 +10,6 @@ import { MobileTopNav } from './mobile/MobileTopNav';
 import { MobileBottomNav } from './mobile/MobileBottomNav';
 import { MobileInventoryView } from './mobile/MobileInventoryView';
 import { MobileMenuOverlay } from './mobile/MobileMenuOverlay';
-import { MobileMapView } from './mobile/MobileMapView'; // Import MobileMapView
 
 // Modals
 import { InventoryModal } from './game/modals/InventoryModal';
@@ -27,7 +26,6 @@ import { LootModal } from './game/modals/LootModal';
 import { LootVaultModal } from './game/modals/LootVaultModal';
 import { FamiliaModal } from './game/modals/FamiliaModal';
 import { PartyModal } from './game/modals/PartyModal';
-import { MapModal } from './game/modals/MapModal';
 import { MemoryModal } from './game/modals/MemoryModal';
 import { DynamicWorldModal } from './game/modals/DynamicWorldModal';
 import { MemorySummaryModal } from './game/modals/MemorySummaryModal';
@@ -58,7 +56,6 @@ type ActiveModal =
     | 'LOOT_VAULT'
     | 'FAMILIA'
     | 'PARTY'
-    | 'MAP'
     | 'MEMORY'
     | 'WORLD'
     | 'SAVE_MANAGER'
@@ -82,7 +79,7 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
 
   // Modal States
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
-  const [mobileActiveTab, setMobileActiveTab] = useState<'CHAT' | 'CHAR' | 'INV' | 'MAP' | 'MENU'>('CHAT');
+  const [mobileActiveTab, setMobileActiveTab] = useState<'CHAT' | 'CHAR' | 'INV' | 'MENU'>('CHAT');
   const [settingsView, setSettingsView] = useState<string>('MAIN');
 
   const closeModal = () => setActiveModal(null);
@@ -225,7 +222,6 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
                         onOpenSocial={() => setActiveModal('SOCIAL')}
                         onOpenTasks={() => setActiveModal('TASKS')}
                         onOpenSkills={() => setActiveModal('SKILLS')}
-                        onOpenMap={() => setActiveModal('MAP')}
                         onOpenLibrary={() => openSettings('LIBRARY')}
                         onOpenPhone={() => hasMagicPhone && setActiveModal('PHONE')}
                         onOpenWorld={() => setActiveModal('WORLD')}
@@ -285,16 +281,6 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
                      <div className="h-full overflow-y-auto bg-zinc-950 p-4">
                          <LeftPanel stats={previewState.角色} className="w-full border-none shadow-none" isHellMode={isHellMode} difficulty={gameState.游戏难度} />
                      </div>
-                 )}
-                 {mobileActiveTab === 'MAP' && (
-                     <MobileMapView 
-                        worldMap={gameState.地图}
-                        currentPos={gameState.世界坐标}
-                        playerName={gameState.角色.姓名}
-                        confidants={gameState.社交}
-                        floor={gameState.当前楼层} 
-                        location={gameState.当前地点}
-                     />
                  )}
                  {mobileActiveTab === 'MENU' && (
                      <MobileMenuOverlay 
@@ -431,16 +417,6 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
             characters={gameState.社交} 
         />
 
-        <MapModal 
-            isOpen={activeModal === 'MAP'} 
-            onClose={closeModal}
-            worldMap={gameState.地图}
-            currentPos={gameState.世界坐标}
-            floor={gameState.当前楼层}
-            location={gameState.当前地点}
-            playerName={gameState.角色.姓名}
-            confidants={gameState.社交}
-        />
 
         <MemoryModal 
             isOpen={activeModal === 'MEMORY'} 

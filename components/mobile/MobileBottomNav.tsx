@@ -1,10 +1,10 @@
-
+﻿
 import React from 'react';
-import { MessageSquare, User, Briefcase, Map, Menu } from 'lucide-react';
+import { MessageSquare, User, Briefcase, Menu } from 'lucide-react';
 
 interface MobileBottomNavProps {
-    onTabSelect: (tab: 'CHAT' | 'CHAR' | 'INV' | 'MAP' | 'MENU') => void;
-    activeTab: 'CHAT' | 'CHAR' | 'INV' | 'MAP' | 'MENU';
+    onTabSelect: (tab: 'CHAT' | 'CHAR' | 'INV' | 'MENU') => void;
+    activeTab: 'CHAT' | 'CHAR' | 'INV' | 'MENU';
     isHellMode?: boolean;
 }
 
@@ -13,7 +13,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onTabSelect, a
     const activeColor = isHellMode ? 'text-red-500 bg-red-900/10' : 'text-blue-500 bg-blue-900/10';
     const indicatorColor = isHellMode ? 'bg-red-600 shadow-[0_0_10px_#dc2626]' : 'bg-blue-500 shadow-[0_0_10px_#3b82f6]';
 
-    const NavItem = ({ id, icon, label }: { id: 'CHAT' | 'CHAR' | 'INV' | 'MAP' | 'MENU', icon: React.ReactNode, label: string }) => {
+    const NavItem = ({ id, icon, label }: { id: 'CHAT' | 'CHAR' | 'INV' | 'MENU', icon: React.ReactNode, label: string }) => {
         const isActive = activeTab === id;
         return (
             <button 
@@ -38,7 +38,6 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onTabSelect, a
             <NavItem id="CHAT" icon={<MessageSquare size={20} />} label="对话" />
             <NavItem id="CHAR" icon={<User size={20} />} label="状态" />
             <NavItem id="INV" icon={<Briefcase size={20} />} label="背包" />
-            <NavItem id="MAP" icon={<Map size={20} />} label="地图" />
             <NavItem id="MENU" icon={<Menu size={20} />} label="菜单" />
         </div>
     );
