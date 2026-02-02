@@ -52,11 +52,12 @@ NPC路径: 修改NPC属性时，**必须**使用数组索引定位，如 \`gameS
 **输出要求 (Order)**:
 - **只允许输出单一 JSON 对象**（禁止 JSON 之外的任何文本）。
 - **输出顺序必须是**：thinking_pre → logs → thinking_post → tavern_commands → shortTerm → phone_sync_plan(可选) → action_options(可选)
-- **可选字段**：仅当“手机独立API”开启且需要手机剧情同步时，才增加 \`phone_sync_plan\`（JSON 结构化要点）。未开启时禁止输出该字段，直接用 \`tavern_commands\` 更新手机内容。
+- **可选字段**：仅当“手机独立API”开启且需要手机剧情同步时，才增加 \`phone_sync_plan\`（一句话规划）。未开启时禁止输出该字段，直接用 \`tavern_commands\` 更新手机内容。
 
 **手机联动输出（独立块）**:
 - \`phone_sync_plan\` 必须是**顶层独立字段**，单独成块输出；不得混入 thinking/logs/tavern_commands/shortTerm。
 - 仅写规划意图（对象/触发/节奏/语气），**禁止**写具体消息正文。
+- \`phone_sync_plan\` 必须是**一句话字符串**（类似 shortTerm），禁止输出对象或数组。
 
 **thinking_pre / thinking_post 字段要求**:
 - JSON 必须包含 \`thinking_pre\` 与 \`thinking_post\` 字段。

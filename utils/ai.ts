@@ -118,13 +118,10 @@ const buildCotPrompt = (settings: AppSettings): string => {
 const isPhoneSyncPlanEnabled = (settings: AppSettings): boolean => {
     const aiCfg = settings?.aiConfig;
     if (!aiCfg) return false;
-    if (aiCfg.enablePhoneSyncPlan === false) return false;
     const overridesEnabled = aiCfg.useServiceOverrides ?? aiCfg.mode === 'separate';
+    if (!overridesEnabled) return false;
     const overrideFlags = aiCfg.serviceOverridesEnabled || {};
-    const serviceEnabled = (overrideFlags as any)?.phone ?? (aiCfg.mode === 'separate');
-    const phoneCfg = overridesEnabled && serviceEnabled ? aiCfg.services?.phone : null;
-    if (phoneCfg?.apiKey) return true;
-    return !!aiCfg.unified?.apiKey;
+    return (overrideFlags as any)?.phone ?? (aiCfg.mode === 'separate');
 };
 
 
@@ -672,7 +669,7 @@ const constructPhoneSocialBrief = (confidants: Confidant[] = []): string => {
             姓名: c.姓名,
             关系: c.关系状态,
             是否在场: !!c.是否在场,
-            位置: c.位置详情 || (c.坐标 ? `(${Math.round(c.坐标.x)},${Math.round(c.坐标.y)})` : undefined)
+            位置: c.位置详情 || '未知'
         }));
     return `[手机联系人摘要]\n${list.length > 0 ? JSON.stringify(list, null, 2) : '（暂无已交换联系方式的联系人）'}`;
 };
@@ -702,7 +699,7 @@ const constructPhoneStoryBrief = (gameState: GameState): string => {
 };
 
 const constructPhoneEnvironmentBrief = (gameState: GameState): string => {
-    return `[当前环境]\n时间: ${gameState.当前日期 || ''} ${gameState.游戏时间 || ''}\n地点: ${gameState.当前地点 || '未知'} / 楼层: ${gameState.当前楼层 ?? '未知'} / 天气: ${gameState.天气 || '未知'}\n战斗中: ${gameState.战斗?.是否战斗中 ? '是' : '否'}`;
+    return `[当前环境]\n时间: ${gameState.当前日期 || ''} ${gameState.游戏时间 || ''}\n地点: ${gameState.当前地点 || '未知'} / 楼层: ${gameState.当前楼层 ?? '未知'} / 天气: ${gameState.天气 || '未知'}`;
 };
 
 const constructPhoneWorldBrief = (gameState: GameState): string => {
@@ -748,10 +745,7 @@ export const assemblePhonePrompt = (
 ): string => {
     const phoneContext = constructPhoneContext(gameState.手机, { perThreadLimit: 10, includeMoments: true, includePublicPosts: true, forumLimit: 6, playerName: gameState.角色?.姓名 || 'Player' });
     const socialBrief = constructPhoneSocialBrief(gameState.社交);
-    const trackingBrief = constructPhoneTrackingBrief(gameState);
     const envBrief = constructPhoneEnvironmentBrief(gameState);
-    const storyBrief = constructPhoneStoryBrief(gameState);
-    const worldBrief = constructPhoneWorldBrief(gameState);
     const worldview = constructPhoneWorldview(settings);
     const memoryBrief = constructPhoneMemoryBrief(gameState.记忆);
     const cot = P_PHONE_COT || "";
@@ -760,10 +754,7 @@ export const assemblePhonePrompt = (
         cot,
         worldview,
         envBrief,
-        storyBrief,
-        worldBrief,
         memoryBrief,
-        trackingBrief,
         socialBrief,
         phoneContext,
         `[用户输入]\n${playerInput}`

@@ -816,6 +816,27 @@ export const SocialPhoneModal: React.FC<SocialPhoneModalProps> = ({
                 </div>
 
                 <div className="bg-white border border-zinc-200 p-4">
+                  <div className="text-[10px] text-zinc-500 font-bold uppercase mb-2">同步规划队列</div>
+                  {Array.isArray(phone.同步规划) && phone.同步规划.length > 0 ? (
+                    <div className="space-y-2">
+                      {phone.同步规划.slice(0, 12).map((entry, idx) => (
+                        <div key={`${entry.时间 || 'sync'}_${idx}`} className="border border-zinc-200 p-3 text-xs bg-zinc-50">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-zinc-800">{entry.类型 || 'story'}</span>
+                            <span className="text-[10px] text-zinc-500">{entry.时间 || '未知时间'}</span>
+                          </div>
+                          <div className="mt-1 text-[11px] text-zinc-700">
+                            {typeof entry.内容 === 'string' ? entry.内容 : JSON.stringify(entry.内容 || {})}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-zinc-400">队列为空。</div>
+                  )}
+                </div>
+
+                <div className="bg-white border border-zinc-200 p-4">
                   <div className="text-[10px] text-zinc-500 font-bold uppercase mb-2">每小时规划</div>
                   {Array.isArray(phone.自动规划?.记录) && phone.自动规划!.记录!.length > 0 ? (
                     <div className="space-y-2">

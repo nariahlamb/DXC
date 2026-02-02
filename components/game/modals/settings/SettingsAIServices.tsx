@@ -95,23 +95,6 @@ export const SettingsAIServices: React.FC<SettingsAIServicesProps> = ({ settings
                 <div className="mb-6 flex items-center gap-3">
                     <input
                         type="checkbox"
-                        id="enablePhoneSyncPlan"
-                        checked={localConfig.enablePhoneSyncPlan !== false}
-                        onChange={e => {
-                            const newConfig = { ...localConfig, enablePhoneSyncPlan: e.target.checked };
-                            setLocalConfig(newConfig);
-                            setHasUnsavedChanges(true);
-                        }}
-                        className="w-4 h-4 text-red-600 border-zinc-300 rounded focus:ring-red-500"
-                    />
-                    <label htmlFor="enablePhoneSyncPlan" className="text-xs font-bold uppercase text-zinc-600 select-none cursor-pointer">
-                        启用手机联动规划（phone_sync_plan）
-                    </label>
-                </div>
-
-                <div className="mb-6 flex items-center gap-3">
-                    <input
-                        type="checkbox"
                         id="nativeThinkingChain"
                         checked={localConfig.nativeThinkingChain !== false}
                         onChange={e => {

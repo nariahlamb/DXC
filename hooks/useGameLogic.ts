@@ -605,6 +605,53 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         }
         return value;
     };
+    const extractPhoneSyncPlanFromRaw = (raw: string) => {
+        if (!raw) return null;
+        const keyIndex = raw.indexOf('"phone_sync_plan"');
+        if (keyIndex === -1) return null;
+        let i = raw.indexOf(':', keyIndex);
+        if (i === -1) return null;
+        i += 1;
+        while (i < raw.length && /\s/.test(raw[i])) i += 1;
+        if (i >= raw.length) return null;
+        const startCh = raw[i];
+        if (startCh === '"') {
+            let j = i + 1;
+            let escaped = false;
+            for (; j < raw.length; j++) {
+                const ch = raw[j];
+                if (escaped) { escaped = false; continue; }
+                if (ch === '\\') { escaped = true; continue; }
+                if (ch === '"') break;
+            }
+            const slice = raw.slice(i, j + 1);
+            try { return JSON.parse(slice); } catch { return null; }
+        }
+        if (startCh === '{' || startCh === '[') {
+            let depth = 0;
+            let inString = false;
+            let escaped = false;
+            for (let j = i; j < raw.length; j++) {
+                const ch = raw[j];
+                if (escaped) { escaped = false; continue; }
+                if (ch === '\\') { if (inString) escaped = true; continue; }
+                if (ch === '"') { inString = !inString; continue; }
+                if (inString) continue;
+                if (ch === '{' || ch === '[') depth += 1;
+                if (ch === '}' || ch === ']') {
+                    depth -= 1;
+                    if (depth === 0) {
+                        const slice = raw.slice(i, j + 1);
+                        try { return JSON.parse(slice); } catch { return null; }
+                    }
+                }
+            }
+            return null;
+        }
+        const endIdx = raw.slice(i).search(/,\s*\"|}\s*$/);
+        const slice = endIdx === -1 ? raw.slice(i) : raw.slice(i, i + endIdx);
+        try { return JSON.parse(slice.trim()); } catch { return slice.trim(); }
+    };
     const resolvePhoneSyncPlan = (response?: any) => {
         if (!response) return null;
         const direct = normalizePhoneSyncPlanValue(response?.phone_sync_plan);
@@ -612,10 +659,12 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         const raw = typeof response?.rawResponse === 'string' ? response.rawResponse : '';
         if (!raw || !raw.includes('phone_sync_plan')) return null;
         const parsed = parseAIResponseText(raw);
-        return normalizePhoneSyncPlanValue(parsed.response?.phone_sync_plan) || null;
+        const parsedPlan = normalizePhoneSyncPlanValue(parsed.response?.phone_sync_plan);
+        if (parsedPlan) return parsedPlan;
+        return normalizePhoneSyncPlanValue(extractPhoneSyncPlanFromRaw(raw)) || null;
     };
     const shouldUsePhoneSyncPlan = (response?: any) => {
-        return isPhoneSyncPlanEnabled(settings) && !!resolvePhoneSyncPlan(response);
+        return canQueuePhoneSyncPlan(settings) && !!resolvePhoneSyncPlan(response);
     };
 
     const parseGameTimeParts = (input?: string) => {
@@ -794,11 +843,19 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         const resolved = resolveServiceConfig(cfg, 'phone');
         return !!resolved?.apiKey;
     };
-    const isPhoneSyncPlanEnabled = (cfg: AppSettings) => {
+    const isPhoneIndependentEnabled = (cfg: AppSettings) => {
         const aiCfg = cfg?.aiConfig;
         if (!aiCfg) return false;
-        if (aiCfg.enablePhoneSyncPlan === false) return false;
-        return isPhoneApiConfigured(cfg);
+        const overridesEnabled = aiCfg.useServiceOverrides ?? aiCfg.mode === 'separate';
+        if (!overridesEnabled) return false;
+        const overrideFlags = aiCfg.serviceOverridesEnabled || {};
+        return (overrideFlags as any)?.phone ?? (aiCfg.mode === 'separate');
+    };
+    const canQueuePhoneSyncPlan = (cfg: AppSettings) => {
+        return isPhoneIndependentEnabled(cfg);
+    };
+    const canProcessPhoneSyncPlan = (cfg: AppSettings) => {
+        return isPhoneIndependentEnabled(cfg) && isPhoneApiConfigured(cfg);
     };
 
     const upsertPhoneThread = (phone: any, threadType: 'private' | 'group' | 'public', title: string, members?: string[]) => {
@@ -848,6 +905,12 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         const phone = nextState.手机;
         if (!phone) return { nextState: state, shouldTrigger: false };
         const queue = Array.isArray(phone.同步规划) ? [...phone.同步规划] : [];
+        const last = queue[queue.length - 1];
+        const lastContent = typeof last?.内容 === 'string' ? last.内容.trim() : last?.内容;
+        const nextContent = typeof plan === 'string' ? plan.trim() : plan;
+        if (lastContent && nextContent && lastContent === nextContent) {
+            return { nextState, shouldTrigger: false };
+        }
         const shouldTrigger = queue.length === 0;
         queue.push({ 时间: nextState.游戏时间 || '未知', 内容: plan, 类型: source });
         phone.同步规划 = queue.slice(-12);
@@ -968,6 +1031,12 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         if (!phone || !Array.isArray(phone.待发送) || phone.待发送.length === 0) {
             return { nextState, delivered: [] as PhoneMessage[] };
         }
+        const presentSet = new Set(
+            (nextState.社交 || [])
+                .filter(c => c?.是否在场)
+                .map(c => c.姓名)
+                .filter(Boolean)
+        );
         const findThreadById = (id?: string) => {
             if (!id) return null;
             const dialog = phone.对话 || { 私聊: [], 群聊: [], 公共频道: [] };
@@ -983,6 +1052,11 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
             const deliverAtValue = gameTimeToMinutes(item.deliverAt);
             const isDue = deliverAtValue === null ? true : deliverAtValue <= nowValue;
             if (!isDue) {
+                pendingNext.push(item);
+                return;
+            }
+            const senderName = item.payload?.发送者;
+            if (item.threadType === 'private' && senderName && presentSet.has(senderName)) {
                 pendingNext.push(item);
                 return;
             }
@@ -1508,6 +1582,8 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
             const resolvedPhonePlan = resolvePhoneSyncPlan(aiResponse);
             
             let nextStateForPhoneSync: GameState | null = null;
+            let queuedSyncState: GameState | null = null;
+            let shouldTriggerSync = false;
             setLastAIThinking(aiResponse.thinking || '');
             setGameState(prev => {
                 if (aiResponse.rawResponse) setLastAIResponse(aiResponse.rawResponse);
@@ -1516,7 +1592,7 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                 const responseId = generateLegacyId();
                 const responseSnapshot = JSON.stringify(createStorageSnapshot(stateWithUserLog));
                 const rawCommands = Array.isArray(aiResponse.tavern_commands) ? aiResponse.tavern_commands : [];
-                const usePhoneSyncPlan = !!resolvedPhonePlan;
+                const usePhoneSyncPlan = canQueuePhoneSyncPlan(settings) && !!resolvedPhonePlan;
                 const commands = usePhoneSyncPlan
                     ? rawCommands.filter(cmd => !(typeof cmd?.key === 'string' && cmd.key.startsWith('gameState.手机')))
                     : rawCommands;
@@ -1596,15 +1672,18 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                 newState.处理中 = false;
                 newState.回合数 = (prev.回合数 || 1) + 1;
                 nextStateForPhoneSync = newState;
+
+                if (resolvedPhonePlan && canQueuePhoneSyncPlan(settings)) {
+                    const queued = addPhoneSyncPlanToState(newState, resolvedPhonePlan, 'story');
+                    queuedSyncState = queued.nextState;
+                    shouldTriggerSync = queued.shouldTrigger;
+                    return queued.nextState;
+                }
                 return newState;
             });
 
-            if (resolvedPhonePlan && nextStateForPhoneSync && isPhoneSyncPlanEnabled(settings)) {
-                const queued = addPhoneSyncPlanToState(nextStateForPhoneSync, resolvedPhonePlan, 'story');
-                setGameState(queued.nextState);
-                if (queued.shouldTrigger) {
-                    processPhoneSyncQueue(queued.nextState);
-                }
+            if (shouldTriggerSync && queuedSyncState && canProcessPhoneSyncPlan(settings)) {
+                processPhoneSyncQueue(queuedSyncState);
             }
         } catch (error: any) {
             if (isAbortError(error)) {
@@ -1796,14 +1875,15 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         clearPendingCommands(); 
     };
     const handlePhoneSyncPlan = async (plan: any, baseState: GameState, consumeQueue: boolean = false) => {
-        if (!isPhoneSyncPlanEnabled(settings)) return;
+        if (!canProcessPhoneSyncPlan(settings)) return;
         let refreshState: GameState | null = null;
         let success = false;
         try {
             setIsPhoneProcessing(true);
             setPhoneProcessingThreadId(null);
             setPhoneProcessingScope('sync');
-            const input = `[PHONE_SYNC_PLAN]\n${JSON.stringify(plan)}`;
+            const planPayload = typeof plan === 'string' ? plan : JSON.stringify(plan);
+            const input = `[PHONE_SYNC_PLAN]\n${planPayload}`;
             const phoneResp = await generatePhoneResponse(input, baseState, settings);
             if (!phoneResp.allowed) return;
             const adjustedResp = adjustPhoneResponseForSync(phoneResp, baseState.游戏时间);
@@ -1823,7 +1903,7 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
             setIsPhoneProcessing(false);
             setPhoneProcessingThreadId(null);
             setPhoneProcessingScope(null);
-            if (refreshState) {
+            if (refreshState && !consumeQueue) {
                 setTimeout(() => {
                     triggerPhoneAutoPlan('剧情联动后刷新', refreshState as GameState, true);
                 }, 0);
@@ -1834,6 +1914,7 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
 
     const processPhoneSyncQueue = async (baseState: GameState) => {
         if (phoneSyncPlanInFlight.current || isPhoneProcessing) return;
+        if (!canProcessPhoneSyncPlan(settings)) return;
         const queue = baseState.手机?.同步规划;
         if (!Array.isArray(queue) || queue.length === 0) return;
         const entry = queue[0];
@@ -2188,23 +2269,27 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
             );
             const resolvedPhonePlan = resolvePhoneSyncPlan(aiResponse);
             let nextStateForPhoneSync: GameState | null = null;
+            let queuedSyncState: GameState | null = null;
+            let shouldTriggerSync = false;
             setGameState(prev => {
                 const rawCommands = Array.isArray(aiResponse.tavern_commands) ? aiResponse.tavern_commands : [];
-                const usePhoneSyncPlan = !!resolvedPhonePlan;
+                const usePhoneSyncPlan = canQueuePhoneSyncPlan(settings) && !!resolvedPhonePlan;
                 const commands = usePhoneSyncPlan
                     ? rawCommands.filter(cmd => !(typeof cmd?.key === 'string' && cmd.key.startsWith('gameState.手机')))
                     : rawCommands;
                 const { newState } = processTavernCommands(prev, commands);
                 newState.处理中 = false;
                 nextStateForPhoneSync = newState;
+                if (resolvedPhonePlan && canQueuePhoneSyncPlan(settings)) {
+                    const queued = addPhoneSyncPlanToState(newState, resolvedPhonePlan, 'world');
+                    queuedSyncState = queued.nextState;
+                    shouldTriggerSync = queued.shouldTrigger;
+                    return queued.nextState;
+                }
                 return newState;
             });
-            if (resolvedPhonePlan && nextStateForPhoneSync && isPhoneSyncPlanEnabled(settings)) {
-                const queued = addPhoneSyncPlanToState(nextStateForPhoneSync, resolvedPhonePlan, 'world');
-                setGameState(queued.nextState);
-                if (queued.shouldTrigger) {
-                    processPhoneSyncQueue(queued.nextState);
-                }
+            if (shouldTriggerSync && queuedSyncState && canProcessPhoneSyncPlan(settings)) {
+                processPhoneSyncQueue(queuedSyncState);
             }
         } catch (e) {
             console.error('World info update failed', e);
@@ -2262,7 +2347,7 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         if (!gameState.手机?.同步规划 || gameState.手机.同步规划.length === 0) return;
         if (isPhoneProcessing || phoneSyncPlanInFlight.current) return;
         processPhoneSyncQueue(gameState);
-    }, [gameState.手机?.同步规划?.length, isPhoneProcessing]);
+    }, [gameState.手机?.同步规划?.length, isPhoneProcessing, settings.aiConfig?.enablePhoneSyncPlan, settings.aiConfig?.useServiceOverrides, settings.aiConfig?.services?.phone?.apiKey, settings.aiConfig?.unified?.apiKey]);
 
     useEffect(() => {
         if (!gameState.手机?.待发送 || gameState.手机.待发送.length === 0) return;

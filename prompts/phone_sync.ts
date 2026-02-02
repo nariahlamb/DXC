@@ -1,11 +1,9 @@
 export const P_PHONE_SYNC_ENABLED = `<手机联动规则-独立API>
-【使用条件】
-- 仅在本规则出现时，表示“手机独立API已开启”。
-
 【输出规则】
 - 当剧情涉及手机聊天/通知/论坛/联系人推进时，必须在最终 JSON 顶层新增 "phone_sync_plan"。
 - "phone_sync_plan" 是**规划意图**，只写事件/对象/触发/节奏/语气，不写具体消息正文，不写叙事文本，不替代 logs。
-- "phone_sync_plan" 必须是**独立顶层字段**；不得混入 thinking/logs/tavern_commands，也不得输出为纯字符串。
+- "phone_sync_plan" 必须是**独立顶层字段**；不得混入 thinking/logs/tavern_commands。
+- "phone_sync_plan" 必须是**一句话字符串**，禁止输出对象或数组。
 - 计划中禁止出现消息正文（如 content/正文/完整句子）；只描述“想让谁联系/何时触发/语气风格”。
 - 默认即时发送（手机侧应生成 delay_minutes=0 的消息），除非剧情明确要求等待/延时/触发条件。
 - 手机相关内容不要写入 tavern_commands（联系人/对话/消息/朋友圈/公共帖子等），避免重复与冲突。
@@ -23,8 +21,6 @@ export const P_PHONE_SYNC_ENABLED = `<手机联动规则-独立API>
 </手机联动规则-独立API>`;
 
 export const P_PHONE_SYNC_DISABLED = `<手机联动规则-无独立API>
-【使用条件】
-- 仅在本规则出现时，表示“手机独立API未开启”。
 
 【输出规则】
 - 禁止输出 "phone_sync_plan" 字段。
