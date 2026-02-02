@@ -58,6 +58,24 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
     const textSizeClass = getTextSize();
 
     const renderDecoratedText = (text: string, className: string) => {
+        const formatLine = (line: string): React.ReactNode => {
+            const parts: React.ReactNode[] = [];
+            const regex = /\*\*(.*?)\*\*/g;
+            let lastIndex = 0;
+            let match;
+            while ((match = regex.exec(line)) !== null) {
+                if (match.index > lastIndex) {
+                    parts.push(<span key={lastIndex}>{line.substring(lastIndex, match.index)}</span>);
+                }
+                parts.push(<i key={match.index} className="italic text-red-500 mx-2">{match[1]}</i>);
+                lastIndex = regex.lastIndex;
+            }
+            if (lastIndex < line.length) {
+                parts.push(<span key={lastIndex}>{line.substring(lastIndex)}</span>);
+            }
+            return parts.length > 0 ? parts : line;
+        };
+
         const lines = text.split('\n');
         return (
             <div className={`${className} whitespace-pre-wrap space-y-1`}>
@@ -74,13 +92,13 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
                                 key={idx}
                                 className="px-2 py-1 border border-blue-600/50 bg-blue-950/40 text-blue-200 font-mono tracking-widest text-[11px] uppercase"
                             >
-                                {line}
+                                {formatLine(line)}
                             </div>
                         );
                     }
                     return (
                         <div key={idx}>
-                            {line}
+                            {formatLine(line)}
                         </div>
                     );
                 })}
