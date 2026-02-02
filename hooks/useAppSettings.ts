@@ -51,6 +51,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
             npcBrain: false,
             phone: false
         },
+        enablePhoneSyncPlan: true,
         multiStageThinking: false
     },
     memoryConfig: DEFAULT_MEMORY_CONFIG,

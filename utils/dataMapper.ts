@@ -424,6 +424,7 @@ export const createNewGameState = (
             帖子: initialPublicPosts
         },
         待发送: [],
+        同步规划: [],
         自动规划: {
             上次规划: "第1日 07:00",
             记录: []

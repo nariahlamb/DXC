@@ -25,7 +25,7 @@ interface RightPanelProps {
     isHellMode?: boolean;
     hasPhone?: boolean;
     phoneProcessing?: boolean;
-    phoneProcessingScope?: 'chat' | 'moment' | 'forum' | 'sync' | 'auto' | null;
+    phoneProcessingScope?: 'chat' | 'moment' | 'forum' | 'sync' | 'auto' | 'manual' | null;
     summary?: {
         activeTasks: number;
         unreadMessages: number;
@@ -68,7 +68,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   const secondaryHover = isHellMode ? 'group-hover:bg-orange-600' : 'group-hover:bg-orange-600'; // Keep orange or change
   const settingsBorder = isHellMode ? 'group-hover:border-red-600' : 'group-hover:border-blue-600';
   const phoneIndicator = phoneProcessing ? (
-        <div className={`w-5 h-5 rounded-full flex items-center justify-center ${(phoneProcessingScope === 'sync' || phoneProcessingScope === 'auto') ? 'bg-blue-500' : 'bg-orange-500'} shadow-lg animate-pulse`}>
+        <div className={`w-5 h-5 rounded-full flex items-center justify-center ${(phoneProcessingScope === 'sync' || phoneProcessingScope === 'auto' || phoneProcessingScope === 'manual') ? 'bg-blue-500' : 'bg-orange-500'} shadow-lg animate-pulse`}>
             <Loader2 size={12} className="text-white animate-spin" />
         </div>
     ) : null;

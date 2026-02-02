@@ -23,6 +23,22 @@ interface CommandItem {
 
 type MemorySummaryPhase = 'preview' | 'processing' | 'result';
 type MemorySummaryType = 'S2M' | 'M2L';
+type PendingPhoneOpType = 'send' | 'wait' | 'moment' | 'forum';
+
+interface PendingPhoneOp {
+    id: string;
+    type: PendingPhoneOpType;
+    threadId?: string;
+    threadTitle?: string;
+    threadType?: 'private' | 'group' | 'public';
+    members?: string[];
+    content?: string;
+    imageDesc?: string;
+    topic?: string;
+    messageId?: string;
+    otherParty?: string;
+    postId?: string;
+}
 
 interface MemorySummaryState {
     phase: MemorySummaryPhase;
@@ -91,6 +107,7 @@ const DEFAULT_SETTINGS: AppSettings = {
             npcBrain: false,
             phone: false
         },
+        enablePhoneSyncPlan: true,
         multiStageThinking: false
     },
     writingConfig: {
@@ -336,7 +353,7 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
     const [isStreaming, setIsStreaming] = useState(false);
     const [isPhoneProcessing, setIsPhoneProcessing] = useState(false);
     const [phoneProcessingThreadId, setPhoneProcessingThreadId] = useState<string | null>(null);
-    const [phoneProcessingScope, setPhoneProcessingScope] = useState<'chat' | 'moment' | 'forum' | 'sync' | 'auto' | null>(null);
+    const [phoneProcessingScope, setPhoneProcessingScope] = useState<'chat' | 'moment' | 'forum' | 'sync' | 'auto' | 'manual' | null>(null);
     const [draftInput, setDraftInput] = useState<string>('');
     const [snapshotState, setSnapshotState] = useState<GameState | null>(null);
     const [memorySummaryState, setMemorySummaryState] = useState<MemorySummaryState | null>(null);
@@ -348,6 +365,10 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
     const phoneAbortControllerRef = useRef<AbortController | null>(null);
     const phoneSummaryInFlight = useRef<Set<string>>(new Set());
     const phoneAutoPlanInFlight = useRef(false);
+    const phoneSyncPlanInFlight = useRef(false);
+    const pendingPhoneNarrativeRef = useRef<string[]>([]);
+    const pendingPhoneOpsRef = useRef<PendingPhoneOp[]>([]);
+    const phoneFlushInFlight = useRef(false);
 
     useEffect(() => {
         const savedSettings = localStorage.getItem('danmachi_settings');
@@ -572,8 +593,29 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         if (error.name === 'AbortError') return true;
         return /abort/i.test(error.message || '');
     };
+    const normalizePhoneSyncPlanValue = (value: any) => {
+        if (!value) return null;
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            if (!trimmed) return null;
+            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                try { return JSON.parse(trimmed); } catch { return value; }
+            }
+            return value;
+        }
+        return value;
+    };
+    const resolvePhoneSyncPlan = (response?: any) => {
+        if (!response) return null;
+        const direct = normalizePhoneSyncPlanValue(response?.phone_sync_plan);
+        if (direct) return direct;
+        const raw = typeof response?.rawResponse === 'string' ? response.rawResponse : '';
+        if (!raw || !raw.includes('phone_sync_plan')) return null;
+        const parsed = parseAIResponseText(raw);
+        return normalizePhoneSyncPlanValue(parsed.response?.phone_sync_plan) || null;
+    };
     const shouldUsePhoneSyncPlan = (response?: any) => {
-        return isPhoneSyncPlanEnabled(settings) && !!response?.phone_sync_plan;
+        return isPhoneSyncPlanEnabled(settings) && !!resolvePhoneSyncPlan(response);
     };
 
     const parseGameTimeParts = (input?: string) => {
@@ -634,6 +676,7 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         if (!state.手机) return state;
         const phone = state.手机;
         if (!phone.待发送) phone.待发送 = [];
+        if (!phone.同步规划) phone.同步规划 = [];
         if (!phone.自动规划) {
             phone.自动规划 = { 上次规划: state.游戏时间 || '未知', 记录: [] };
         }
@@ -644,11 +687,88 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         return state;
     };
 
+    const recordPhoneNarrativeHint = (text: string) => {
+        if (!text) return;
+        const trimmed = text.trim();
+        if (!trimmed) return;
+        const current = pendingPhoneNarrativeRef.current || [];
+        const next = [...current, trimmed];
+        pendingPhoneNarrativeRef.current = next.slice(-5);
+    };
+
+    const consumePhoneNarrativePrefix = () => {
+        const current = pendingPhoneNarrativeRef.current || [];
+        if (current.length === 0) return '';
+        const seen = new Set<string>();
+        const unique = current.filter(item => {
+            if (seen.has(item)) return false;
+            seen.add(item);
+            return true;
+        });
+        pendingPhoneNarrativeRef.current = [];
+        return `【手机操作摘要】${unique.join('；')}\n`;
+    };
+
+    const enqueuePhoneOp = (op: PendingPhoneOp) => {
+        pendingPhoneOpsRef.current = [...(pendingPhoneOpsRef.current || []), op];
+    };
+
+    const updatePhoneMessageStatus = (state: GameState, threadId: string | undefined, messageId: string | undefined, status: PhoneMessage['状态']) => {
+        if (!state.手机 || !threadId || !messageId) return state;
+        const updateThread = (t: PhoneThread) => {
+            if (t.id !== threadId) return t;
+            return {
+                ...t,
+                消息: (t.消息 || []).map(m => m.id === messageId ? { ...m, 状态: status } : m)
+            };
+        };
+        return {
+            ...state,
+            手机: {
+                ...state.手机,
+                对话: {
+                    私聊: (state.手机.对话?.私聊 || []).map(updateThread),
+                    群聊: (state.手机.对话?.群聊 || []).map(updateThread),
+                    公共频道: (state.手机.对话?.公共频道 || []).map(updateThread),
+                }
+            }
+        };
+    };
+
+    const removePhonePost = (state: GameState, postId?: string, bucket: '朋友圈' | '公共帖子' = '朋友圈') => {
+        if (!state.手机 || !postId) return state;
+        if (bucket === '朋友圈') {
+            const nextPosts = (state.手机.朋友圈?.帖子 || []).filter(p => p.id !== postId);
+            return {
+                ...state,
+                手机: {
+                    ...state.手机,
+                    朋友圈: {
+                        ...(state.手机.朋友圈 || {}),
+                        帖子: nextPosts
+                    }
+                }
+            };
+        }
+        const nextForum = (state.手机.公共帖子?.帖子 || []).filter(p => p.id !== postId);
+        return {
+            ...state,
+            手机: {
+                ...state.手机,
+                公共帖子: {
+                    ...(state.手机.公共帖子 || {}),
+                    帖子: nextForum
+                }
+            }
+        };
+    };
+
     const phoneBaseNeeded = !!gameState.手机 && (
         !gameState.手机.待发送
         || !gameState.手机.自动规划
         || !Array.isArray(gameState.手机.自动规划?.记录)
         || !gameState.手机.自动规划?.上次规划
+        || !gameState.手机.同步规划
     );
 
     useEffect(() => {
@@ -677,13 +797,8 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
     const isPhoneSyncPlanEnabled = (cfg: AppSettings) => {
         const aiCfg = cfg?.aiConfig;
         if (!aiCfg) return false;
-        const overridesEnabled = aiCfg.useServiceOverrides ?? aiCfg.mode === 'separate';
-        if (!overridesEnabled) return false;
-        const overrideFlags = aiCfg.serviceOverridesEnabled || {};
-        const serviceEnabled = (overrideFlags as any)?.phone ?? (aiCfg.mode === 'separate');
-        if (!serviceEnabled) return false;
-        const phoneCfg = aiCfg.services?.phone;
-        return !!phoneCfg?.apiKey;
+        if (aiCfg.enablePhoneSyncPlan === false) return false;
+        return isPhoneApiConfigured(cfg);
     };
 
     const upsertPhoneThread = (phone: any, threadType: 'private' | 'group' | 'public', title: string, members?: string[]) => {
@@ -727,12 +842,76 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         };
     };
 
+    const addPhoneSyncPlanToState = (state: GameState, plan: any, source: 'story' | 'world') => {
+        if (!state.手机) return { nextState: state, shouldTrigger: false };
+        const nextState = ensurePhoneStateBase({ ...state, 手机: { ...state.手机 } });
+        const phone = nextState.手机;
+        if (!phone) return { nextState: state, shouldTrigger: false };
+        const queue = Array.isArray(phone.同步规划) ? [...phone.同步规划] : [];
+        const shouldTrigger = queue.length === 0;
+        queue.push({ 时间: nextState.游戏时间 || '未知', 内容: plan, 类型: source });
+        phone.同步规划 = queue.slice(-12);
+        nextState.手机 = phone;
+        return { nextState, shouldTrigger };
+    };
+
+    const consumePhoneSyncPlan = (state: GameState) => {
+        if (!state.手机) return state;
+        const nextState = ensurePhoneStateBase({ ...state, 手机: { ...state.手机 } });
+        const phone = nextState.手机;
+        if (!phone) return state;
+        const queue = Array.isArray(phone.同步规划) ? [...phone.同步规划] : [];
+        if (queue.length > 0) queue.shift();
+        phone.同步规划 = queue;
+        nextState.手机 = phone;
+        return nextState;
+    };
+
+    const normalizePhoneText = (value?: string) => {
+        if (!value) return '';
+        return value.replace(/\s+/g, ' ').trim().toLowerCase();
+    };
+
+    const buildPhoneMessageSignature = (payload: {
+        threadKey?: string;
+        sender?: string;
+        content?: string;
+        type?: string;
+        imageDesc?: string;
+        sticker?: string;
+        mediaType?: string;
+        deliverAt?: string;
+    }) => {
+        const threadKey = normalizePhoneText(payload.threadKey);
+        const sender = normalizePhoneText(payload.sender);
+        const content = normalizePhoneText(payload.content);
+        const type = normalizePhoneText(payload.type);
+        const image = normalizePhoneText(payload.imageDesc);
+        const sticker = normalizePhoneText(payload.sticker);
+        const mediaType = normalizePhoneText(payload.mediaType);
+        const deliverAt = normalizePhoneText(payload.deliverAt);
+        return [threadKey, sender, type, content, image, sticker, mediaType, deliverAt].join('|');
+    };
+
+    const buildPendingSignature = (item: PhonePendingMessage) => buildPhoneMessageSignature({
+        threadKey: item.threadId || item.threadTitle,
+        sender: item.payload?.发送者,
+        content: item.payload?.内容,
+        type: item.payload?.类型,
+        imageDesc: item.payload?.图片描述,
+        sticker: item.payload?.表情包,
+        mediaType: item.payload?.媒体类型,
+        deliverAt: item.deliverAt || item.payload?.时间戳
+    });
+
     const enqueuePhoneMessages = (state: GameState, aiMessages: any[], playerName: string) => {
         if (!aiMessages || aiMessages.length === 0) return state;
         const nextState = ensurePhoneStateBase({ ...state, 手机: { ...state.手机 } });
         const phone = nextState.手机;
         if (!phone) return state;
         const pending = Array.isArray(phone.待发送) ? [...phone.待发送] : [];
+        const existingSignatures = new Set(pending.map(buildPendingSignature));
+        const batchSignatures = new Set<string>();
         const nowTime = nextState.游戏时间;
         aiMessages.forEach(raw => {
             const threadType = raw.thread_type || raw.threadType || raw.type || 'private';
@@ -751,6 +930,19 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                 时间戳: deliverAt,
                 延迟分钟: delayMinutes
             }, deliverAt, sender);
+            const signature = buildPhoneMessageSignature({
+                threadKey: resolvedThreadId || threadTitle,
+                sender,
+                content: msg.内容,
+                type: msg.类型,
+                imageDesc: msg.图片描述,
+                sticker: msg.表情包,
+                mediaType: msg.媒体类型,
+                deliverAt
+            });
+            if (existingSignatures.has(signature) || batchSignatures.has(signature)) {
+                return;
+            }
             const pendingItem: PhonePendingMessage = {
                 id: generateLegacyId(),
                 threadId: resolvedThreadId,
@@ -762,6 +954,8 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                 trigger: raw.trigger
             };
             pending.push(pendingItem);
+            existingSignatures.add(signature);
+            batchSignatures.add(signature);
         });
         phone.待发送 = pending;
         nextState.手机 = phone;
@@ -803,6 +997,24 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         phone.待发送 = pendingNext;
         nextState.手机 = phone;
         return { nextState, delivered };
+    };
+
+    const applyImmediatePhoneDeliveries = (state: GameState) => {
+        const delivery = applyPhoneDeliveries(state, state.游戏时间);
+        let finalState = delivery.nextState;
+        if (delivery.delivered.length > 0) {
+            const memoryEntries = delivery.delivered
+                .filter(m => m.发送者)
+                .map(m => `【手机】收到来自${m.发送者 || '未知'}的新消息`);
+            finalState = appendPhoneMemoryEntries(finalState, memoryEntries);
+            const senders = Array.from(new Set(delivery.delivered.map(m => m.发送者).filter(Boolean) as string[]));
+            if (senders.length > 0) {
+                recordPhoneNarrativeHint(`收到来自${senders.join('、')}的新消息`);
+            } else {
+                recordPhoneNarrativeHint(`收到新消息${delivery.delivered.length > 1 ? `（${delivery.delivered.length}条）` : ''}`);
+            }
+        }
+        return { nextState: finalState, delivered: delivery.delivered };
     };
 
     const pushPhoneNotification = (title: string, message: string) => {
@@ -996,6 +1208,146 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         return { ...response, messages: adjusted, time_advance_minutes: autoAdvance };
     };
 
+    const adjustPhoneResponseForSync = (response: PhoneAIResponse, baseTime?: string) => {
+        if (!response || !Array.isArray(response.messages)) return response;
+        const adjusted = response.messages.map(msg => {
+            const hasDelay = typeof msg?.delay_minutes === 'number' && msg.delay_minutes > 0;
+            const hasTrigger = !!msg?.trigger || !!msg?.deliver_at_game_time;
+            if (hasDelay && !hasTrigger) {
+                return { ...msg, delay_minutes: 0, deliver_at_game_time: baseTime || msg?.deliver_at_game_time };
+            }
+            return msg;
+        });
+        return { ...response, messages: adjusted, time_advance_minutes: 0 };
+    };
+
+    const stripPhoneTimeAdvance = (response: PhoneAIResponse) => {
+        if (!response) return response;
+        return { ...response, time_advance_minutes: 0 };
+    };
+
+    const flushPendingPhoneOps = async (reason: string, baseState?: GameState): Promise<GameState | null> => {
+        if (phoneFlushInFlight.current || isPhoneProcessing) return;
+        const ops = pendingPhoneOpsRef.current || [];
+        if (ops.length === 0) return;
+        phoneFlushInFlight.current = true;
+        setIsPhoneProcessing(true);
+        setPhoneProcessingThreadId(null);
+        setPhoneProcessingScope('manual');
+        let workingState = baseState || gameState;
+        const playerName = workingState.角色?.姓名 || 'Player';
+        try {
+            if (!isPhoneApiConfigured(settings)) {
+                ops.forEach(op => {
+                    if (op.type === 'send') {
+                        workingState = updatePhoneMessageStatus(workingState, op.threadId, op.messageId, 'sent');
+                        workingState = appendPhoneMemoryEntries(workingState, [`【手机】已发送消息给${op.otherParty || op.threadTitle || '对方'}`]);
+                    } else if (op.type === 'wait' && op.threadTitle) {
+                        workingState = appendPhoneMemoryEntries(workingState, [`【手机】等待${op.threadTitle}回复`]);
+                    } else if (op.type === 'moment') {
+                        workingState = appendPhoneMemoryEntries(workingState, [`【手机】发布朋友圈动态`]);
+                    } else if (op.type === 'forum') {
+                        workingState = appendPhoneMemoryEntries(workingState, [`【手机】发布论坛帖子`]);
+                    }
+                });
+                pendingPhoneOpsRef.current = [];
+                setGameState(workingState);
+                return workingState;
+            }
+
+            for (const op of ops) {
+                if (op.type === 'send' && op.threadId && op.threadTitle && op.content) {
+                    const channelLabel = op.threadType === 'public' ? '公共频道' : (op.threadType === 'group' ? '群聊' : '私信');
+                    const otherParty = op.otherParty || op.threadTitle;
+                    const phoneInput = [
+                        `[PHONE_CHAT]`,
+                        `thread_id: ${op.threadId}`,
+                        `thread_title: ${op.threadTitle}`,
+                        `成员: ${(op.members || []).join(',') || '未知'}`,
+                        `[手机/${channelLabel}] ${otherParty}: ${op.content}`
+                    ].join('\n');
+                    const phoneResp = await generatePhoneResponse(phoneInput, workingState, settings);
+                    if (!phoneResp.allowed) {
+                        workingState = updatePhoneMessageStatus(workingState, op.threadId, op.messageId, 'failed');
+                        continue;
+                    }
+                    const adjustedResp = stripPhoneTimeAdvance(adjustPhoneResponseForChat(phoneResp));
+                    workingState = applyPhoneResponseToState(workingState, adjustedResp, playerName);
+                    workingState = applyImmediatePhoneDeliveries(workingState).nextState;
+                    workingState = updatePhoneMessageStatus(workingState, op.threadId, op.messageId, 'sent');
+                    workingState = appendPhoneMemoryEntries(workingState, [`【手机】已发送消息给${otherParty}`]);
+                    continue;
+                }
+
+                if (op.type === 'wait' && op.threadId) {
+                    const thread = [
+                        ...(workingState.手机?.对话?.私聊 || []),
+                        ...(workingState.手机?.对话?.群聊 || []),
+                        ...(workingState.手机?.对话?.公共频道 || [])
+                    ].find(t => t.id === op.threadId);
+                    if (!thread) continue;
+                    const channelLabel = thread.类型 === 'public' ? '公共频道' : (thread.类型 === 'group' ? '群聊' : '私信');
+                    const recent = (thread.消息 || []).slice(-4).map(m => `${m.发送者}:${m.内容}`).join(' / ');
+                    const phoneInput = [
+                        `[PHONE_CHAT]`,
+                        `[等待回复/${channelLabel}]`,
+                        `thread_id: ${thread.id}`,
+                        `thread_title: ${thread.标题}`,
+                        `成员: ${(thread.成员 || []).join(',') || '未知'}`,
+                        `最近对话: ${recent || '无'}`
+                    ].join('\n');
+                    const phoneResp = await generatePhoneResponse(phoneInput, workingState, settings);
+                    if (!phoneResp.allowed) continue;
+                    const adjustedResp = stripPhoneTimeAdvance(adjustPhoneResponseForChat(phoneResp));
+                    workingState = applyPhoneResponseToState(workingState, adjustedResp, playerName);
+                    workingState = applyImmediatePhoneDeliveries(workingState).nextState;
+                    workingState = appendPhoneMemoryEntries(workingState, [`【手机】等待${thread.标题}回复`]);
+                    continue;
+                }
+
+                if (op.type === 'moment' && op.content) {
+                    const descText = op.imageDesc ? `（图片描述：${op.imageDesc}）` : '';
+                    const phoneResp = await generatePhoneResponse(`[PHONE_POST] 我在朋友圈发布动态：${op.content}${descText}`, workingState, settings);
+                    if (!phoneResp.allowed) {
+                        workingState = removePhonePost(workingState, op.postId, '朋友圈');
+                        continue;
+                    }
+                    const adjustedResp = stripPhoneTimeAdvance(phoneResp);
+                    workingState = applyPhoneResponseToState(workingState, adjustedResp, playerName);
+                    workingState = applyImmediatePhoneDeliveries(workingState).nextState;
+                    workingState = appendPhoneMemoryEntries(workingState, [`【手机】发布朋友圈动态`]);
+                    continue;
+                }
+
+                if (op.type === 'forum' && op.content) {
+                    const descText = op.imageDesc ? `（图片描述：${op.imageDesc}）` : '';
+                    const topicText = op.topic ? `（板块：${op.topic}）` : '';
+                    const phoneResp = await generatePhoneResponse(`[PHONE_POST] 我在公共论坛发布帖子：${op.content}${descText}${topicText}`, workingState, settings);
+                    if (!phoneResp.allowed) {
+                        workingState = removePhonePost(workingState, op.postId, '公共帖子');
+                        continue;
+                    }
+                    const adjustedResp = stripPhoneTimeAdvance(phoneResp);
+                    workingState = applyPhoneResponseToState(workingState, adjustedResp, playerName);
+                    workingState = applyImmediatePhoneDeliveries(workingState).nextState;
+                    workingState = appendPhoneMemoryEntries(workingState, [`【手机】发布论坛帖子`]);
+                    continue;
+                }
+            }
+            pendingPhoneOpsRef.current = [];
+            setGameState(workingState);
+            return workingState;
+        } catch (e) {
+            console.error(`Flush phone ops failed (${reason})`, e);
+            return null;
+        } finally {
+            setIsPhoneProcessing(false);
+            setPhoneProcessingThreadId(null);
+            setPhoneProcessingScope(null);
+            phoneFlushInFlight.current = false;
+        }
+    };
+
     const shouldSummarizeThread = (thread: PhoneThread) => {
         const threshold = 18;
         if (!thread.消息 || thread.消息.length < threshold) return false;
@@ -1153,6 +1505,7 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                 abortController.signal,
                 onStreamChunk
             );
+            const resolvedPhonePlan = resolvePhoneSyncPlan(aiResponse);
             
             let nextStateForPhoneSync: GameState | null = null;
             setLastAIThinking(aiResponse.thinking || '');
@@ -1163,7 +1516,7 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                 const responseId = generateLegacyId();
                 const responseSnapshot = JSON.stringify(createStorageSnapshot(stateWithUserLog));
                 const rawCommands = Array.isArray(aiResponse.tavern_commands) ? aiResponse.tavern_commands : [];
-                const usePhoneSyncPlan = shouldUsePhoneSyncPlan(aiResponse);
+                const usePhoneSyncPlan = !!resolvedPhonePlan;
                 const commands = usePhoneSyncPlan
                     ? rawCommands.filter(cmd => !(typeof cmd?.key === 'string' && cmd.key.startsWith('gameState.手机')))
                     : rawCommands;
@@ -1246,8 +1599,12 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                 return newState;
             });
 
-            if (shouldUsePhoneSyncPlan(aiResponse) && nextStateForPhoneSync) {
-                handlePhoneSyncPlan(aiResponse.phone_sync_plan, nextStateForPhoneSync);
+            if (resolvedPhonePlan && nextStateForPhoneSync && isPhoneSyncPlanEnabled(settings)) {
+                const queued = addPhoneSyncPlanToState(nextStateForPhoneSync, resolvedPhonePlan, 'story');
+                setGameState(queued.nextState);
+                if (queued.shouldTrigger) {
+                    processPhoneSyncQueue(queued.nextState);
+                }
             }
         } catch (error: any) {
             if (isAbortError(error)) {
@@ -1438,9 +1795,10 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         setGameState(prev => ({ ...prev, 处理中: false }));
         clearPendingCommands(); 
     };
-    const handlePhoneSyncPlan = async (plan: any, baseState: GameState) => {
+    const handlePhoneSyncPlan = async (plan: any, baseState: GameState, consumeQueue: boolean = false) => {
         if (!isPhoneSyncPlanEnabled(settings)) return;
         let refreshState: GameState | null = null;
+        let success = false;
         try {
             setIsPhoneProcessing(true);
             setPhoneProcessingThreadId(null);
@@ -1448,12 +1806,17 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
             const input = `[PHONE_SYNC_PLAN]\n${JSON.stringify(plan)}`;
             const phoneResp = await generatePhoneResponse(input, baseState, settings);
             if (!phoneResp.allowed) return;
+            const adjustedResp = adjustPhoneResponseForSync(phoneResp, baseState.游戏时间);
             const playerName = baseState.角色?.姓名 || 'Player';
-            let nextState = applyPhoneResponseToState(baseState, phoneResp, playerName);
-            const summary = summarizePhonePlan(phoneResp, '剧情联动');
+            let nextState = applyPhoneResponseToState(baseState, adjustedResp, playerName);
+            const summary = summarizePhonePlan(adjustedResp, '剧情联动');
             nextState = recordPhonePlan(nextState, summary, 'sync');
+            if (consumeQueue) {
+                nextState = consumePhoneSyncPlan(nextState);
+            }
             setGameState(nextState);
             refreshState = nextState;
+            success = true;
         } catch (e) {
             console.error('Phone sync plan failed', e);
         } finally {
@@ -1465,6 +1828,25 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                     triggerPhoneAutoPlan('剧情联动后刷新', refreshState as GameState, true);
                 }, 0);
             }
+        }
+        return { success, nextState: refreshState || undefined };
+    };
+
+    const processPhoneSyncQueue = async (baseState: GameState) => {
+        if (phoneSyncPlanInFlight.current || isPhoneProcessing) return;
+        const queue = baseState.手机?.同步规划;
+        if (!Array.isArray(queue) || queue.length === 0) return;
+        const entry = queue[0];
+        if (!entry?.内容) return;
+        phoneSyncPlanInFlight.current = true;
+        try {
+            const result = await handlePhoneSyncPlan(entry.内容, baseState, true);
+            const nextState = result?.nextState;
+            if (result?.success && nextState?.手机?.同步规划 && nextState.手机.同步规划.length > 0) {
+                setTimeout(() => processPhoneSyncQueue(nextState), 0);
+            }
+        } finally {
+            phoneSyncPlanInFlight.current = false;
         }
     };
 
@@ -1515,6 +1897,7 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         }
         const timestampValue = Date.now();
         const playerName = gameState.角色?.姓名 || 'Player';
+        const willDefer = isPhoneApiConfigured(settings);
         const newMsg: PhoneMessage = {
             id: generateNextId('Msg', thread.消息 || []),
             发送者: playerName,
@@ -1522,7 +1905,7 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
             时间戳: gameState.游戏时间 || '未知',
             timestampValue,
             类型: 'text',
-            状态: 'sent'
+            状态: willDefer ? 'pending' : 'sent'
         };
         let nextState: GameState | null = null;
         setGameState(prev => {
@@ -1555,63 +1938,24 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         const otherParty = thread.类型 === 'private'
             ? (thread.成员 || []).find(m => m && m !== playerName) || thread.标题
             : thread.标题;
-        const channelLabel = thread.类型 === 'private' ? '私信' : (thread.类型 === 'group' ? '群聊' : '公共频道');
-        if (!isPhoneApiConfigured(settings)) {
+        if (!willDefer) {
             const finalState = appendPhoneMemoryEntries(nextState, [`【手机】已发送消息给${otherParty}`]);
+            recordPhoneNarrativeHint(`给${otherParty}发送消息：“${trimmed}”`);
             setGameState(finalState);
             return;
         }
-        try {
-            setIsPhoneProcessing(true);
-            setPhoneProcessingThreadId(thread.id);
-            setPhoneProcessingScope('chat');
-            const phoneInput = [
-                `[PHONE_CHAT]`,
-                `thread_id: ${thread.id}`,
-                `thread_title: ${thread.标题}`,
-                `[手机/${channelLabel}] ${otherParty}: ${trimmed}`
-            ].join('\n');
-            const phoneAbort = new AbortController();
-            phoneAbortControllerRef.current = phoneAbort;
-            const phoneResp = await generatePhoneResponse(phoneInput, nextState, settings, phoneAbort.signal);
-            if (!phoneResp.allowed) {
-                alert(phoneResp.blocked_reason || '当前剧情环境无法使用手机');
-                setGameState(prev => {
-                    const phone = prev.手机;
-                    if (!phone) return prev;
-                    const updateThread = (t: PhoneThread) => ({
-                        ...t,
-                        消息: (t.消息 || []).map(m => m.id === newMsg.id ? { ...m, 状态: 'failed' } : m)
-                    });
-                    return {
-                        ...prev,
-                        手机: {
-                            ...phone,
-                            对话: {
-                                私聊: (phone.对话?.私聊 || []).map(updateThread),
-                                群聊: (phone.对话?.群聊 || []).map(updateThread),
-                                公共频道: (phone.对话?.公共频道 || []).map(updateThread),
-                            }
-                        }
-                    };
-                });
-                return;
-            }
-            const adjustedResp = adjustPhoneResponseForChat(phoneResp);
-            let finalState = applyPhoneResponseToState(nextState, adjustedResp, playerName);
-            finalState = appendPhoneMemoryEntries(finalState, [`【手机】已发送消息给${otherParty}`]);
-            setGameState(finalState);
-            requestThreadSummary(thread, finalState);
-        } catch (e: any) {
-            if (isAbortError(e)) return;
-            alert(`手机API调用失败: ${e.message || '未知错误'}`);
-            setGameState(prev => appendPhoneMemoryEntries(prev, [`【手机】已发送消息给${otherParty}`]));
-        } finally {
-            setIsPhoneProcessing(false);
-            setPhoneProcessingThreadId(null);
-            setPhoneProcessingScope(null);
-            if (phoneAbortControllerRef.current) phoneAbortControllerRef.current = null;
-        }
+        enqueuePhoneOp({
+            id: generateLegacyId(),
+            type: 'send',
+            threadId: thread.id,
+            threadTitle: thread.标题,
+            threadType: thread.类型,
+            members: thread.成员,
+            content: trimmed,
+            messageId: newMsg.id,
+            otherParty
+        });
+        recordPhoneNarrativeHint(`给${otherParty}发送消息：“${trimmed}”`);
     };
     const handleEditPhoneMessage = (id: string, content: string) => {
         if (!id) return;
@@ -1658,15 +2002,18 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         });
     };
 
-    const handlePlayerInput = (text: string) => {
+    const handlePlayerInput = async (text: string) => {
         if (isProcessing) return;
+        const flushedState = await flushPendingPhoneOps('主剧情输入');
+        const phonePrefix = consumePhoneNarrativePrefix();
         const queued = consumeCommandQueue();
         const commandPayload = queued.map(c => c.text);
         const commandBlock = commandPayload.length > 0
             ? `[用户指令]\n${commandPayload.join('\n')}\n[/用户指令]\n`
             : '';
-        const aiInput = commandBlock ? `${commandBlock}${text}` : text;
-        handleAIInteraction(aiInput, 'ACTION', commandPayload, undefined, false, text);
+        const aiInputBase = commandBlock ? `${commandBlock}${phonePrefix}${text}` : `${phonePrefix}${text}`;
+        const aiInput = aiInputBase;
+        handleAIInteraction(aiInput, 'ACTION', commandPayload, flushedState || undefined, false, text);
     };
     const handleCreateMoment = async (content: string, imageDesc?: string) => {
         if (!content.trim()) return;
@@ -1700,49 +2047,20 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
             }
         };
         setGameState(nextState);
-        const descText = imageDesc ? `（图片描述：${imageDesc}）` : '';
         if (!isPhoneApiConfigured(settings)) {
             const finalState = appendPhoneMemoryEntries(nextState, [`【手机】发布朋友圈动态`]);
+            recordPhoneNarrativeHint('发布朋友圈动态');
             setGameState(finalState);
             return;
         }
-        try {
-            setIsPhoneProcessing(true);
-            setPhoneProcessingThreadId(null);
-            setPhoneProcessingScope('moment');
-            const phoneResp = await generatePhoneResponse(`[PHONE_POST] 我在朋友圈发布动态：${content.trim()}${descText}`, nextState, settings);
-            if (!phoneResp.allowed) {
-                alert(phoneResp.blocked_reason || '当前剧情环境无法使用手机');
-                setGameState(prev => {
-                    const phone = prev.手机;
-                    if (!phone) return prev;
-                    const nextPosts = (phone.朋友圈?.帖子 || []).filter(p => p.id !== postId);
-                    return {
-                        ...prev,
-                        手机: {
-                            ...phone,
-                            朋友圈: {
-                                ...(phone.朋友圈 || {}),
-                                帖子: nextPosts
-                            }
-                        }
-                    };
-                });
-                return;
-            }
-            setGameState(prev => {
-                let finalState = applyPhoneResponseToState(prev, phoneResp, gameState.角色?.姓名 || 'Player');
-                finalState = appendPhoneMemoryEntries(finalState, [`【手机】发布朋友圈动态`]);
-                return finalState;
-            });
-        } catch (e: any) {
-            alert(`手机API调用失败: ${e.message || '未知错误'}`);
-            setGameState(prev => appendPhoneMemoryEntries(prev, [`【手机】发布朋友圈动态`]));
-        } finally {
-            setIsPhoneProcessing(false);
-            setPhoneProcessingThreadId(null);
-            setPhoneProcessingScope(null);
-        }
+        enqueuePhoneOp({
+            id: generateLegacyId(),
+            type: 'moment',
+            content: content.trim(),
+            imageDesc: imageDesc || undefined,
+            postId
+        });
+        recordPhoneNarrativeHint('发布朋友圈动态');
     };
     const handleCreatePublicPost = async (content: string, imageDesc?: string, topic?: string) => {
         if (!content.trim()) return;
@@ -1777,57 +2095,22 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
             }
         };
         setGameState(nextState);
-        const descText = imageDesc ? `（图片描述：${imageDesc}）` : '';
-        const topicText = topic ? `（板块：${topic}）` : '';
         if (!isPhoneApiConfigured(settings)) {
             let finalState = appendPhoneMemoryEntries(nextState, [`【手机】发布论坛帖子`]);
+            recordPhoneNarrativeHint('发布论坛帖子');
             setGameState(finalState);
             handleWorldInfoUpdate(`论坛动态：${content.trim()}`, finalState);
             return;
         }
-        try {
-            setIsPhoneProcessing(true);
-            setPhoneProcessingThreadId(null);
-            setPhoneProcessingScope('forum');
-            const phoneResp = await generatePhoneResponse(`[PHONE_POST] 我在公共论坛发布帖子：${content.trim()}${descText}${topicText}`, nextState, settings);
-            if (!phoneResp.allowed) {
-                alert(phoneResp.blocked_reason || '当前剧情环境无法使用手机');
-                setGameState(prev => {
-                    const phone = prev.手机;
-                    if (!phone) return prev;
-                    const nextPosts = (phone.公共帖子?.帖子 || []).filter(p => p.id !== postId);
-                    return {
-                        ...prev,
-                        手机: {
-                            ...phone,
-                            公共帖子: {
-                                ...(phone.公共帖子 || {}),
-                                帖子: nextPosts
-                            }
-                        }
-                    };
-                });
-                return;
-            }
-            let updatedState: GameState | null = null;
-            setGameState(prev => {
-                let finalState = applyPhoneResponseToState(prev, phoneResp, gameState.角色?.姓名 || 'Player');
-                finalState = appendPhoneMemoryEntries(finalState, [`【手机】发布论坛帖子`]);
-                updatedState = finalState;
-                return finalState;
-            });
-            if (updatedState) {
-                handleWorldInfoUpdate(`论坛动态：${content.trim()}`, updatedState);
-            }
-        } catch (e: any) {
-            alert(`手机API调用失败: ${e.message || '未知错误'}`);
-            setGameState(prev => appendPhoneMemoryEntries(prev, [`【手机】发布论坛帖子`]));
-            handleWorldInfoUpdate(`论坛动态：${content.trim()}`, nextState);
-        } finally {
-            setIsPhoneProcessing(false);
-            setPhoneProcessingThreadId(null);
-            setPhoneProcessingScope(null);
-        }
+        enqueuePhoneOp({
+            id: generateLegacyId(),
+            type: 'forum',
+            content: content.trim(),
+            imageDesc: imageDesc || undefined,
+            topic: topic || undefined,
+            postId
+        });
+        recordPhoneNarrativeHint('发布论坛帖子');
     };
     const handleWaitForPhoneReply = async (thread?: PhoneThread | null) => {
         if (!thread || isProcessing || isPhoneProcessing) return;
@@ -1840,42 +2123,18 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
             alert('手机AI未配置，无法等待回复。');
             return;
         }
-        const playerName = gameState.角色?.姓名 || 'Player';
-        const channelLabel = thread.类型 === 'public' ? '公共频道' : (thread.类型 === 'group' ? '群聊' : '私信');
-        const recent = (thread.消息 || []).slice(-4).map(m => `${m.发送者}:${m.内容}`).join(' / ');
-        const phoneInput = [
-            `[PHONE_CHAT]`,
-            `[等待回复/${channelLabel}]`,
-            `thread_id: ${thread.id}`,
-            `thread_title: ${thread.标题}`,
-            `成员: ${(thread.成员 || []).join(',') || '未知'}`,
-            `最近对话: ${recent || '无'}`
-        ].join('\n');
-        try {
-            setIsPhoneProcessing(true);
-            setPhoneProcessingThreadId(thread.id);
-            setPhoneProcessingScope('chat');
-            const phoneAbort = new AbortController();
-            phoneAbortControllerRef.current = phoneAbort;
-            const phoneResp = await generatePhoneResponse(phoneInput, gameState, settings, phoneAbort.signal);
-            if (!phoneResp.allowed) {
-                alert(phoneResp.blocked_reason || '当前剧情环境无法使用手机');
-                return;
-            }
-            const adjustedResp = adjustPhoneResponseForChat(phoneResp);
-            let finalState = applyPhoneResponseToState(gameState, adjustedResp, playerName);
-            finalState = appendPhoneMemoryEntries(finalState, [`【手机】等待${thread.标题}回复`]);
-            setGameState(finalState);
-            requestThreadSummary(thread, finalState);
-        } catch (e: any) {
-            if (isAbortError(e)) return;
-            alert(`手机API调用失败: ${e.message || '未知错误'}`);
-        } finally {
-            setIsPhoneProcessing(false);
-            setPhoneProcessingThreadId(null);
-            setPhoneProcessingScope(null);
-            if (phoneAbortControllerRef.current) phoneAbortControllerRef.current = null;
-        }
+        enqueuePhoneOp({
+            id: generateLegacyId(),
+            type: 'wait',
+            threadId: thread.id,
+            threadTitle: thread.标题,
+            threadType: thread.类型,
+            members: thread.成员
+        });
+        recordPhoneNarrativeHint(`等待${thread.标题}回复`);
+    };
+    const handleSubmitPhoneOps = async () => {
+        await flushPendingPhoneOps('手动提交手机操作');
     };
     const handleCreateThread = (payload: { type: 'private' | 'group' | 'public'; title: string; members: string[] }) => {
         const title = payload.title?.trim();
@@ -1927,10 +2186,11 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                 undefined,
                 undefined
             );
+            const resolvedPhonePlan = resolvePhoneSyncPlan(aiResponse);
             let nextStateForPhoneSync: GameState | null = null;
             setGameState(prev => {
                 const rawCommands = Array.isArray(aiResponse.tavern_commands) ? aiResponse.tavern_commands : [];
-                const usePhoneSyncPlan = shouldUsePhoneSyncPlan(aiResponse);
+                const usePhoneSyncPlan = !!resolvedPhonePlan;
                 const commands = usePhoneSyncPlan
                     ? rawCommands.filter(cmd => !(typeof cmd?.key === 'string' && cmd.key.startsWith('gameState.手机')))
                     : rawCommands;
@@ -1939,8 +2199,12 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                 nextStateForPhoneSync = newState;
                 return newState;
             });
-            if (shouldUsePhoneSyncPlan(aiResponse) && nextStateForPhoneSync) {
-                handlePhoneSyncPlan(aiResponse.phone_sync_plan, nextStateForPhoneSync);
+            if (resolvedPhonePlan && nextStateForPhoneSync && isPhoneSyncPlanEnabled(settings)) {
+                const queued = addPhoneSyncPlanToState(nextStateForPhoneSync, resolvedPhonePlan, 'world');
+                setGameState(queued.nextState);
+                if (queued.shouldTrigger) {
+                    processPhoneSyncQueue(queued.nextState);
+                }
             }
         } catch (e) {
             console.error('World info update failed', e);
@@ -1995,6 +2259,12 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
     }, [gameState.游戏时间, gameState.手机?.自动规划?.上次规划]);
 
     useEffect(() => {
+        if (!gameState.手机?.同步规划 || gameState.手机.同步规划.length === 0) return;
+        if (isPhoneProcessing || phoneSyncPlanInFlight.current) return;
+        processPhoneSyncQueue(gameState);
+    }, [gameState.手机?.同步规划?.length, isPhoneProcessing]);
+
+    useEffect(() => {
         if (!gameState.手机?.待发送 || gameState.手机.待发送.length === 0) return;
         const triggerResult = updatePendingForTriggers(gameState);
         let nextState = gameState;
@@ -2009,6 +2279,12 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                 .filter(m => m.发送者)
                 .map(m => `【手机】收到来自${m.发送者 || '未知'}的新消息`);
             finalState = appendPhoneMemoryEntries(finalState, memoryEntries);
+            const senders = Array.from(new Set(delivery.delivered.map(m => m.发送者).filter(Boolean) as string[]));
+            if (senders.length > 0) {
+                recordPhoneNarrativeHint(`收到来自${senders.join('、')}的新消息`);
+            } else {
+                recordPhoneNarrativeHint(`收到新消息${delivery.delivered.length > 1 ? `（${delivery.delivered.length}条）` : ''}`);
+            }
             pushPhoneNotification('手机新消息', `收到 ${delivery.delivered.length} 条新消息`);
             const affected = new Set(delivery.delivered.map(m => m.id));
             const allThreads = [
@@ -2024,8 +2300,9 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         }
         setGameState(finalState);
     }, [gameState.游戏时间, gameState.手机?.待发送, gameState.当前地点, gameState.社交, gameState.剧情, gameState.世界]);
-    const handlePlayerAction = (action: 'attack' | 'skill' | 'guard' | 'escape' | 'talk' | 'item', payload?: any) => {
+    const handlePlayerAction = async (action: 'attack' | 'skill' | 'guard' | 'escape' | 'talk' | 'item', payload?: any) => {
         if (isProcessing) return;
+        const flushedState = await flushPendingPhoneOps('主剧情行动');
         let input = "";
         const targetName = payload?.targetName ? `【${payload.targetName}】` : "";
         switch (action) {
@@ -2041,7 +2318,11 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
             }
             case 'item': input = `我使用道具【${payload?.名称 || 'Unknown'}】。`; break;
         }
-        if (input) handleAIInteraction(input, 'ACTION');
+        if (input) {
+            const phonePrefix = consumePhoneNarrativePrefix();
+            const aiInput = phonePrefix ? `${phonePrefix}${input}` : input;
+            handleAIInteraction(aiInput, 'ACTION', undefined, flushedState || undefined, false, input);
+        }
     };
     const saveSettings = (newSettings: AppSettings) => { setSettings(newSettings); localStorage.setItem('danmachi_settings', JSON.stringify(newSettings)); };
     const handleReroll = () => {
@@ -2295,7 +2576,7 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         gameState, setGameState, settings, setSettings,
         commandQueue, pendingCommands, addToQueue, removeFromQueue, currentOptions, lastAIResponse, lastAIThinking, isProcessing, isStreaming, isPhoneProcessing, phoneProcessingThreadId, phoneProcessingScope, draftInput, setDraftInput,
         memorySummaryState, confirmMemorySummary, applyMemorySummary, cancelMemorySummary,
-        handleAIInteraction, stopInteraction, handlePlayerAction, handlePlayerInput, handleSendMessage, handleCreateMoment, handleCreatePublicPost, handleCreateThread, handleMarkThreadRead, handleSilentWorldUpdate, handleWaitForPhoneReply, saveSettings, manualSave, loadGame, updateConfidant, updateMemory,
+        handleAIInteraction, stopInteraction, handlePlayerAction, handlePlayerInput, handleSendMessage, handleCreateMoment, handleCreatePublicPost, handleCreateThread, handleMarkThreadRead, handleSilentWorldUpdate, handleWaitForPhoneReply, handleSubmitPhoneOps, saveSettings, manualSave, loadGame, updateConfidant, updateMemory,
         handleReroll, handleEditLog, handleDeleteLog, handleEditUserLog, handleUpdateLogText, handleUserRewrite, handleDeleteTask, handleUpdateTaskStatus, handleUpdateStory, handleCompleteStoryStage,
         handleEditPhoneMessage, handleDeletePhoneMessage,
         phoneNotifications

@@ -21,9 +21,10 @@ interface SocialPhoneModalProps {
   onCreatePublicPost?: (content: string, imageDesc?: string, topic?: string) => void;
   onReadThread?: (threadId: string) => void;
   onWaitReply?: (thread: PhoneThread) => void;
+  onSubmitPhoneOps?: () => void;
   isPhoneProcessing?: boolean;
   phoneProcessingThreadId?: string | null;
-  phoneProcessingScope?: 'chat' | 'moment' | 'forum' | 'sync' | 'auto' | null;
+  phoneProcessingScope?: 'chat' | 'moment' | 'forum' | 'sync' | 'auto' | 'manual' | null;
 }
 
 type PhoneTab = 'CHAT' | 'CONTACTS' | 'MOMENTS' | 'FORUM' | 'SETTINGS';
@@ -36,6 +37,7 @@ const DEFAULT_PHONE: PhoneState = {
   朋友圈: { 仅好友可见: true, 帖子: [] },
   公共帖子: { 板块: [], 帖子: [] },
   待发送: [],
+  同步规划: [],
   自动规划: { 上次规划: '', 记录: [] }
 };
 
@@ -56,6 +58,7 @@ export const SocialPhoneModal: React.FC<SocialPhoneModalProps> = ({
   onCreatePublicPost,
   onReadThread,
   onWaitReply,
+  onSubmitPhoneOps,
   isPhoneProcessing = false,
   phoneProcessingThreadId = null,
   phoneProcessingScope = null
@@ -132,6 +135,7 @@ export const SocialPhoneModal: React.FC<SocialPhoneModalProps> = ({
     if (phoneProcessingScope === 'moment') return '动态已提交，AI处理中…';
     if (phoneProcessingScope === 'forum') return '帖子已提交，AI处理中…';
     if (phoneProcessingScope === 'sync') return '剧情联动处理中…';
+    if (phoneProcessingScope === 'manual') return '手机提交处理中…';
     if (phoneProcessingScope === 'auto') return '每小时规划处理中…';
     if (phoneProcessingScope === 'chat') {
       return isActiveThreadProcessing ? '已提交消息，等待AI回复…' : 'AI正在处理手机消息…';
@@ -857,10 +861,10 @@ export const SocialPhoneModal: React.FC<SocialPhoneModalProps> = ({
                 placeholder={editingMessageId ? '编辑内容...' : `发送给 ${activeThread.标题}...`}
                 className="flex-1 bg-white border border-zinc-300 px-3 py-2 text-xs text-black outline-none focus:border-blue-600 rounded"
               />
-              {onWaitReply && !editingMessageId && (
+              {(onSubmitPhoneOps || onWaitReply) && !editingMessageId && (
                 <button
                   type="button"
-                  onClick={() => onWaitReply(activeThread)}
+                  onClick={() => onSubmitPhoneOps ? onSubmitPhoneOps() : onWaitReply(activeThread)}
                   title="完成手机操作"
                   disabled={showPhoneProcessing}
                   className={`px-2 py-2 border rounded font-bold uppercase transition-colors ${

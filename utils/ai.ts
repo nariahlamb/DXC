@@ -118,13 +118,13 @@ const buildCotPrompt = (settings: AppSettings): string => {
 const isPhoneSyncPlanEnabled = (settings: AppSettings): boolean => {
     const aiCfg = settings?.aiConfig;
     if (!aiCfg) return false;
+    if (aiCfg.enablePhoneSyncPlan === false) return false;
     const overridesEnabled = aiCfg.useServiceOverrides ?? aiCfg.mode === 'separate';
-    if (!overridesEnabled) return false;
     const overrideFlags = aiCfg.serviceOverridesEnabled || {};
     const serviceEnabled = (overrideFlags as any)?.phone ?? (aiCfg.mode === 'separate');
-    if (!serviceEnabled) return false;
-    const phoneCfg = aiCfg.services?.phone;
-    return !!phoneCfg?.apiKey;
+    const phoneCfg = overridesEnabled && serviceEnabled ? aiCfg.services?.phone : null;
+    if (phoneCfg?.apiKey) return true;
+    return !!aiCfg.unified?.apiKey;
 };
 
 
@@ -641,8 +641,16 @@ export const constructPhoneContext = (phoneState: PhoneState | undefined, params
     }
 
     if (Array.isArray(phoneState.待发送) && phoneState.待发送.length > 0) {
-        const pendingBrief = phoneState.待发送.slice(0, 6).map(p => `${p.threadId} -> ${p.deliverAt}`).join(' | ');
-        output += `\n待发送队列: ${pendingBrief}${phoneState.待发送.length > 6 ? ' ...' : ''}`;
+        const pendingItems = phoneState.待发送.slice(0, 6).map(p => {
+            const sender = p.payload?.发送者 || '未知';
+            const title = p.threadTitle || p.threadId || '未知线程';
+            const contentRaw = p.payload?.内容 || '';
+            const content = contentRaw.replace(/\s+/g, ' ').trim();
+            const snippet = content ? (content.length > 60 ? `${content.slice(0, 60)}…` : content) : '（无正文）';
+            const triggerLabel = p.trigger ? ' / 触发' : '';
+            return `[${p.deliverAt}] ${title} ${sender}: ${snippet}${triggerLabel}`;
+        });
+        output += `\n待发送队列(未送达/玩家未知): ${pendingItems.join(' | ')}${phoneState.待发送.length > 6 ? ' ...' : ''}`;
     }
 
     const plan = phoneState.自动规划;
@@ -671,7 +679,7 @@ const constructPhoneSocialBrief = (confidants: Confidant[] = []): string => {
 
 const constructPhoneTrackingBrief = (gameState: GameState): string => {
     const tracks = Array.isArray(gameState.世界?.NPC后台跟踪) ? gameState.世界.NPC后台跟踪 : [];
-    if (tracks.length === 0) return `[NPC后台跟踪]\n（暂无在跟踪的NPC行动）`;
+    if (tracks.length === 0) return `[NPC后台跟踪(仅用于触发/节奏，不可直述)]\n（暂无在跟踪的NPC行动）`;
     const contactSet = new Set((gameState.社交 || []).filter(c => c.已交换联系方式).map(c => c.姓名));
     const specialSet = new Set((gameState.社交 || []).filter(c => c.特别关注).map(c => c.姓名));
     const hasFilter = contactSet.size > 0 || specialSet.size > 0;
@@ -683,14 +691,14 @@ const constructPhoneTrackingBrief = (gameState: GameState): string => {
         进度: t.进度,
         预计完成: t.预计完成
     }));
-    return `[NPC后台跟踪]\n${JSON.stringify(trimmed, null, 2)}`;
+    return `[NPC后台跟踪(仅用于触发/节奏，不可直述)]\n${JSON.stringify(trimmed, null, 2)}`;
 };
 
 const constructPhoneStoryBrief = (gameState: GameState): string => {
     const story = gameState.剧情 || ({} as any);
     const main = story.主线 || {};
     const guide = story.引导 || {};
-    return `[剧情摘要]\n主线: ${main.当前阶段 || '未知'} / ${main.关键节点 || '未知'}\n引导目标: ${guide.当前目标 || '未知'}`;
+    return `[剧情摘要(仅供节奏，不可直接写入消息)]\n主线: ${main.当前阶段 || '未知'} / ${main.关键节点 || '未知'}\n引导目标: ${guide.当前目标 || '未知'}`;
 };
 
 const constructPhoneEnvironmentBrief = (gameState: GameState): string => {
@@ -701,7 +709,7 @@ const constructPhoneWorldBrief = (gameState: GameState): string => {
     const world = gameState.世界 || ({} as any);
     const news = Array.isArray(world.头条新闻) ? world.头条新闻.slice(0, 5) : [];
     const rumors = Array.isArray(world.街头传闻) ? world.街头传闻.slice(0, 5) : [];
-    return `[世界情报摘要]\n头条: ${news.length > 0 ? news.join(' / ') : '无'}\n传闻: ${rumors.length > 0 ? rumors.join(' / ') : '无'}`;
+    return `[世界情报摘要(仅供氛围，不可直接写入消息)]\n头条: ${news.length > 0 ? news.join(' / ') : '无'}\n传闻: ${rumors.length > 0 ? rumors.join(' / ') : '无'}`;
 };
 
 const constructPhoneWorldview = (settings: AppSettings): string => {
@@ -714,9 +722,16 @@ const constructPhoneWorldview = (settings: AppSettings): string => {
 
 const constructPhoneMemoryBrief = (memory: MemorySystem | undefined): string => {
     if (!memory) return '';
-    const short = Array.isArray(memory.shortTerm) ? memory.shortTerm.slice(-8) : [];
-    const medium = Array.isArray(memory.mediumTerm) ? memory.mediumTerm.slice(-4) : [];
-    const long = Array.isArray(memory.longTerm) ? memory.longTerm.slice(-2) : [];
+    const isPhoneMemory = (entry?: string) => !!entry && (entry.includes('【手机】') || entry.includes('手机'));
+    const short = Array.isArray(memory.shortTerm)
+        ? memory.shortTerm.filter(m => isPhoneMemory(m.content)).slice(-8)
+        : [];
+    const medium = Array.isArray(memory.mediumTerm)
+        ? memory.mediumTerm.filter(isPhoneMemory).slice(-4)
+        : [];
+    const long = Array.isArray(memory.longTerm)
+        ? memory.longTerm.filter(isPhoneMemory).slice(-2)
+        : [];
     if (short.length === 0 && medium.length === 0 && long.length === 0) return '';
     const shortText = short.length > 0
         ? short.map(s => `${s.timestamp || ''} ${s.content}`.trim()).join(' | ')

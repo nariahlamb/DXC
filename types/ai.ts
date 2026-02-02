@@ -27,6 +27,7 @@ export interface GlobalAISettings {
     npcBrain?: boolean;
     phone?: boolean;
   };
+  enablePhoneSyncPlan?: boolean;
   multiStageThinking?: boolean;
   nativeThinkingChain?: boolean;
 }

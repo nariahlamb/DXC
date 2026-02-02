@@ -129,6 +129,12 @@ export interface PhoneAutoPlanState {
   记录?: PhonePlanEntry[];
 }
 
+export interface PhoneSyncPlanEntry {
+  时间: string;
+  内容: any;
+  类型?: 'story' | 'world' | string;
+}
+
 export interface PhoneThread {
   id: string;
   类型: 'private' | 'group' | 'public';
@@ -184,4 +190,5 @@ export interface PhoneState {
   };
   待发送?: PhonePendingMessage[];
   自动规划?: PhoneAutoPlanState;
+  同步规划?: PhoneSyncPlanEntry[];
 }

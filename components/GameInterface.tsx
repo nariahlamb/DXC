@@ -70,9 +70,9 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
       currentOptions, lastAIResponse, lastAIThinking, isProcessing, isStreaming, isPhoneProcessing, phoneProcessingThreadId, phoneProcessingScope,
       draftInput, setDraftInput,
       memorySummaryState, confirmMemorySummary, applyMemorySummary, cancelMemorySummary,
-      handlePlayerAction, handlePlayerInput, handleSendMessage, handleCreateMoment, handleCreatePublicPost, handleCreateThread, handleMarkThreadRead, handleSilentWorldUpdate, handleWaitForPhoneReply,
+      handlePlayerAction, handlePlayerInput, handleSendMessage, handleCreateMoment, handleCreatePublicPost, handleCreateThread, handleMarkThreadRead, handleSilentWorldUpdate, handleWaitForPhoneReply, handleSubmitPhoneOps,
       stopInteraction, handleEditLog, handleDeleteLog, handleEditUserLog, handleUpdateLogText, handleUserRewrite,
-      manualSave, loadGame, handleReroll, handleDeleteTask, handleUpdateTaskStatus, handleCompleteStoryStage,
+      manualSave, loadGame, handleReroll, handleDeleteTask, handleUpdateTaskStatus, handleUpdateStory,
       handleEditPhoneMessage, handleDeletePhoneMessage,
       phoneNotifications,
   } = useGameLogic(initialState, onExit);
@@ -357,6 +357,7 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
             onCreateMoment={(content, imageDesc) => handleCreateMoment(content, imageDesc)}
             onCreatePublicPost={(content, imageDesc, topic) => handleCreatePublicPost(content, imageDesc, topic)}
             onWaitReply={handleWaitForPhoneReply}
+            onSubmitPhoneOps={handleSubmitPhoneOps}
             isPhoneProcessing={isPhoneProcessing}
             phoneProcessingThreadId={phoneProcessingThreadId}
             phoneProcessingScope={phoneProcessingScope}
@@ -383,7 +384,7 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
             onClose={closeModal} 
             story={gameState.剧情}
             gameTime={gameState.游戏时间}
-            onCompleteStage={handleCompleteStoryStage}
+            onUpdateStory={handleUpdateStory}
         />
 
         <ContractModal 
