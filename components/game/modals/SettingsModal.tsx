@@ -1,6 +1,6 @@
 ﻿
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Settings as SettingsIcon, LogOut, Save, User, ArrowLeft, ChevronRight, HardDrive, Eye, Cpu, Globe, Brain, Zap, Search, RefreshCw, Download, Plus, Trash2, ToggleLeft, ToggleRight, Edit2, Check, Upload, Database, FileJson, History, FileUp, FileDown, Folder, LayoutList, List, Copy, Code, Clock, ArrowUp, ArrowDown, EyeOff, Radio, Crown, Type, Sword, Server, AlertTriangle, MousePointer2, Activity, Shield } from 'lucide-react';
+import { X, Settings as SettingsIcon, LogOut, Save, User, ArrowLeft, ChevronRight, HardDrive, Eye, Cpu, Globe, Brain, Zap, Search, RefreshCw, Download, Plus, Trash2, ToggleLeft, ToggleRight, Edit2, Check, Upload, Database, FileJson, History, FileUp, FileDown, Folder, LayoutList, List, Copy, Code, Clock, ArrowUp, ArrowDown, EyeOff, Radio, Crown, Type, Sword, Server, AlertTriangle, MousePointer2, Activity, Shield, Radar } from 'lucide-react';
 import { AppSettings, GameState, SaveSlot, PromptModule, PromptUsage, GlobalAISettings } from '../../../types';
 import { DEFAULT_PROMPT_MODULES, assembleFullPrompt } from '../../../utils/ai';
 import { DEFAULT_SETTINGS } from '../../../hooks/useAppSettings';
@@ -1037,6 +1037,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       className={`text-2xl transition-colors ${formData.enableStreaming ? 'text-purple-600' : 'text-zinc-300'}`}
                   >
                       {formData.enableStreaming ? <ToggleRight size={36}/> : <ToggleLeft size={36}/>}
+                  </button>
+              </div>
+          </div>
+
+          {/* Intersection Precheck Toggle */}
+          <div className="bg-white p-6 border border-zinc-200 shadow-sm mb-4">
+              <h4 className="font-bold uppercase text-zinc-500 mb-4 flex items-center gap-2">
+                  <Radar size={16} /> NPC 交会预判
+              </h4>
+              <div className="flex items-center justify-between p-4 bg-zinc-50 border border-zinc-200">
+                  <div>
+                      <h5 className="font-bold text-sm text-black">开启交会提示确认</h5>
+                      <p className="text-[10px] text-zinc-500">
+                          开启后，命中关键词将生成「交会提示」并弹窗确认，可编辑后发送给主剧情。
+                      </p>
+                  </div>
+                  <button 
+                      onClick={() => setFormData(prev => ({...prev, enableIntersectionPrecheck: !prev.enableIntersectionPrecheck}))}
+                      className={`text-2xl transition-colors ${formData.enableIntersectionPrecheck ? 'text-amber-600' : 'text-zinc-300'}`}
+                  >
+                      {formData.enableIntersectionPrecheck ? <ToggleRight size={36}/> : <ToggleLeft size={36}/>}
                   </button>
               </div>
           </div>

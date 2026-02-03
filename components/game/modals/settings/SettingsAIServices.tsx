@@ -159,7 +159,7 @@ export const SettingsAIServices: React.FC<SettingsAIServicesProps> = ({ settings
                         )}
                         {activeTab === 'NPC_SYNC' && (
                             <ServiceOverridePanel
-                                label="NPC 同步"
+                                label="交会预判"
                                 enabled={localConfig.serviceOverridesEnabled?.npcSync === true}
                                 onToggle={(enabled) => handleServiceOverrideToggle('npcSync', enabled)}
                             >
@@ -168,7 +168,7 @@ export const SettingsAIServices: React.FC<SettingsAIServicesProps> = ({ settings
                         )}
                         {activeTab === 'NPC_BRAIN' && (
                             <ServiceOverridePanel
-                                label="NPC 大脑"
+                                label="后台模拟"
                                 enabled={localConfig.serviceOverridesEnabled?.npcBrain === true}
                                 onToggle={(enabled) => handleServiceOverrideToggle('npcBrain', enabled)}
                             >

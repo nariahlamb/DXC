@@ -138,6 +138,7 @@ export interface AppSettings {
   fontSize: 'small' | 'medium' | 'large';
   enableActionOptions: boolean; // NEW: Toggle for Action Suggestions
   enableStreaming: boolean; // NEW: Toggle for AI Streaming
+  enableIntersectionPrecheck?: boolean; // Optional: NPC交会预判确认
   chatLogLimit?: number | null; // UI render limit, null for unlimited
   apiProtectionEnabled?: boolean;
   promptModules: PromptModule[];

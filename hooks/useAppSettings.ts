@@ -27,6 +27,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     fontSize: 'medium',
     enableActionOptions: true,
     enableStreaming: true,
+    enableIntersectionPrecheck: false,
     chatLogLimit: 30,
     apiProtectionEnabled: false,
     promptModules: DEFAULT_PROMPT_MODULES,

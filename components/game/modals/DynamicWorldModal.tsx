@@ -387,7 +387,13 @@ const TrackingPanel = ({ world }: { world: WorldState }) => (
                          <div className="flex-1 space-y-1">
                              <div className="text-zinc-200 text-sm font-bold">{track.NPC}</div>
                              <div className="text-zinc-400 text-xs">行动: {track.当前行动}</div>
-                             {track.位置 && <div className="text-[10px] text-zinc-500">位置: {track.位置}</div>}
+                             {(track.地点 || track.位置) && (
+                                 <div className="text-[10px] text-zinc-500">地点: {track.地点 || track.位置}</div>
+                             )}
+                             {Array.isArray(track.计划阶段) && track.计划阶段.length > 0 && (
+                                 <div className="text-[10px] text-zinc-500">阶段: {track.计划阶段[track.当前阶段 || 0] || track.计划阶段[0]}</div>
+                             )}
+                             {track.阶段结束时间 && <div className="text-[10px] text-zinc-500">阶段结束: {track.阶段结束时间}</div>}
                              {track.进度 && <div className="text-[10px] text-emerald-400">进度: {track.进度}</div>}
                              {track.预计完成 && <div className="text-[10px] text-zinc-500">预计完成: {track.预计完成}</div>}
                          </div>

@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { GameState, AppSettings, LogEntry, InventoryItem, TavernCommand, ActionOption, Confidant, MemorySystem, MemoryEntry, SaveSlot, Task, ContextModuleConfig, StoryState } from '../types';
 import { createNewGameState } from '../utils/dataMapper';
 import { computeMaxCarry, computeMaxHp, computeMaxMind, computeMaxStamina } from '../utils/characterMath';
-import { generateDungeonMasterResponse, generateWorldInfoResponse, DEFAULT_PROMPT_MODULES, DEFAULT_MEMORY_CONFIG, dispatchAIRequest, generateMemorySummary, extractThinkingBlocks, parseAIResponseText, mergeThinkingSegments, resolveServiceConfig } from '../utils/ai';
+import { generateDungeonMasterResponse, generateWorldInfoResponse, DEFAULT_PROMPT_MODULES, DEFAULT_MEMORY_CONFIG, dispatchAIRequest, generateMemorySummary, extractThinkingBlocks, parseAIResponseText, mergeThinkingSegments, resolveServiceConfig, buildNpcSimulationSnapshots, buildIntersectionHintBlock, generateIntersectionPrecheck, generateNpcBacklineSimulation } from '../utils/ai';
 import { P_MEM_S2M, P_MEM_M2L } from '../prompts';
 import { Difficulty } from '../types/enums';
 
@@ -38,6 +38,12 @@ interface PendingInteraction {
     logInputOverride?: string;
 }
 
+interface IntersectionConfirmState {
+    originalInput: string;
+    augmentedInput: string;
+    commandItems: CommandItem[];
+}
+
 const DEFAULT_AI_CONFIG = {
     provider: 'gemini' as const,
     baseUrl: 'https://generativelanguage.googleapis.com',
@@ -66,6 +72,7 @@ const DEFAULT_SETTINGS: AppSettings = {
     fontSize: 'medium',
     enableActionOptions: true,
     enableStreaming: true,
+    enableIntersectionPrecheck: false,
     chatLogLimit: 30,
     promptModules: DEFAULT_PROMPT_MODULES,
     memoryConfig: DEFAULT_MEMORY_CONFIG,
@@ -378,6 +385,7 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
     const [snapshotState, setSnapshotState] = useState<GameState | null>(null);
     const [memorySummaryState, setMemorySummaryState] = useState<MemorySummaryState | null>(null);
     const [pendingInteraction, setPendingInteraction] = useState<PendingInteraction | null>(null);
+    const [intersectionConfirmState, setIntersectionConfirmState] = useState<IntersectionConfirmState | null>(null);
     const silentUpdateInFlight = useRef(false);
     const lastWorldUpdateRef = useRef<string | null>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
@@ -733,6 +741,7 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                 onStreamChunk
             );
             setLastAIThinking(aiResponse.thinking || '');
+            let postState: GameState | null = null;
             setGameState(prev => {
                 if (aiResponse.rawResponse) setLastAIResponse(aiResponse.rawResponse);
                 if (aiResponse.action_options) setCurrentOptions(aiResponse.action_options || []);
@@ -816,8 +825,10 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                 newState.日志 = [...newState.日志, ...newLogs];
                 newState.处理中 = false;
                 newState.回合数 = (prev.回合数 || 1) + 1;
+                postState = newState;
                 return newState;
             });
+            if (postState) runNpcBacklineSimulation(postState);
         } catch (error: any) {
             if (isAbortError(error)) {
                 setGameState(prev => ({ ...prev, 处理中: false }));
@@ -990,6 +1001,16 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         setCommandQueue([]);
         return current;
     };
+    const consumeSpecificCommands = (commands: CommandItem[]): CommandItem[] => {
+        if (!commands || commands.length === 0) return [];
+        const ids = new Set(commands.map(c => c.id));
+        setPendingCommands(commands);
+        setCommandQueue(prev => prev.filter(c => !ids.has(c.id)));
+        return commands;
+    };
+    const buildCommandBlock = (payload: string[]) => (
+        payload.length > 0 ? `[用户指令]\n${payload.join('\n')}\n[/用户指令]\n` : ''
+    );
     const stopInteraction = () => { 
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
@@ -1002,16 +1023,86 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
     };
     const handlePlayerInput = async (text: string) => {
         if (isProcessing) return;
-        const queued = consumeCommandQueue();
-        const commandPayload = queued.map(c => c.text);
-        const commandBlock = commandPayload.length > 0
-            ? `[用户指令]\n${commandPayload.join('\n')}\n[/用户指令]\n`
-            : '';
-        const aiInput = commandBlock ? `${commandBlock}${text}` : text;
-        handleAIInteraction(aiInput, 'ACTION', commandPayload, undefined, false, text);
+        const commandItems = [...commandQueue];
+        if (settings.enableIntersectionPrecheck === true) {
+            try {
+                const augmented = await buildIntersectionAugmentedInput(text);
+                if (augmented) {
+                    setIntersectionConfirmState({
+                        originalInput: text,
+                        augmentedInput: augmented,
+                        commandItems
+                    });
+                    setDraftInput(text);
+                    return;
+                }
+            } catch (e) {
+                setDraftInput(text);
+            }
+        }
+        sendPlayerInputWithCommands(text, commandItems, text);
+    };
+    const confirmIntersectionSend = (finalInput: string) => {
+        if (!intersectionConfirmState) return;
+        const { commandItems } = intersectionConfirmState;
+        setIntersectionConfirmState(null);
+        setDraftInput('');
+        sendPlayerInputWithCommands(finalInput, commandItems, finalInput);
+    };
+    const cancelIntersectionConfirm = () => {
+        if (intersectionConfirmState?.originalInput) {
+            setDraftInput(intersectionConfirmState.originalInput);
+        }
+        setIntersectionConfirmState(null);
     };
     const handleSilentWorldUpdate = async () => {
         await handleWorldInfoUpdate('世界情报静默更新', gameState);
+    };
+
+    const sendPlayerInputWithCommands = (
+        inputText: string,
+        commandItems: CommandItem[],
+        logInputOverride?: string
+    ) => {
+        const commandPayload = commandItems.map(c => c.text);
+        const commandBlock = buildCommandBlock(commandPayload);
+        const aiInput = commandBlock ? `${commandBlock}${inputText}` : inputText;
+        if (commandItems.length > 0) consumeSpecificCommands(commandItems);
+        handleAIInteraction(aiInput, 'ACTION', commandPayload, undefined, false, logInputOverride ?? inputText);
+    };
+
+    const buildIntersectionAugmentedInput = async (inputText: string): Promise<string | null> => {
+        const snapshots = buildNpcSimulationSnapshots(gameState);
+        if (snapshots.length === 0) return null;
+        const localBlock = buildIntersectionHintBlock(inputText, snapshots);
+        const localAugmented = localBlock ? `${inputText}\n\n${localBlock}` : inputText;
+        const precheck = await generateIntersectionPrecheck(inputText, snapshots, settings);
+        let augmented = precheck?.augmentedInput || localAugmented;
+        if (precheck?.augmentedInput && precheck.augmentedInput.trim() === inputText.trim() && localBlock) {
+            augmented = localAugmented;
+        }
+        if (precheck?.augmentedInput && !precheck.augmentedInput.includes(inputText)) {
+            augmented = `${inputText}\n\n${precheck.augmentedInput}`;
+        }
+        const normalized = augmented.trim();
+        if (!normalized || normalized === inputText.trim()) return null;
+        return augmented;
+    };
+
+    const runNpcBacklineSimulation = async (baseState: GameState) => {
+        if (!baseState || !Array.isArray(baseState.社交) || baseState.社交.length === 0) return;
+        const updates = await generateNpcBacklineSimulation(baseState, settings);
+        if (!updates) return;
+        setGameState(prev => {
+            if (prev.回合数 !== baseState.回合数) return prev;
+            return {
+                ...prev,
+                世界: {
+                    ...prev.世界,
+                    NPC后台跟踪: updates
+                }
+            };
+        });
     };
 
     useEffect(() => {
@@ -1300,6 +1391,7 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         memorySummaryState, confirmMemorySummary, applyMemorySummary, cancelMemorySummary,
         handleAIInteraction, stopInteraction, handlePlayerAction, handlePlayerInput, handleSilentWorldUpdate, saveSettings, manualSave, loadGame, updateConfidant, updateMemory,
         handleReroll, handleEditLog, handleDeleteLog, handleEditUserLog, handleUpdateLogText, handleUserRewrite, handleDeleteTask, handleUpdateTaskStatus, handleUpdateStory, handleCompleteStoryStage,
+        intersectionConfirmState, confirmIntersectionSend, cancelIntersectionConfirm,
     };
 };
 

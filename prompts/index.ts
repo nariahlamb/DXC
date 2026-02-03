@@ -17,3 +17,5 @@ export * from './loot';
 export * from './familia'; // Export new module
 export * from './commands';
 export * from './glossary';
+export * from './intersection';
+export * from './npc_backline';

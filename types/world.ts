@@ -170,7 +170,11 @@ export interface DenatusState {
 export interface NpcBackgroundTracking {
   NPC: string;
   当前行动: string;
+  地点?: string;
   位置?: string;
+  计划阶段?: string[];
+  当前阶段?: number;
+  阶段结束时间?: string;
   进度?: string;
   预计完成?: string;
 }

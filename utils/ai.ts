@@ -11,7 +11,7 @@ import {
     P_JUDGMENT_EASY, P_JUDGMENT_NORMAL, P_JUDGMENT_HARD, P_JUDGMENT_HELL,
     P_ACTION_OPTIONS, P_FAMILIA_JOIN, P_STORY_GUIDE,
     P_SYS_FORMAT_MULTI, P_COT_LOGIC_MULTI,
-    P_SYS_COMMANDS, P_SYS_GLOSSARY,
+    P_SYS_COMMANDS, P_SYS_GLOSSARY, P_INTERSECTION_PRECHECK, P_NPC_BACKLINE,
 } from "../prompts";
 import { Difficulty } from "../types/enums";
 
@@ -110,6 +110,88 @@ const buildCotPrompt = (settings: AppSettings): string => {
     if (base && base.isActive !== false) return base.content;
     const fallback = modules.find(m => m.isActive);
     return fallback ? fallback.content : "";
+};
+
+export interface NpcSimulationSnapshot {
+    npcName: string;
+    location?: string;
+    actionOneLine?: string;
+    keywords: string[];
+}
+
+const LOCATION_KEYWORDS = [
+    '公会', '本部', '大厅', '酒馆', '旅店', '工房', '市场', '广场',
+    '街区', '街', '教堂', '神殿', '宅邸', '后巷', '港', '地下城', '迷宫'
+];
+
+const extractLocationKeywords = (location?: string): string[] => {
+    if (!location || typeof location !== 'string') return [];
+    const trimmed = location.trim();
+    if (!trimmed) return [];
+    const keywords = new Set<string>([trimmed]);
+    LOCATION_KEYWORDS.forEach(k => {
+        if (trimmed.includes(k)) keywords.add(k);
+    });
+    trimmed.split(/[·・、\s/|]|的/).forEach(part => {
+        const token = part.trim();
+        if (token && token !== trimmed) keywords.add(token);
+    });
+    return Array.from(keywords);
+};
+
+export const buildNpcSimulationSnapshots = (gameState: GameState): NpcSimulationSnapshot[] => {
+    const tracking = Array.isArray(gameState.世界?.NPC后台跟踪) ? gameState.世界.NPC后台跟踪 : [];
+    if (tracking.length === 0) return [];
+    const confidantMap = new Map(
+        (gameState.社交 || []).map(c => [c.姓名, c])
+    );
+    return tracking
+        .map(track => {
+            const name = track?.NPC;
+            if (!name) return null;
+            const confidant = confidantMap.get(name);
+            const location = (track as any).地点 || track.位置 || '';
+            const action = track?.当前行动 || '';
+            const keywords = new Set<string>();
+            if (name) keywords.add(name);
+            if (confidant?.称号) keywords.add(confidant.称号);
+            if (location) extractLocationKeywords(location).forEach(k => keywords.add(k));
+            return {
+                npcName: name,
+                location,
+                actionOneLine: action,
+                keywords: Array.from(keywords).filter(Boolean)
+            } as NpcSimulationSnapshot;
+        })
+        .filter(Boolean) as NpcSimulationSnapshot[];
+};
+
+export const buildIntersectionHintBlock = (
+    playerInput: string,
+    npcSimulations: NpcSimulationSnapshot[]
+): string => {
+    if (!playerInput || npcSimulations.length === 0) return "";
+    const content = playerInput.includes('[/用户指令]')
+        ? (playerInput.split('[/用户指令]').pop() || '').trim()
+        : playerInput;
+    if (!content) return "";
+    const matches: NpcSimulationSnapshot[] = [];
+    const seen = new Set<string>();
+    npcSimulations.forEach(sim => {
+        if (!sim?.npcName || seen.has(sim.npcName)) return;
+        const hit = sim.keywords.some(k => k && content.includes(k));
+        if (hit) {
+            matches.push(sim);
+            seen.add(sim.npcName);
+        }
+    });
+    if (matches.length === 0) return "";
+    const lines = matches.map(sim => {
+        const location = sim.location || "未知地点";
+        const action = sim.actionOneLine || "当前行动未知";
+        return `- ${sim.npcName}｜地点：${location}｜行为：${action}`;
+    });
+    return `[交会提示]\n${lines.join('\n')}`;
 };
 
 
@@ -303,6 +385,7 @@ export const constructSocialContext = (confidants: Confidant[], params: any): st
 
     let contextOutput = "[社交与NPC状态 (Social & NPCs)]\n";
     contextOutput += "⚠️ 指令提示：修改NPC属性请用 `gameState.社交[Index].属性`。\n";
+    contextOutput += "⚠️ 记忆说明：以下“私人记忆”仅代表该 NPC 的主观与已知，不等同于玩家共享情报。\n";
 
     const teammates: string[] = [];
     const focusChars: string[] = [];
@@ -342,7 +425,7 @@ export const constructSocialContext = (confidants: Confidant[], params: any): st
                 隐藏基础能力: c.隐藏基础能力值 || "需生成",
                 装备: c.装备 || "需生成",
                 背包: c.背包 || [],
-                最近记忆: focusMemories
+                私人记忆: focusMemories
             };
             teammates.push(JSON.stringify(fullData, null, 2));
         } else if (c.特别关注 || c.强制包含上下文) {
@@ -351,7 +434,7 @@ export const constructSocialContext = (confidants: Confidant[], params: any): st
                 ...baseInfo,
                 ...coordInfo,
                 档案: c.档案,
-                最近记忆: isPresent ? focusMemories : formatMemories(specialAbsentMemoriesRaw)
+                私人记忆: isPresent ? focusMemories : formatMemories(specialAbsentMemoriesRaw)
             };
             focusChars.push(JSON.stringify(focusData));
         } else if (c.是否在场) {
@@ -359,13 +442,13 @@ export const constructSocialContext = (confidants: Confidant[], params: any): st
                 ...baseInfo,
                 ...coordInfo,
                 档案: c.档案,
-                最近记忆: lastMemories
+                私人记忆: lastMemories
             };
             presentChars.push(JSON.stringify(presentData));
         } else {
             const absentData = {
                 ...baseInfo,
-                最近记忆: formatMemories(absentMemoriesRaw),
+                私人记忆: formatMemories(absentMemoriesRaw),
                 最后记录: `[${lastMem.时间戳}] ${lastMem.内容}`
             };
             absentChars.push(JSON.stringify(absentData));
@@ -378,6 +461,49 @@ export const constructSocialContext = (confidants: Confidant[], params: any): st
     if (absentChars.length > 0) contextOutput += `\n>>> 【已知但是不在场】:\n${absentChars.join('\n')}\n`;
 
     return contextOutput;
+};
+
+export const constructNpcBacklineContext = (gameState: GameState): string => {
+    const tracking = Array.isArray(gameState.世界?.NPC后台跟踪) ? gameState.世界.NPC后台跟踪 : [];
+    const confidants = Array.isArray(gameState.社交) ? gameState.社交 : [];
+    const trackingMap = new Map(tracking.map(t => [t.NPC, t]));
+    const formatMemories = (mems: any[]) => mems.map(m => `[${m.时间戳}] ${m.内容}`);
+    const buildLocation = (name: string, inPlace: boolean) => {
+        const track = trackingMap.get(name);
+        const location = (track as any)?.地点 || track?.位置;
+        if (location) return location;
+        if (inPlace) return gameState.当前地点 || '';
+        return '';
+    };
+
+    const special: string[] = [];
+    const others: string[] = [];
+    const specialLimit = 8;
+    const normalLimit = 3;
+
+    confidants.forEach(c => {
+        const base = {
+            姓名: c.姓名,
+            身份: c.身份,
+            关系: c.关系状态,
+            是否在场: c.是否在场,
+            档案: c.档案,
+            当前地点: buildLocation(c.姓名, !!c.是否在场)
+        };
+        if (c.特别关注) {
+            const memories = formatMemories((c.记忆 || []).slice(-specialLimit));
+            special.push(JSON.stringify({ ...base, 私人记忆: memories }, null, 2));
+        } else {
+            const memories = formatMemories((c.记忆 || []).slice(-normalLimit));
+            others.push(JSON.stringify({ ...base, 私人记忆: memories }));
+        }
+    });
+
+    let output = "[NPC后台模拟对象]\n";
+    output += `NPC后台跟踪(现状): ${JSON.stringify(tracking)}\n`;
+    if (special.length > 0) output += `\n>>> 特别关注NPC:\n${special.join('\n')}\n`;
+    if (others.length > 0) output += `\n>>> 其他NPC:\n${others.join('\n')}\n`;
+    return output;
 };
 
 /**
@@ -667,7 +793,14 @@ const hasMapKeyword = (input: string, params: any): boolean => {
     return /地图|地形|路线|路径/.test(input);
 };
 
-export const generateSingleModuleContext = (mod: ContextModuleConfig, gameState: GameState, settings: AppSettings, commandHistory: string[] = [], playerInput: string = ""): string => {
+export const generateSingleModuleContext = (
+    mod: ContextModuleConfig,
+    gameState: GameState,
+    settings: AppSettings,
+    commandHistory: string[] = [],
+    playerInput: string = "",
+    options: { includeIntersectionHint?: boolean } = {}
+): string => {
     switch(mod.type) {
         case 'SYSTEM_PROMPTS':
             // Recalculate system prompts based on settings & state
@@ -877,6 +1010,13 @@ export const generateSingleModuleContext = (mod: ContextModuleConfig, gameState:
             return commandHistory.length > 0 ? `[指令历史]\n${commandHistory.join('\n')}` : "[指令历史] (Empty)";
         case 'USER_INPUT':
             let inputText = `\n[玩家输入]\n"${playerInput}"`;
+            if (options.includeIntersectionHint !== false && settings.enableIntersectionPrecheck !== true) {
+                const snapshots = buildNpcSimulationSnapshots(gameState);
+                const hintBlock = buildIntersectionHintBlock(playerInput, snapshots);
+                if (hintBlock) {
+                    inputText = `${hintBlock}\n\n${inputText}`;
+                }
+            }
             // 字数要求提示
             if (settings.writingConfig?.enableWordCountRequirement) {
                 const required = settings.writingConfig.requiredWordCount || 800;
@@ -896,7 +1036,8 @@ export const assembleFullPrompt = (
     playerInput: string,
     gameState: GameState,
     settings: AppSettings,
-    commandHistory: string[] = []
+    commandHistory: string[] = [],
+    options: { includeIntersectionHint?: boolean } = {}
 ): string => {
     const contextModules = settings.contextConfig?.modules || [];
     let fullContent = "";
@@ -911,18 +1052,17 @@ export const assembleFullPrompt = (
     const appendModules = (type: ContextModuleType) => {
         const modules = moduleMap.get(type) || [];
         modules.forEach(mod => {
-            const modContent = generateSingleModuleContext(mod, gameState, settings, commandHistory, playerInput);
-            if (modContent) {
-                fullContent += modContent + "\n\n";
-            }
-        });
-    };
+                const modContent = generateSingleModuleContext(mod, gameState, settings, commandHistory, playerInput, options);
+                if (modContent) {
+                    fullContent += modContent + "\n\n";
+                }
+            });
+        };
 
     const orderedTypes: ContextModuleType[] = [
         'SYSTEM_PROMPTS',
         'MEMORY_CONTEXT',
         'PLAYER_DATA',
-        'SOCIAL_CONTEXT',
         'MAP_CONTEXT',
         'INVENTORY_CONTEXT',
         'COMBAT_CONTEXT',
@@ -930,7 +1070,8 @@ export const assembleFullPrompt = (
         'STORY_CONTEXT',
         'WORLD_CONTEXT',
         'FAMILIA_CONTEXT',
-        'CONTRACT_CONTEXT'
+        'CONTRACT_CONTEXT',
+        'SOCIAL_CONTEXT'
     ];
     const handledTypes = new Set<ContextModuleType>([...orderedTypes, 'COMMAND_HISTORY', 'USER_INPUT']);
 
@@ -940,7 +1081,7 @@ export const assembleFullPrompt = (
         .filter(mod => !handledTypes.has(mod.type))
         .sort((a, b) => a.order - b.order);
     remainingModules.forEach(mod => {
-        const modContent = generateSingleModuleContext(mod, gameState, settings, commandHistory, playerInput);
+        const modContent = generateSingleModuleContext(mod, gameState, settings, commandHistory, playerInput, options);
         if (modContent) {
             fullContent += modContent + "\n\n";
         }
@@ -1115,7 +1256,13 @@ export const generateDungeonMasterResponse = async (
     signal?: AbortSignal,
     onStream?: (chunk: string) => void
 ): Promise<AIResponse> => {
-    const systemPrompt = assembleFullPrompt(input, gameState, settings, commandsOverride);
+    const systemPrompt = assembleFullPrompt(
+        input,
+        gameState,
+        settings,
+        commandsOverride,
+        { includeIntersectionHint: settings.enableIntersectionPrecheck !== true }
+    );
     const userContent = `Player Input: "${input}"\nPlease respond in JSON format as defined in system prompt.`;
 
     let rawText = "";
@@ -1177,7 +1324,7 @@ export const generateWorldInfoResponse = async (
     signal?: AbortSignal,
     onStream?: (chunk: string) => void
 ): Promise<AIResponse> => {
-    const systemPrompt = assembleFullPrompt(input, gameState, settings, []);
+    const systemPrompt = assembleFullPrompt(input, gameState, settings, [], { includeIntersectionHint: false });
     const userContent = `World Update Input: "${input}"\n请仅输出JSON。`;
     const config = resolveServiceConfig(settings, 'world');
 
@@ -1219,6 +1366,88 @@ export const generateWorldInfoResponse = async (
             shortTerm: "Error occurred.",
             rawResponse: rawText || error.message
         };
+    }
+};
+
+export const generateIntersectionPrecheck = async (
+    input: string,
+    npcSimulations: NpcSimulationSnapshot[],
+    settings: AppSettings,
+    signal?: AbortSignal
+): Promise<{ augmentedInput: string } | null> => {
+    const config = resolveServiceConfig(settings, 'npcSync');
+    if (!config?.apiKey) return null;
+    const payload = {
+        playerInput: input,
+        npcSimulations: npcSimulations.map(sim => ({
+            npcName: sim.npcName,
+            location: sim.location || '',
+            actionOneLine: sim.actionOneLine || '',
+            keywords: sim.keywords || []
+        }))
+    };
+    try {
+        const rawText = await dispatchAIRequest(
+            config,
+            P_INTERSECTION_PRECHECK,
+            JSON.stringify(payload, null, 2),
+            undefined,
+            { responseFormat: 'json', signal }
+        );
+        if (!rawText || !rawText.trim()) return null;
+        const parsed = parseAIResponseText(rawText);
+        if (parsed.response && typeof (parsed.response as any).augmentedInput === 'string') {
+            return { augmentedInput: (parsed.response as any).augmentedInput };
+        }
+        const fallback = JSON.parse(rawText);
+        if (fallback && typeof fallback.augmentedInput === 'string') return { augmentedInput: fallback.augmentedInput };
+        return null;
+    } catch (e) {
+        return null;
+    }
+};
+
+export const generateNpcBacklineSimulation = async (
+    gameState: GameState,
+    settings: AppSettings,
+    signal?: AbortSignal
+): Promise<any[] | null> => {
+    const config = resolveServiceConfig(settings, 'npcBrain');
+    if (!config?.apiKey) return null;
+
+    const worldTime = `[当前世界时间]\n${gameState.当前日期} ${gameState.游戏时间}`;
+    const worldPlace = `当前地点: ${gameState.当前地点 || '未知'}\n当前楼层: ${gameState.当前楼层 ?? 0}`;
+    const memoryContext = constructMemoryContext(
+        gameState.记忆,
+        gameState.日志,
+        settings.memoryConfig || DEFAULT_MEMORY_CONFIG,
+        {
+            excludeTurnIndex: gameState.回合数 || 0,
+            excludePlayerInput: true,
+            fallbackGameTime: gameState.游戏时间
+        }
+    );
+    const npcContext = constructNpcBacklineContext(gameState);
+    const userContent = `${worldTime}\n${worldPlace}\n\n${memoryContext}\n\n${npcContext}`;
+
+    try {
+        const rawText = await dispatchAIRequest(
+            config,
+            P_NPC_BACKLINE,
+            userContent,
+            undefined,
+            { responseFormat: 'json', signal }
+        );
+        if (!rawText || !rawText.trim()) return null;
+        const parsed = parseAIResponseText(rawText);
+        if (parsed.response && Array.isArray((parsed.response as any).npcTrackingUpdates)) {
+            return (parsed.response as any).npcTrackingUpdates;
+        }
+        const fallback = JSON.parse(rawText);
+        if (fallback && Array.isArray(fallback.npcTrackingUpdates)) return fallback.npcTrackingUpdates;
+        return null;
+    } catch (e) {
+        return null;
     }
 };
 

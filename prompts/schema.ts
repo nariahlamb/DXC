@@ -202,7 +202,7 @@
 - \`gameState.世界.头条新闻\`: String[]
 - \`gameState.世界.街头传闻\`: Array<{ "主题": String, "传播度": Number }>
 - \`gameState.世界.诸神神会\`: { "下次神会开启时间": String, "神会主题": String, "讨论内容": Array<{ "角色": String, "对话": String }>, "最终结果": String }
-- \`gameState.世界.NPC后台跟踪\`: Array<{ "NPC": String, "当前行动": String, "位置?": String, "进度?": String, "预计完成?": String }>
+- \`gameState.世界.NPC后台跟踪\`: Array<{ "NPC": String, "当前行动": String, "地点?": String, "位置?": String, "进度?": String, "预计完成?": String, "计划阶段?": String[], "当前阶段?": Number, "阶段结束时间?": String }>
 - \`gameState.世界.派阀格局\`: { "S级": String[], "A级": String[], "B级至I级": String[], "备注": String }
 - \`gameState.世界.战争游戏\`: { "状态": String, "参战眷族": String[], "形式": String, "赌注": String, "举办时间": String, "结束时间": String, "结果": String, "备注": String }
 - \`gameState.世界.下次更新\`: String（每回合需确认是否已经抵达下次更新时间，若抵达则更具体的日期如：第一日 18:00）

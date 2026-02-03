@@ -28,6 +28,7 @@ import { PartyModal } from './game/modals/PartyModal';
 import { MemoryModal } from './game/modals/MemoryModal';
 import { DynamicWorldModal } from './game/modals/DynamicWorldModal';
 import { MemorySummaryModal } from './game/modals/MemorySummaryModal';
+import { IntersectionConfirmModal } from './game/modals/IntersectionConfirmModal';
 
 import { useGameLogic } from '../hooks/useGameLogic';
 import { buildPreviewState } from '../utils/previewState';
@@ -69,6 +70,7 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
       handlePlayerAction, handlePlayerInput, handleSilentWorldUpdate,
       stopInteraction, handleEditLog, handleDeleteLog, handleEditUserLog, handleUpdateLogText, handleUserRewrite,
       manualSave, loadGame, handleReroll, handleDeleteTask, handleUpdateTaskStatus, handleUpdateStory, handleCompleteStoryStage,
+      intersectionConfirmState, confirmIntersectionSend, cancelIntersectionConfirm,
   } = useGameLogic(initialState, onExit);
 
   // Modal States
@@ -392,6 +394,13 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
             onConfirm={confirmMemorySummary}
             onApply={applyMemorySummary}
             onCancel={cancelMemorySummary}
+        />
+
+        <IntersectionConfirmModal
+            isOpen={!!intersectionConfirmState}
+            inputText={intersectionConfirmState?.augmentedInput || ''}
+            onConfirm={confirmIntersectionSend}
+            onCancel={cancelIntersectionConfirm}
         />
 
         <SaveManagerModal
