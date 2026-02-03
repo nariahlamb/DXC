@@ -28,6 +28,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     enableActionOptions: true,
     enableStreaming: true,
     enableIntersectionPrecheck: false,
+    enableNpcBacklinePreUpdate: false,
     chatLogLimit: 30,
     apiProtectionEnabled: false,
     promptModules: DEFAULT_PROMPT_MODULES,

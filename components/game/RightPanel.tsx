@@ -21,6 +21,7 @@ interface RightPanelProps {
     onOpenLibrary: () => void;
     onOpenParty?: () => void;
     isHellMode?: boolean;
+    isNpcBacklineUpdating?: boolean;
     summary?: {
         activeTasks: number;
         partySize: number;
@@ -49,6 +50,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     onOpenLibrary,
     onOpenParty,
     isHellMode,
+    isNpcBacklineUpdating,
     summary
 }) => {
   // Theme Overrides
@@ -56,6 +58,11 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   const primaryHover = isHellMode ? 'group-hover:bg-red-600' : 'group-hover:bg-blue-600';
   const secondaryHover = isHellMode ? 'group-hover:bg-orange-600' : 'group-hover:bg-orange-600'; // Keep orange or change
   const settingsBorder = isHellMode ? 'group-hover:border-red-600' : 'group-hover:border-blue-600';
+  const worldUpdating = isNpcBacklineUpdating === true;
+  const worldColorClass = worldUpdating ? 'bg-cyan-800' : 'bg-zinc-800';
+  const worldIndicator = worldUpdating
+      ? <span className="block w-2.5 h-2.5 rounded-full bg-cyan-300 animate-pulse shadow-[0_0_6px_rgba(34,211,238,0.8)]" />
+      : null;
 
   return (
     <div className="w-full lg:w-[20%] h-full bg-zinc-900/90 backdrop-blur-sm flex flex-col p-3 gap-2 overflow-hidden relative border-l-4 border-black">
@@ -173,9 +180,10 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                 label="世界" 
                 icon={<Globe className="w-5 h-5 lg:w-5 lg:h-5" />} 
                 delay={300} 
-                colorClass="bg-zinc-800"
+                colorClass={worldColorClass}
                 hoverColorClass="group-hover:bg-cyan-600 group-hover:border-white"
                 onClick={onOpenWorld}
+                indicator={worldIndicator}
             />
             <div className="border-t border-zinc-700 my-2" />
             <MenuButton 

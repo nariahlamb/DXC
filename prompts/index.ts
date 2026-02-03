@@ -19,3 +19,4 @@ export * from './commands';
 export * from './glossary';
 export * from './intersection';
 export * from './npc_backline';
+export * from './world_service';

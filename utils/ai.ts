@@ -11,7 +11,7 @@ import {
     P_JUDGMENT_EASY, P_JUDGMENT_NORMAL, P_JUDGMENT_HARD, P_JUDGMENT_HELL,
     P_ACTION_OPTIONS, P_FAMILIA_JOIN, P_STORY_GUIDE,
     P_SYS_FORMAT_MULTI, P_COT_LOGIC_MULTI,
-    P_SYS_COMMANDS, P_SYS_GLOSSARY, P_INTERSECTION_PRECHECK, P_NPC_BACKLINE,
+    P_SYS_COMMANDS, P_SYS_GLOSSARY, P_INTERSECTION_PRECHECK, P_NPC_BACKLINE, P_WORLD_SERVICE,
 } from "../prompts";
 import { Difficulty } from "../types/enums";
 
@@ -96,6 +96,35 @@ export const DEFAULT_MEMORY_CONFIG: MemoryConfig = {
 
 const isCotModule = (mod: PromptModule) => mod.id === 'cot_logic' || mod.group === 'COT思维链';
 
+const isServiceOverrideEnabled = (settings: AppSettings, serviceKey: 'social' | 'world' | 'npcSync' | 'npcBrain') => {
+    const aiConfig = settings.aiConfig;
+    if (!aiConfig) return false;
+    const flags = aiConfig.serviceOverridesEnabled || {};
+    return (flags as any)[serviceKey] === true;
+};
+
+const stripPromptLines = (content: string, markers: string[]) => {
+    if (!content) return content;
+    return content
+        .split('\n')
+        .filter(line => !markers.some(marker => marker && line.includes(marker)))
+        .join('\n');
+};
+
+const adjustCotPrompt = (content: string, settings: AppSettings) => {
+    let next = content;
+    if (isServiceOverrideEnabled(settings, 'social')) {
+        next = stripPromptLines(next, ['NPC 记忆更新', 'NPC记忆更新', 'gameState.社交[i].记忆']);
+    }
+    if (isServiceOverrideEnabled(settings, 'npcBrain')) {
+        next = stripPromptLines(next, ['NPC后台跟踪', 'gameState.世界.NPC后台跟踪']);
+    }
+    if (isServiceOverrideEnabled(settings, 'world')) {
+        next = stripPromptLines(next, ['世界更新', '下次更新']);
+    }
+    return next;
+};
+
 const buildCotPrompt = (settings: AppSettings): string => {
     const multiStage = settings.aiConfig?.multiStageThinking === true;
     const modules = settings.promptModules
@@ -103,40 +132,102 @@ const buildCotPrompt = (settings: AppSettings): string => {
     if (modules.length === 0) return "";
     if (multiStage) {
         const multi = modules.find(m => m.id === 'cot_logic_multi');
-        if (multi && multi.isActive !== false) return multi.content;
-        return P_COT_LOGIC_MULTI;
+        if (multi && multi.isActive !== false) return adjustCotPrompt(multi.content, settings);
+        return adjustCotPrompt(P_COT_LOGIC_MULTI, settings);
     }
     const base = modules.find(m => m.id === 'cot_logic');
-    if (base && base.isActive !== false) return base.content;
+    if (base && base.isActive !== false) return adjustCotPrompt(base.content, settings);
     const fallback = modules.find(m => m.isActive);
-    return fallback ? fallback.content : "";
+    return fallback ? adjustCotPrompt(fallback.content, settings) : "";
 };
 
 export interface NpcSimulationSnapshot {
     npcName: string;
     location?: string;
     actionOneLine?: string;
+    expectedEnd?: string;
     keywords: string[];
 }
 
-const LOCATION_KEYWORDS = [
-    '公会', '本部', '大厅', '酒馆', '旅店', '工房', '市场', '广场',
-    '街区', '街', '教堂', '神殿', '宅邸', '后巷', '港', '地下城', '迷宫'
-];
+const normalizeMatchText = (value: string) => value.replace(/[\s·・、,，。.!?！？:：;；"'“”‘’()（）\[\]{}<>《》]/g, '').toLowerCase();
+
+const buildFuzzyTokens = (token: string, limit: number = 12) => {
+    const output: string[] = [];
+    const normalized = token.trim();
+    if (!normalized) return output;
+    if (normalized.length <= 2) return output;
+    const seen = new Set<string>();
+    const addToken = (value: string) => {
+        if (!value || value.length < 2 || seen.has(value)) return;
+        if (seen.size >= limit) return;
+        seen.add(value);
+        output.push(value);
+    };
+    if (normalized.length <= 4) {
+        addToken(normalized.slice(0, 2));
+        addToken(normalized.slice(-2));
+        if (normalized.length === 4) {
+            addToken(normalized.slice(1, 3));
+        }
+        return output;
+    }
+    addToken(normalized.slice(0, 2));
+    addToken(normalized.slice(-2));
+    addToken(normalized.slice(0, 3));
+    addToken(normalized.slice(-3));
+    for (let i = 1; i < normalized.length - 2 && seen.size < limit; i += 2) {
+        addToken(normalized.slice(i, i + 2));
+    }
+    return output;
+};
 
 const extractLocationKeywords = (location?: string): string[] => {
     if (!location || typeof location !== 'string') return [];
     const trimmed = location.trim();
     if (!trimmed) return [];
     const keywords = new Set<string>([trimmed]);
-    LOCATION_KEYWORDS.forEach(k => {
-        if (trimmed.includes(k)) keywords.add(k);
-    });
     trimmed.split(/[·・、\s/|]|的/).forEach(part => {
         const token = part.trim();
         if (token && token !== trimmed) keywords.add(token);
     });
+    Array.from(keywords).forEach(token => {
+        buildFuzzyTokens(token).forEach(fuzzy => keywords.add(fuzzy));
+    });
     return Array.from(keywords);
+};
+
+const parseGameTimeParts = (input?: string) => {
+    if (!input) return null;
+    const dayMatch = input.match(/第?(\d+)日/);
+    const timeMatch = input.match(/(\d{1,2}):(\d{2})/);
+    if (!dayMatch || !timeMatch) return null;
+    const day = parseInt(dayMatch[1], 10);
+    const hour = parseInt(timeMatch[1], 10);
+    const minute = parseInt(timeMatch[2], 10);
+    if ([day, hour, minute].some(n => Number.isNaN(n))) return null;
+    return { day, hour, minute };
+};
+
+const gameTimeToMinutes = (input?: string) => {
+    const parts = parseGameTimeParts(input);
+    if (!parts) return null;
+    return parts.day * 24 * 60 + parts.hour * 60 + parts.minute;
+};
+
+export const filterActiveNpcSimulations = (
+    npcSimulations: NpcSimulationSnapshot[],
+    currentGameTime?: string
+) => {
+    if (!Array.isArray(npcSimulations) || npcSimulations.length === 0) return [];
+    const nowMinutes = gameTimeToMinutes(currentGameTime);
+    if (nowMinutes === null) return npcSimulations;
+    const filtered = npcSimulations.filter(sim => {
+        if (!sim?.expectedEnd) return true;
+        const endMinutes = gameTimeToMinutes(sim.expectedEnd);
+        if (endMinutes === null) return true;
+        return endMinutes > nowMinutes;
+    });
+    return filtered.length > 0 ? filtered : npcSimulations;
 };
 
 export const buildNpcSimulationSnapshots = (gameState: GameState): NpcSimulationSnapshot[] => {
@@ -152,6 +243,7 @@ export const buildNpcSimulationSnapshots = (gameState: GameState): NpcSimulation
             const confidant = confidantMap.get(name);
             const location = (track as any).地点 || track.位置 || '';
             const action = track?.当前行动 || '';
+            const expectedEnd = (track as any).阶段结束时间 || track?.预计完成 || '';
             const keywords = new Set<string>();
             if (name) keywords.add(name);
             if (confidant?.称号) keywords.add(confidant.称号);
@@ -160,6 +252,7 @@ export const buildNpcSimulationSnapshots = (gameState: GameState): NpcSimulation
                 npcName: name,
                 location,
                 actionOneLine: action,
+                expectedEnd: expectedEnd || undefined,
                 keywords: Array.from(keywords).filter(Boolean)
             } as NpcSimulationSnapshot;
         })
@@ -168,18 +261,29 @@ export const buildNpcSimulationSnapshots = (gameState: GameState): NpcSimulation
 
 export const buildIntersectionHintBlock = (
     playerInput: string,
-    npcSimulations: NpcSimulationSnapshot[]
+    npcSimulations: NpcSimulationSnapshot[],
+    currentGameTime?: string
 ): string => {
     if (!playerInput || npcSimulations.length === 0) return "";
+    if (playerInput.includes('[产生交集]') || playerInput.includes('[可能产生交集]')) return "";
     const content = playerInput.includes('[/用户指令]')
         ? (playerInput.split('[/用户指令]').pop() || '').trim()
         : playerInput;
-    if (!content) return "";
+    const contentSources = [playerInput, content].filter(Boolean);
+    if (contentSources.length === 0) return "";
+    const normalizedSources = contentSources.map(source => normalizeMatchText(source));
+    const activeSimulations = filterActiveNpcSimulations(npcSimulations, currentGameTime);
+    if (activeSimulations.length === 0) return "";
     const matches: NpcSimulationSnapshot[] = [];
     const seen = new Set<string>();
-    npcSimulations.forEach(sim => {
+    activeSimulations.forEach(sim => {
         if (!sim?.npcName || seen.has(sim.npcName)) return;
-        const hit = sim.keywords.some(k => k && content.includes(k));
+        const hit = sim.keywords.some(k => {
+            if (!k) return false;
+            const normalizedKey = normalizeMatchText(k);
+            return contentSources.some(source => source.includes(k))
+                || (normalizedKey && normalizedSources.some(source => source.includes(normalizedKey)));
+        });
         if (hit) {
             matches.push(sim);
             seen.add(sim.npcName);
@@ -189,9 +293,19 @@ export const buildIntersectionHintBlock = (
     const lines = matches.map(sim => {
         const location = sim.location || "未知地点";
         const action = sim.actionOneLine || "当前行动未知";
-        return `- ${sim.npcName}｜地点：${location}｜行为：${action}`;
+        const endLabel = sim.expectedEnd ? `｜预计结束：${sim.expectedEnd}` : "";
+        return `- ${sim.npcName}｜地点：${location}｜行为：${action}${endLabel}`;
     });
-    return `[交会提示]\n${lines.join('\n')}`;
+    return `[可能产生交集]\n${lines.join('\n')}`;
+};
+
+export const extractIntersectionBlock = (text: string): string => {
+    if (!text) return "";
+    const start = text.indexOf('[产生交集]');
+    if (start >= 0) return text.slice(start).trim();
+    const altStart = text.indexOf('[可能产生交集]');
+    if (altStart >= 0) return text.slice(altStart).trim();
+    return "";
 };
 
 
@@ -682,9 +796,14 @@ export const constructMemoryContext = (memory: MemorySystem, logs: LogEntry[], c
     const excludeTurnIndex = typeof params?.excludeTurnIndex === 'number' ? params.excludeTurnIndex : null;
     const excludePlayerInput = params?.excludePlayerInput === true;
     const fallbackGameTime = typeof params?.fallbackGameTime === 'string' ? params.fallbackGameTime : "";
-    const filteredLogs = (excludePlayerInput && excludeTurnIndex !== null)
+    const filteredLogsBase = (excludePlayerInput && excludeTurnIndex !== null)
         ? logs.filter(l => !(l.sender === 'player' && (l.turnIndex || 0) === excludeTurnIndex))
         : logs;
+    const filteredLogs = filteredLogsBase.filter(l => {
+        if (l.sender === 'hint') return false;
+        if (Array.isArray(l.tags) && l.tags.includes('non_memory')) return false;
+        return true;
+    });
 
     const formatShortTermLabel = (entry: MemoryEntry) => {
         const stamp = entry.timestamp || "";
@@ -844,6 +963,13 @@ export const generateSingleModuleContext = (
                 if (m.usage === 'START' && isStart) return true;
                 return false;
             });
+            if (isServiceOverrideEnabled(settings, 'world')) {
+                const worldDynamicIds = new Set(['world_news', 'world_denatus', 'world_rumors', 'world_events']);
+                activePromptModules = activePromptModules.filter(m => !worldDynamicIds.has(m.id));
+            }
+            if (isServiceOverrideEnabled(settings, 'social')) {
+                activePromptModules = activePromptModules.filter(m => m.id !== 'dyn_npc_mem');
+            }
 
             const multiStage = settings.aiConfig?.multiStageThinking === true;
             if (multiStage) {
@@ -951,7 +1077,14 @@ export const generateSingleModuleContext = (
                     sorted.splice(writingIndex, 0, narrativeModule);
                 }
             }
-            let content = sorted.map(m => m.content).join('\n\n');
+            const stripNpcBackline = isServiceOverrideEnabled(settings, 'npcBrain');
+            let content = sorted.map(m => {
+                let moduleContent = m.content;
+                if (stripNpcBackline) {
+                    moduleContent = stripPromptLines(moduleContent, ['NPC后台跟踪', 'gameState.世界.NPC后台跟踪']);
+                }
+                return moduleContent;
+            }).join('\n\n');
             if (settings.enableActionOptions) content += "\n\n" + P_ACTION_OPTIONS;
             return content;
 
@@ -1012,7 +1145,7 @@ export const generateSingleModuleContext = (
             let inputText = `\n[玩家输入]\n"${playerInput}"`;
             if (options.includeIntersectionHint !== false && settings.enableIntersectionPrecheck !== true) {
                 const snapshots = buildNpcSimulationSnapshots(gameState);
-                const hintBlock = buildIntersectionHintBlock(playerInput, snapshots);
+                const hintBlock = buildIntersectionHintBlock(playerInput, snapshots, gameState.游戏时间);
                 if (hintBlock) {
                     inputText = `${hintBlock}\n\n${inputText}`;
                 }
@@ -1100,10 +1233,9 @@ export const assembleFullPrompt = (
 export const resolveServiceConfig = (settings: AppSettings, serviceKey: string): AIEndpointConfig => {
     const aiConfig = settings.aiConfig;
     if (!aiConfig) return { provider: 'gemini', baseUrl: 'https://generativelanguage.googleapis.com', apiKey: '', modelId: 'gemini-3-flash-preview' };
-    const overridesEnabled = aiConfig.useServiceOverrides ?? aiConfig.mode === 'separate';
     const overrideFlags = aiConfig.serviceOverridesEnabled || {};
-    const serviceEnabled = (overrideFlags as any)?.[serviceKey] ?? (aiConfig.mode === 'separate');
-    if (overridesEnabled && serviceEnabled) {
+    const serviceEnabled = (overrideFlags as any)?.[serviceKey] === true;
+    if (serviceEnabled) {
         const service = (aiConfig.services as any)?.[serviceKey];
         if (service && service.apiKey) return service as AIEndpointConfig;
     }
@@ -1324,8 +1456,44 @@ export const generateWorldInfoResponse = async (
     signal?: AbortSignal,
     onStream?: (chunk: string) => void
 ): Promise<AIResponse> => {
-    const systemPrompt = assembleFullPrompt(input, gameState, settings, [], { includeIntersectionHint: false });
-    const userContent = `World Update Input: "${input}"\n请仅输出JSON。`;
+    const worldEventsPrompt = isServiceOverrideEnabled(settings, 'npcBrain')
+        ? stripPromptLines(P_WORLD_EVENTS, ['NPC后台跟踪'])
+        : P_WORLD_EVENTS;
+    const systemPrompt = [
+        P_SYS_FORMAT,
+        P_SYS_GLOSSARY,
+        P_WORLD_FOUNDATION,
+        P_WORLD_NEWS,
+        P_WORLD_DENATUS,
+        P_WORLD_RUMORS,
+        worldEventsPrompt,
+        P_WORLD_SERVICE
+    ].join('\n\n');
+    const playerInfo = (() => {
+        const raw = gameState.角色 || ({} as any);
+        if (!raw || typeof raw !== 'object') return raw;
+        const { 头像, ...rest } = raw as any;
+        return rest;
+    })();
+    const worldTime = `[当前世界时间]\n${gameState.当前日期} ${gameState.游戏时间}\n当前地点: ${gameState.当前地点 || '未知'}\n当前楼层: ${gameState.当前楼层 ?? 0}`;
+    const memoryContext = constructMemoryContext(
+        gameState.记忆,
+        gameState.日志,
+        settings.memoryConfig || DEFAULT_MEMORY_CONFIG,
+        {
+            excludeTurnIndex: gameState.回合数 || 0,
+            excludePlayerInput: true,
+            fallbackGameTime: gameState.游戏时间
+        }
+    );
+    const userContent = [
+        worldTime,
+        `[玩家信息]\n${JSON.stringify(playerInfo, null, 2)}`,
+        `[世界状态]\n${JSON.stringify(gameState.世界 || {}, null, 2)}`,
+        memoryContext,
+        `[更新输入]\n${input}`,
+        '请仅输出JSON。'
+    ].join('\n\n');
     const config = resolveServiceConfig(settings, 'world');
 
     let rawText = "";
@@ -1369,21 +1537,38 @@ export const generateWorldInfoResponse = async (
     }
 };
 
+const resolveNpcSyncConfig = (settings: AppSettings) => {
+    const direct = settings.aiConfig?.services?.npcSync;
+    if (direct?.apiKey) return direct;
+    return resolveServiceConfig(settings, 'npcSync');
+};
+
+export const hasNpcSyncApiKey = (settings: AppSettings): boolean => {
+    const aiConfig = settings.aiConfig;
+    if (!aiConfig?.serviceOverridesEnabled?.npcSync) return false;
+    const config = resolveNpcSyncConfig(settings);
+    return !!config?.apiKey;
+};
+
 export const generateIntersectionPrecheck = async (
     input: string,
     npcSimulations: NpcSimulationSnapshot[],
     settings: AppSettings,
+    currentGameTime?: string,
     signal?: AbortSignal
-): Promise<{ augmentedInput: string } | null> => {
-    const config = resolveServiceConfig(settings, 'npcSync');
+): Promise<{ intersectionBlock: string } | null> => {
+    if (!isServiceOverrideEnabled(settings, 'npcSync')) return null;
+    const config = resolveNpcSyncConfig(settings);
     if (!config?.apiKey) return null;
+    const activeSimulations = filterActiveNpcSimulations(npcSimulations, currentGameTime);
+    if (activeSimulations.length === 0) return null;
     const payload = {
         playerInput: input,
-        npcSimulations: npcSimulations.map(sim => ({
+        npcSimulations: activeSimulations.map(sim => ({
             npcName: sim.npcName,
             location: sim.location || '',
             actionOneLine: sim.actionOneLine || '',
-            keywords: sim.keywords || []
+            expectedEnd: sim.expectedEnd || ''
         }))
     };
     try {
@@ -1396,11 +1581,16 @@ export const generateIntersectionPrecheck = async (
         );
         if (!rawText || !rawText.trim()) return null;
         const parsed = parseAIResponseText(rawText);
+        if (parsed.response && typeof (parsed.response as any).intersectionBlock === 'string') {
+            return { intersectionBlock: (parsed.response as any).intersectionBlock };
+        }
         if (parsed.response && typeof (parsed.response as any).augmentedInput === 'string') {
-            return { augmentedInput: (parsed.response as any).augmentedInput };
+            const block = extractIntersectionBlock((parsed.response as any).augmentedInput);
+            return { intersectionBlock: block };
         }
         const fallback = JSON.parse(rawText);
-        if (fallback && typeof fallback.augmentedInput === 'string') return { augmentedInput: fallback.augmentedInput };
+        if (fallback && typeof fallback.intersectionBlock === 'string') return { intersectionBlock: fallback.intersectionBlock };
+        if (fallback && typeof fallback.augmentedInput === 'string') return { intersectionBlock: extractIntersectionBlock(fallback.augmentedInput) };
         return null;
     } catch (e) {
         return null;
@@ -1410,6 +1600,7 @@ export const generateIntersectionPrecheck = async (
 export const generateNpcBacklineSimulation = async (
     gameState: GameState,
     settings: AppSettings,
+    intersectionBlock?: string,
     signal?: AbortSignal
 ): Promise<any[] | null> => {
     const config = resolveServiceConfig(settings, 'npcBrain');
@@ -1428,26 +1619,32 @@ export const generateNpcBacklineSimulation = async (
         }
     );
     const npcContext = constructNpcBacklineContext(gameState);
-    const userContent = `${worldTime}\n${worldPlace}\n\n${memoryContext}\n\n${npcContext}`;
+    const intersectionHint = intersectionBlock?.trim();
+    const userContent = `${worldTime}\n${worldPlace}\n\n${memoryContext}\n\n${npcContext}${intersectionHint ? `\n\n${intersectionHint}` : ''}`;
+    const systemPrompt = `${P_WORLD_FOUNDATION}\n\n${P_NPC_BACKLINE}`;
 
     try {
         const rawText = await dispatchAIRequest(
             config,
-            P_NPC_BACKLINE,
+            systemPrompt,
             userContent,
             undefined,
             { responseFormat: 'json', signal }
         );
-        if (!rawText || !rawText.trim()) return null;
+        if (!rawText || !rawText.trim()) {
+            throw new Error('空响应');
+        }
         const parsed = parseAIResponseText(rawText);
         if (parsed.response && Array.isArray((parsed.response as any).npcTrackingUpdates)) {
             return (parsed.response as any).npcTrackingUpdates;
         }
         const fallback = JSON.parse(rawText);
         if (fallback && Array.isArray(fallback.npcTrackingUpdates)) return fallback.npcTrackingUpdates;
-        return null;
+        const preview = rawText.length > 600 ? `${rawText.slice(0, 600)}...` : rawText;
+        throw new Error(`返回缺少 npcTrackingUpdates: ${preview}`);
     } catch (e) {
-        return null;
+        if ((e as any)?.name === 'AbortError') throw e;
+        throw new Error(`NPC后台更新错误: ${(e as any)?.message || e}`);
     }
 };
 

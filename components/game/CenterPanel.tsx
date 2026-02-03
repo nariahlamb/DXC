@@ -21,6 +21,8 @@ interface CenterPanelProps {
   lastThinking?: string;
   onPlayerAction: (action: 'attack' | 'skill' | 'guard' | 'escape' | 'talk' | 'item', payload?: any) => void;
   isProcessing?: boolean;
+  isIntersectionPlanning?: boolean;
+  isNpcBacklineUpdating?: boolean;
   isStreaming?: boolean;
   commandQueue?: { id: string, text: string, undoAction?: () => void }[];
   onRemoveCommand?: (id: string) => void;
@@ -54,6 +56,8 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
     onReroll, 
     onPlayerAction,
     isProcessing,
+    isIntersectionPlanning,
+    isNpcBacklineUpdating,
     isStreaming,
     lastRawResponse,
     lastThinking,
@@ -570,6 +574,8 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
           onReroll={onReroll}
           onStopInteraction={onStopInteraction}
           isProcessing={!!isProcessing}
+          isIntersectionPlanning={!!isIntersectionPlanning}
+          isNpcBacklineUpdating={!!isNpcBacklineUpdating}
           combatState={combatState}
           commandQueue={commandQueue}
           onRemoveCommand={onRemoveCommand}

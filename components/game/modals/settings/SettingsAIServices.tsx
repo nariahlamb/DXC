@@ -1,17 +1,20 @@
 
 import React, { useState, useEffect } from 'react';
-import { Cpu, RefreshCw, X, List, Save, Check } from 'lucide-react';
+import { Cpu, RefreshCw, X, List, Save, Check, Radar, Globe, Users, Brain } from 'lucide-react';
 import { AIEndpointConfig, GlobalAISettings } from '../../../../types';
 
 interface SettingsAIServicesProps {
     settings: GlobalAISettings;
+    enableIntersectionPrecheck?: boolean;
+    enableNpcBacklinePreUpdate?: boolean;
+    onToggleIntersectionPrecheck?: (enabled: boolean) => void;
+    onToggleNpcBacklinePreUpdate?: (enabled: boolean) => void;
     onUpdate: (newSettings: GlobalAISettings) => void;
     onSave?: (newSettings: GlobalAISettings) => void;
 }
 
-export const SettingsAIServices: React.FC<SettingsAIServicesProps> = ({ settings, onUpdate, onSave }) => {
+export const SettingsAIServices: React.FC<SettingsAIServicesProps> = ({ settings, enableIntersectionPrecheck, enableNpcBacklinePreUpdate, onToggleIntersectionPrecheck, onToggleNpcBacklinePreUpdate, onUpdate, onSave }) => {
     const [localConfig, setLocalConfig] = useState<GlobalAISettings>(settings);
-    const [activeTab, setActiveTab] = useState<'SOCIAL' | 'WORLD' | 'NPC_SYNC' | 'NPC_BRAIN'>('SOCIAL');
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
     useEffect(() => {
@@ -27,11 +30,7 @@ export const SettingsAIServices: React.FC<SettingsAIServicesProps> = ({ settings
             nextState.services[path] = newConfig;
         }
         setLocalConfig(nextState);
-        setHasUnsavedChanges(true);
-    };
-
-    const handleOverrideToggle = (enabled: boolean) => {
-        setLocalConfig(prev => ({ ...prev, useServiceOverrides: enabled }));
+        onUpdate(nextState);
         setHasUnsavedChanges(true);
     };
 
@@ -40,6 +39,7 @@ export const SettingsAIServices: React.FC<SettingsAIServicesProps> = ({ settings
         if (!nextState.serviceOverridesEnabled) nextState.serviceOverridesEnabled = {};
         nextState.serviceOverridesEnabled[key] = enabled;
         setLocalConfig(nextState);
+        onUpdate(nextState);
         setHasUnsavedChanges(true);
     };
 
@@ -48,6 +48,14 @@ export const SettingsAIServices: React.FC<SettingsAIServicesProps> = ({ settings
         else onUpdate(localConfig);
         setHasUnsavedChanges(false);
         alert("API 配置已保存");
+    };
+    const handleIntersectionToggle = (enabled: boolean) => {
+        onToggleIntersectionPrecheck?.(enabled);
+        setHasUnsavedChanges(true);
+    };
+    const handleNpcBacklinePreUpdateToggle = (enabled: boolean) => {
+        onToggleNpcBacklinePreUpdate?.(enabled);
+        setHasUnsavedChanges(true);
     };
 
     return (
@@ -70,26 +78,13 @@ export const SettingsAIServices: React.FC<SettingsAIServicesProps> = ({ settings
             </div>
             
             <div className="bg-white p-6 border border-zinc-200 shadow-sm flex-1 overflow-y-auto custom-scrollbar">
-                <div className="mb-6">
-                    <label className="block text-xs font-bold uppercase mb-2 text-zinc-500">主API（默认）</label>
+                <div className="mb-8">
+                    <label className="block text-xs font-bold uppercase mb-2 text-zinc-500">主剧情 API（默认）</label>
                     <AIConfigForm 
-                        label="主API配置"
+                        label="主剧情API配置"
                         config={localConfig.unified}
                         onChange={(c) => handleConfigChange(c, 'unified')}
                     />
-                </div>
-
-                <div className="mb-6 flex items-center gap-3">
-                    <input
-                        type="checkbox"
-                        id="enableServiceOverrides"
-                        checked={localConfig.useServiceOverrides === true}
-                        onChange={e => handleOverrideToggle(e.target.checked)}
-                        className="w-4 h-4 text-red-600 border-zinc-300 rounded focus:ring-red-500"
-                    />
-                    <label htmlFor="enableServiceOverrides" className="text-xs font-bold uppercase text-zinc-600 select-none cursor-pointer">
-                        启用功能独立API（未启用时全部使用主API）
-                    </label>
                 </div>
 
                 <div className="mb-6 flex items-center gap-3">
@@ -125,71 +120,106 @@ export const SettingsAIServices: React.FC<SettingsAIServicesProps> = ({ settings
                     </label>
                 </div>
 
-                {localConfig.useServiceOverrides === true ? (
-                    <div>
-                        <div className="flex border-b border-zinc-200 mb-4 overflow-x-auto">
-                            {(['SOCIAL', 'WORLD', 'NPC_SYNC', 'NPC_BRAIN'] as const).map(tab => (
-                                <button
-                                    key={tab}
-                                    onClick={() => setActiveTab(tab)}
-                                    className={`px-4 py-2 text-xs font-bold uppercase border-b-2 transition-colors whitespace-nowrap ${activeTab === tab ? 'border-red-600 text-red-600' : 'border-transparent text-zinc-400'}`}
-                                >
-                                    {tab.replace('_', ' ')}
-                                </button>
-                            ))}
-                        </div>
+                <div className="space-y-6">
+                    <ModuleConfigCard
+                        title="世界动态"
+                        description="开启后，世界动态由独立API维护；关闭则由主剧情一并处理。"
+                        icon={<Globe size={16} />}
+                        enabled={localConfig.serviceOverridesEnabled?.world === true}
+                        onToggle={(enabled) => handleServiceOverrideToggle('world', enabled)}
+                    >
+                        <AIConfigForm config={localConfig.services.world} onChange={(c) => handleConfigChange(c, 'world')} disabled={localConfig.serviceOverridesEnabled?.world !== true} />
+                    </ModuleConfigCard>
 
-                        {activeTab === 'SOCIAL' && (
-                            <ServiceOverridePanel
-                                label="社交"
-                                enabled={localConfig.serviceOverridesEnabled?.social === true}
-                                onToggle={(enabled) => handleServiceOverrideToggle('social', enabled)}
-                            >
-                                <AIConfigForm config={localConfig.services.social} onChange={(c) => handleConfigChange(c, 'social')} disabled={localConfig.serviceOverridesEnabled?.social !== true} />
-                            </ServiceOverridePanel>
-                        )}
-                        {activeTab === 'WORLD' && (
-                            <ServiceOverridePanel
-                                label="世界"
-                                enabled={localConfig.serviceOverridesEnabled?.world === true}
-                                onToggle={(enabled) => handleServiceOverrideToggle('world', enabled)}
-                            >
-                                <AIConfigForm config={localConfig.services.world} onChange={(c) => handleConfigChange(c, 'world')} disabled={localConfig.serviceOverridesEnabled?.world !== true} />
-                            </ServiceOverridePanel>
-                        )}
-                        {activeTab === 'NPC_SYNC' && (
-                            <ServiceOverridePanel
-                                label="交会预判"
-                                enabled={localConfig.serviceOverridesEnabled?.npcSync === true}
-                                onToggle={(enabled) => handleServiceOverrideToggle('npcSync', enabled)}
-                            >
-                                <AIConfigForm config={localConfig.services.npcSync} onChange={(c) => handleConfigChange(c, 'npcSync')} disabled={localConfig.serviceOverridesEnabled?.npcSync !== true} />
-                            </ServiceOverridePanel>
-                        )}
-                        {activeTab === 'NPC_BRAIN' && (
-                            <ServiceOverridePanel
-                                label="后台模拟"
-                                enabled={localConfig.serviceOverridesEnabled?.npcBrain === true}
-                                onToggle={(enabled) => handleServiceOverrideToggle('npcBrain', enabled)}
-                            >
-                                <AIConfigForm config={localConfig.services.npcBrain} onChange={(c) => handleConfigChange(c, 'npcBrain')} disabled={localConfig.serviceOverridesEnabled?.npcBrain !== true} />
-                            </ServiceOverridePanel>
-                        )}
-                    </div>
-                ) : (
-                    <div className="text-xs text-zinc-400 italic">
-                        当前未启用功能独立API，所有模块均使用主API配置。
-                    </div>
-                )}
+                    <ModuleConfigCard
+                        title="社交与NPC记忆"
+                        description="开启后，社交与NPC记忆由独立API维护；关闭则由主剧情处理。"
+                        icon={<Users size={16} />}
+                        enabled={localConfig.serviceOverridesEnabled?.social === true}
+                        onToggle={(enabled) => handleServiceOverrideToggle('social', enabled)}
+                    >
+                        <AIConfigForm config={localConfig.services.social} onChange={(c) => handleConfigChange(c, 'social')} disabled={localConfig.serviceOverridesEnabled?.social !== true} />
+                    </ModuleConfigCard>
+
+                    <ModuleConfigCard
+                        title="NPC后台跟踪"
+                        description="开启后，后台跟踪由独立API维护；关闭则由主剧情处理。"
+                        icon={<Brain size={16} />}
+                        enabled={localConfig.serviceOverridesEnabled?.npcBrain === true}
+                        onToggle={(enabled) => handleServiceOverrideToggle('npcBrain', enabled)}
+                        extra={
+                            <div className="flex items-center justify-between p-3 bg-zinc-50 border border-zinc-200">
+                                <div>
+                                    <div className="text-xs font-bold uppercase text-zinc-600">下一回合输入前更新</div>
+                                    <div className="text-[10px] text-zinc-500">开启后，玩家每次输入前会先触发一次 NPC 后台刷新。</div>
+                                </div>
+                                <input
+                                    type="checkbox"
+                                    checked={enableNpcBacklinePreUpdate === true}
+                                    onChange={e => handleNpcBacklinePreUpdateToggle(e.target.checked)}
+                                    className="w-4 h-4 text-red-600 border-zinc-300 rounded focus:ring-red-500"
+                                />
+                            </div>
+                        }
+                    >
+                        <AIConfigForm config={localConfig.services.npcBrain} onChange={(c) => handleConfigChange(c, 'npcBrain')} disabled={localConfig.serviceOverridesEnabled?.npcBrain !== true} />
+                    </ModuleConfigCard>
+
+                    <ModuleConfigCard
+                        title="剧情输入规划"
+                        description="用于交会判定与输入规划。可选择是否启用提示确认。"
+                        icon={<Radar size={16} />}
+                        enabled={localConfig.serviceOverridesEnabled?.npcSync === true}
+                        onToggle={(enabled) => handleServiceOverrideToggle('npcSync', enabled)}
+                        extra={
+                            <div className="flex items-center justify-between p-3 bg-zinc-50 border border-zinc-200">
+                                <div>
+                                    <div className="text-xs font-bold uppercase text-zinc-600">启用交会提示确认</div>
+                                    <div className="text-[10px] text-zinc-500">开启后命中关键词/预判将弹窗确认，可编辑后发送主剧情。</div>
+                                </div>
+                                    <input
+                                        type="checkbox"
+                                        checked={enableIntersectionPrecheck === true}
+                                        onChange={e => handleIntersectionToggle(e.target.checked)}
+                                        className="w-4 h-4 text-red-600 border-zinc-300 rounded focus:ring-red-500"
+                                    />
+                            </div>
+                        }
+                    >
+                        <AIConfigForm config={localConfig.services.npcSync} onChange={(c) => handleConfigChange(c, 'npcSync')} disabled={localConfig.serviceOverridesEnabled?.npcSync !== true} />
+                    </ModuleConfigCard>
+                </div>
             </div>
         </div>
     );
 };
 
-const ServiceOverridePanel = ({ label, enabled, onToggle, children }: { label: string; enabled: boolean; onToggle: (enabled: boolean) => void; children: React.ReactNode }) => (
-    <div className="space-y-3">
-        <div className="flex items-center justify-between">
-            <div className="text-xs font-bold uppercase text-zinc-500">功能：{label}</div>
+const ModuleConfigCard = ({
+    title,
+    description,
+    icon,
+    enabled,
+    onToggle,
+    extra,
+    children
+}: {
+    title: string;
+    description?: string;
+    icon?: React.ReactNode;
+    enabled: boolean;
+    onToggle: (enabled: boolean) => void;
+    extra?: React.ReactNode;
+    children: React.ReactNode;
+}) => (
+    <div className="space-y-3 border border-zinc-200 bg-white/70 p-4">
+        <div className="flex items-start justify-between gap-4">
+            <div className="space-y-1">
+                <div className="flex items-center gap-2 text-sm font-bold uppercase text-zinc-700">
+                    {icon}
+                    <span>{title}</span>
+                </div>
+                {description && <div className="text-[10px] text-zinc-500">{description}</div>}
+            </div>
             <div className="flex items-center gap-2">
                 <input
                     type="checkbox"
@@ -197,9 +227,10 @@ const ServiceOverridePanel = ({ label, enabled, onToggle, children }: { label: s
                     onChange={e => onToggle(e.target.checked)}
                     className="w-4 h-4 text-red-600 border-zinc-300 rounded focus:ring-red-500"
                 />
-                <span className="text-xs font-bold uppercase text-zinc-600">{enabled ? '独立API' : '使用主API'}</span>
+                <span className="text-[10px] font-bold uppercase text-zinc-600">{enabled ? '独立API' : '使用主剧情API'}</span>
             </div>
         </div>
+        {extra}
         {children}
     </div>
 );

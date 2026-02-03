@@ -11,6 +11,7 @@ interface DynamicWorldModalProps {
   npcStates?: any[];
   gameTime?: string;
   onSilentWorldUpdate?: () => void;
+  onForceNpcBacklineUpdate?: () => void;
 }
 
 type WorldTab = 'GUILD' | 'DENATUS' | 'RUMORS' | 'TRACKING' | 'FACTIONS' | 'WAR_GAME';
@@ -20,7 +21,8 @@ export const DynamicWorldModal: React.FC<DynamicWorldModalProps> = ({
     onClose,
     worldState,
     gameTime,
-    onSilentWorldUpdate
+    onSilentWorldUpdate,
+    onForceNpcBacklineUpdate
 }) => {
   const [activeTab, setActiveTab] = useState<WorldTab>('GUILD');
 
@@ -119,7 +121,7 @@ export const DynamicWorldModal: React.FC<DynamicWorldModalProps> = ({
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 p-4 md:p-8 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] bg-[#0f172a] relative overflow-y-auto custom-scrollbar pb-32 md:pb-8">
+            <div className="flex-1 p-4 pt-16 md:p-8 md:pt-20 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] bg-[#0f172a] relative overflow-y-auto custom-scrollbar pb-32 md:pb-8">
                 
                 {/* Next Update Indicator */}
                 <div className="absolute top-4 right-4 flex items-center gap-3 bg-black/50 px-3 py-2 rounded border border-blue-900/50">
@@ -146,7 +148,7 @@ export const DynamicWorldModal: React.FC<DynamicWorldModalProps> = ({
                 {activeTab === 'RUMORS' && <RumorsPanel world={safeWorldState} />}
                 {activeTab === 'FACTIONS' && <FactionsPanel world={safeWorldState} />}
                 {activeTab === 'WAR_GAME' && <WarGamePanel world={safeWorldState} />}
-                {activeTab === 'TRACKING' && <TrackingPanel world={safeWorldState} />}
+                {activeTab === 'TRACKING' && <TrackingPanel world={safeWorldState} onForceNpcBacklineUpdate={onForceNpcBacklineUpdate} />}
             </div>
         </div>
       </div>
@@ -371,10 +373,20 @@ const WarGamePanel = ({ world }: { world: WorldState }) => {
     );
 };
 
-const TrackingPanel = ({ world }: { world: WorldState }) => (
+const TrackingPanel = ({ world, onForceNpcBacklineUpdate }: { world: WorldState; onForceNpcBacklineUpdate?: () => void }) => (
     <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
         <div className="border-b border-cyan-900 pb-2 mb-6">
-            <h3 className="text-cyan-400 font-display text-2xl uppercase tracking-widest">NPC 后台跟踪</h3>
+            <div className="flex items-center justify-between gap-3">
+                <h3 className="text-cyan-400 font-display text-2xl uppercase tracking-widest">NPC 后台跟踪</h3>
+                {onForceNpcBacklineUpdate && (
+                    <button
+                        onClick={onForceNpcBacklineUpdate}
+                        className="px-3 py-1 text-[10px] uppercase tracking-widest bg-cyan-600 text-black hover:bg-cyan-500 border border-cyan-300 shadow-sm"
+                    >
+                        强制刷新
+                    </button>
+                )}
+            </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4">
@@ -391,7 +403,15 @@ const TrackingPanel = ({ world }: { world: WorldState }) => (
                                  <div className="text-[10px] text-zinc-500">地点: {track.地点 || track.位置}</div>
                              )}
                              {Array.isArray(track.计划阶段) && track.计划阶段.length > 0 && (
-                                 <div className="text-[10px] text-zinc-500">阶段: {track.计划阶段[track.当前阶段 || 0] || track.计划阶段[0]}</div>
+                                 <div className="text-[10px] text-zinc-500">
+                                     阶段: {(() => {
+                                         const total = track.计划阶段.length;
+                                         const rawIndex = typeof track.当前阶段 === 'number' ? track.当前阶段 : 0;
+                                         const normalizedIndex = rawIndex >= 1 ? rawIndex - 1 : rawIndex;
+                                         const safeIndex = Math.min(Math.max(normalizedIndex, 0), total - 1);
+                                         return `${safeIndex + 1}/${total}`;
+                                     })()}
+                                 </div>
                              )}
                              {track.阶段结束时间 && <div className="text-[10px] text-zinc-500">阶段结束: {track.阶段结束时间}</div>}
                              {track.进度 && <div className="text-[10px] text-emerald-400">进度: {track.进度}</div>}

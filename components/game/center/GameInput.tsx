@@ -7,6 +7,8 @@ interface GameInputProps {
   onReroll?: () => void;
   onStopInteraction?: () => void;
   isProcessing: boolean;
+  isIntersectionPlanning?: boolean;
+  isNpcBacklineUpdating?: boolean;
   combatState: CombatState;
   commandQueue: { id: string, text: string, undoAction?: () => void }[];
   onRemoveCommand?: (id: string) => void;
@@ -21,6 +23,8 @@ export const GameInput: React.FC<GameInputProps> = ({
     onReroll, 
     onStopInteraction,
     isProcessing, 
+    isIntersectionPlanning = false,
+    isNpcBacklineUpdating = false,
     combatState, 
     commandQueue, 
     onRemoveCommand,
@@ -31,6 +35,7 @@ export const GameInput: React.FC<GameInputProps> = ({
 }) => {
     const [input, setInput] = useState('');
     const actionBtnSize = 'h-[52px] sm:h-[60px] w-[18vw] sm:w-[90px]';
+    const isBusy = isProcessing || isIntersectionPlanning;
 
     useEffect(() => {
         if (draftInput !== undefined) {
@@ -45,7 +50,7 @@ export const GameInput: React.FC<GameInputProps> = ({
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (isProcessing) return;
+        if (isBusy) return;
         const hasCommands = commandQueue.length > 0;
         if (!input.trim() && !hasCommands) return;
         const safeInput = input.trim() ? input : '执行用户指令';
@@ -61,7 +66,13 @@ export const GameInput: React.FC<GameInputProps> = ({
     };
 
     // Theme logic
-    const borderColor = isProcessing ? 'border-blue-600 shadow-[0_0_15px_blue]' : (isHellMode ? 'border-zinc-600 group-hover:border-red-600 group-hover:shadow-[0_0_20px_rgba(220,38,38,0.3)]' : 'border-zinc-600 group-hover:border-blue-600 group-hover:shadow-[0_0_20px_rgba(37,99,235,0.3)]');
+    const borderColor = isProcessing
+        ? 'border-blue-600 shadow-[0_0_15px_blue]'
+        : (isIntersectionPlanning
+            ? 'border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.35)]'
+            : (isHellMode
+                ? 'border-zinc-600 group-hover:border-red-600 group-hover:shadow-[0_0_20px_rgba(220,38,38,0.3)]'
+                : 'border-zinc-600 group-hover:border-blue-600 group-hover:shadow-[0_0_20px_rgba(37,99,235,0.3)]'));
     const caretColor = isHellMode ? 'text-red-600' : 'text-blue-600';
     const btnHover = isHellMode ? 'hover:bg-red-600' : 'hover:bg-blue-600';
 
@@ -98,8 +109,8 @@ export const GameInput: React.FC<GameInputProps> = ({
                 {onReroll ? (
                     <button
                         type="button"
-                        onClick={!isProcessing ? onReroll : undefined}
-                        disabled={isProcessing}
+                        onClick={!isBusy ? onReroll : undefined}
+                        disabled={isBusy}
                         title="重掷"
                         aria-label="重掷"
                         className={`bg-white text-black ${actionBtnSize} transform -skew-x-6 border-2 border-transparent transition-all flex items-center justify-center shadow-lg
@@ -124,6 +135,18 @@ export const GameInput: React.FC<GameInputProps> = ({
                                 AI IS GENERATING RESPONSE...
                             </span>
                         )}
+                        {!isProcessing && isIntersectionPlanning && (
+                            <span className="text-xs text-amber-400 font-mono flex items-center gap-2">
+                                <Loader2 size={12} className="animate-spin" />
+                                交会预判中...
+                            </span>
+                        )}
+                        {!isProcessing && !isIntersectionPlanning && isNpcBacklineUpdating && (
+                            <span className="text-xs text-cyan-400 font-mono flex items-center gap-2">
+                                <Loader2 size={12} className="animate-spin" />
+                                NPC后台更新中...
+                            </span>
+                        )}
                     </div>
 
                     <div className={`relative bg-black transform -skew-x-6 border-2 flex items-center p-1 shadow-lg transition-all ${borderColor}`}>
@@ -134,8 +157,8 @@ export const GameInput: React.FC<GameInputProps> = ({
                             type="text"
                             value={input}
                             onChange={handleInputChange}
-                            placeholder={isProcessing ? "处理中..." : combatState.是否战斗中 ? (enableCombatUI ? "战斗中 | 输入文字进行自由行动..." : "战斗模式 | 请输入指令...") : "你打算做什么？"}
-                            disabled={isProcessing}
+                            placeholder={isProcessing ? "处理中..." : (isIntersectionPlanning ? "交会预判中..." : (combatState.是否战斗中 ? (enableCombatUI ? "战斗中 | 输入文字进行自由行动..." : "战斗模式 | 请输入指令...") : "你打算做什么？"))}
+                            disabled={isBusy}
                             className="flex-1 bg-transparent text-white font-display text-xl px-2 py-3 outline-none placeholder-zinc-700 transform skew-x-6 disabled:cursor-not-allowed"
                             autoFocus
                         />
@@ -143,7 +166,7 @@ export const GameInput: React.FC<GameInputProps> = ({
                 </div>
 
                 <button 
-                    type={isProcessing ? "button" : "submit"}
+                    type={isBusy ? "button" : "submit"}
                     onClick={isProcessing ? handleStop : undefined}
                     className={`bg-white text-black ${actionBtnSize} transform -skew-x-6 border-2 border-transparent transition-all flex items-center justify-center shadow-lg
                         ${isProcessing 
@@ -151,13 +174,16 @@ export const GameInput: React.FC<GameInputProps> = ({
                             : `hover:border-white ${btnHover} hover:text-white disabled:bg-zinc-800 disabled:text-zinc-600`
                         }
                     `}
+                    disabled={isIntersectionPlanning && !isProcessing}
                 >
                     <div className="transform skew-x-6 font-display uppercase tracking-widest text-lg font-bold flex items-center gap-2">
                         {isProcessing ? (
                             <>
                                 <Square size={16} fill="currentColor" />
                             </>
-                        ) : 'ACT'}
+                        ) : (isIntersectionPlanning ? (
+                            <Loader2 size={16} className="animate-spin" />
+                        ) : 'ACT')}
                     </div>
                 </button>
             </form>

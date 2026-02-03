@@ -64,10 +64,10 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
       gameState, setGameState,
       settings, saveSettings,
       commandQueue, pendingCommands, addToQueue, removeFromQueue,
-      currentOptions, lastAIResponse, lastAIThinking, isProcessing, isStreaming,
+      currentOptions, lastAIResponse, lastAIThinking, isProcessing, isStreaming, isIntersectionPlanning, isNpcBacklineUpdating,
       draftInput, setDraftInput,
       memorySummaryState, confirmMemorySummary, applyMemorySummary, cancelMemorySummary,
-      handlePlayerAction, handlePlayerInput, handleSilentWorldUpdate,
+      handlePlayerAction, handlePlayerInput, handleSilentWorldUpdate, handleForceNpcBacklineUpdate,
       stopInteraction, handleEditLog, handleDeleteLog, handleEditUserLog, handleUpdateLogText, handleUserRewrite,
       manualSave, loadGame, handleReroll, handleDeleteTask, handleUpdateTaskStatus, handleUpdateStory, handleCompleteStoryStage,
       intersectionConfirmState, confirmIntersectionSend, cancelIntersectionConfirm,
@@ -155,7 +155,9 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
       lastThinking: lastAIThinking,
       onPlayerAction: handlePlayerAction,
       isProcessing,
+      isIntersectionPlanning,
       isStreaming,
+      isNpcBacklineUpdating,
       commandQueue: activeCommands,
       onRemoveCommand: isProcessing ? undefined : removeFromQueue,
       onEditLog: handleEditLog,
@@ -214,6 +216,7 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
                         onOpenParty={() => setActiveModal('PARTY')}
                         onOpenSaveManager={() => setActiveModal('SAVE_MANAGER')}
                         isHellMode={isHellMode}
+                        isNpcBacklineUpdating={isNpcBacklineUpdating}
                         summary={{
                             activeTasks: activeTaskCount,
                             partySize: partyCount,
@@ -383,6 +386,7 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
             worldState={gameState.世界}
             gameTime={gameState.游戏时间}
             onSilentWorldUpdate={handleSilentWorldUpdate}
+            onForceNpcBacklineUpdate={handleForceNpcBacklineUpdate}
         />
 
         <MemorySummaryModal

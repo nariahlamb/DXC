@@ -139,6 +139,7 @@ export interface AppSettings {
   enableActionOptions: boolean; // NEW: Toggle for Action Suggestions
   enableStreaming: boolean; // NEW: Toggle for AI Streaming
   enableIntersectionPrecheck?: boolean; // Optional: NPC交会预判确认
+  enableNpcBacklinePreUpdate?: boolean; // Optional: NPC后台输入前更新
   chatLogLimit?: number | null; // UI render limit, null for unlimited
   apiProtectionEnabled?: boolean;
   promptModules: PromptModule[];
