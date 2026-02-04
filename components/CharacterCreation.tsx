@@ -5,6 +5,7 @@ import { GameState } from '../types';
 import { createNewGameState } from '../utils/dataMapper';
 import { User, ArrowRight, Dna, Shield, Calendar, Clock, Edit3, Skull, AlertTriangle, Package } from 'lucide-react';
 import { Difficulty } from '../types/enums';
+import { useAppSettings } from '../hooks/useAppSettings';
 
 interface CharacterCreationProps {
   onComplete: (initialState: GameState) => void;
@@ -12,6 +13,7 @@ interface CharacterCreationProps {
 }
 
 export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onComplete, onBack }) => {
+  const { settings } = useAppSettings();
   const [name, setName] = useState('');
   const [gender, setGender] = useState<'Male' | 'Female'>('Male');
   const [race, setRace] = useState('Human');
@@ -36,8 +38,18 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onComplete
       e.preventDefault();
       if (!name.trim()) return;
       const birthday = `${birthMonth}-${birthDay}`;
-      // @ts-ignore - Argument count mismatch if types not updated yet, but logic is ready
-      const newState = createNewGameState(name, gender, race, age, birthday, appearance, background, difficulty, initialPackage);
+      const newState = createNewGameState(
+          name,
+          gender,
+          race,
+          age,
+          birthday,
+          appearance,
+          background,
+          difficulty,
+          initialPackage,
+          settings?.writingConfig?.narrativePerspective
+      );
       onComplete(newState);
   };
 

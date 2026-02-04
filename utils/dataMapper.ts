@@ -12,7 +12,8 @@ export const createNewGameState = (
     appearance: string = "",
     background: string = "",
     difficulty: Difficulty = Difficulty.NORMAL,
-    initialPackage: 'standard' | 'combat' | 'survival' | 'wealth' = 'standard'
+    initialPackage: 'standard' | 'combat' | 'survival' | 'wealth' = 'standard',
+    narrativePerspective?: 'first' | 'second' | 'third'
 ): GameState => {
     // 1. 种族映射与基础属性
     const raceNameMap: {[key:string]: string} = {
@@ -46,6 +47,22 @@ export const createNewGameState = (
         饰品3: ""
     };
     const playerName = name;
+    let introLogs: string[] = [];
+    const resolvePerspective = (value?: 'first' | 'second' | 'third'): 'first' | 'second' | 'third' => {
+        if (value === 'first' || value === 'second' || value === 'third') return value;
+        if (typeof localStorage === 'undefined') return 'third';
+        try {
+            const saved = localStorage.getItem('danmachi_settings');
+            if (!saved) return 'third';
+            const parsed = JSON.parse(saved);
+            const p = parsed?.writingConfig?.narrativePerspective;
+            if (p === 'first' || p === 'second' || p === 'third') return p;
+        } catch {}
+        return 'third';
+    };
+    const perspective = resolvePerspective(narrativePerspective);
+    const selfRef = perspective === 'third' ? playerName : (perspective === 'first' ? '我' : '你');
+    const selfPossessive = perspective === 'third' ? `${playerName}的` : (perspective === 'first' ? '我的' : '你的');
 
     // --- 难度分支逻辑 ---
     if (difficulty === Difficulty.EASY) {
@@ -83,13 +100,22 @@ export const createNewGameState = (
         });
         initialTasks.push({
             id: 'Tsk_002',
-            标题: '眷族接洽',
-            描述: '目标：携带推荐信与任一眷族进行初次会面。\n达成条件：与至少一位神明完成正式面谈并建立接触记录。',
+            标题: '自由选择眷族',
+            描述: '目标：凭贵族推荐信向任意眷族提交加入申请。\n达成条件：完成任意眷族的入团手续（基于推荐信特权快速放行）。',
             状态: 'active',
-            奖励: '眷族候选情报',
+            奖励: '神之恩惠 (Falna)',
             评级: 'C',
             接取时间: '第1日 07:10'
         });
+
+        introLogs = [
+            `${selfRef}推开“丰饶的女主人”的门，暖意与麦香混着炖汤的气息扑上来。木地板被脚步踩出细响，杯盏相碰的清脆声在大厅里回荡，壁炉的火光在酒渍斑驳的桌面上跳动。`,
+            `吧台后，希儿把新擦好的杯子一字排开，笑意明亮却忙而不乱；琉在一旁核对账单，目光沉静而警惕。靠窗的冒险者低声交换情报，羽毛笔在羊皮纸上划过，像把城市的呼吸写进夜里。`,
+            `${selfPossessive}行囊安稳地贴在椅背，装备整齐、刃口锋利，护甲扣带被仔细整理过，补给与地图各在其位。旅途的疲惫被热气渐渐拂开，掌心里那枚公会的推荐物件带来一种从容的起步感。`,
+            `墙上的告示板贴着新人指引与近期动向，${selfPossessive}贵族推荐信在掌心带来额外的分量。凭这份特权，${selfRef}可以向任意眷族提交申请，手续与接洽将比常规流程更顺畅。门缝外传来街道的车轮声与人声浪潮，城市在等${selfRef}迈出下一步，而此刻只需确认要前往哪里。`,
+            `靠窗的位置能看见石板路上来往的脚步与远处高塔的影子，阳光在玻璃上投下淡淡的纹路。${selfRef}有足够的余地去选择自己的第一步，不必急于做出仓促的决定。`,
+            `一张临时张贴的委托单在风里轻轻摆动，纸角压着酒杯留下的水痕。大厅里的喧闹并不刺耳，反而像在为新的起点铺平路面。`
+        ];
 
     } else if (difficulty === Difficulty.NORMAL) {
         // Normal: 标准新人配置
@@ -132,6 +158,15 @@ export const createNewGameState = (
             接取时间: '第1日 07:05'
         });
 
+        introLogs = [
+            `${selfRef}踏进“丰饶的女主人”，热气裹着麦香与烤肉味迎面而来。大厅里木桌紧挨着，杯盏相碰的声音此起彼伏，壁炉里的火光把人影拉长，给这座城市的清晨添了些松弛。`,
+            `吧台后，希儿把菜单递给新来的客人，声音清亮而不急躁；琉在旁边安静地收拾酒具，动作利落，像在把每一处细节都锁回秩序。角落里有人压低声音谈起公会与地下城，话题在烟雾里飘散。`,
+            `${selfPossessive}装备与补给属于标准新人的范围，护甲与武器都算可靠，但还谈不上奢侈。行囊不重不轻，足以应付一段短程行动，却仍需要谨慎规划每一次的消耗。`,
+            `告示板上贴着登记流程与眷族接洽的指引，几张新张的纸边还带着浆糊的味道。门外的街道传来车轮碾过石板的声响，城市的步伐正等着${selfRef}走出下一步。`,
+            `窗边的光落在木纹上，空气里有酒香与铁器的味道交织。${selfRef}可以先理清目标，再决定是去公会登记还是寻找眷族的门扉。`,
+            `几名冒险者在角落里低声谈论上层的异常刷新，语速不快，却都带着谨慎。信息在桌与桌之间传递，像一条被反复确认的路线。`
+        ];
+
     } else if (difficulty === Difficulty.HARD) {
         // Hard: 资金紧张，装备老旧
         startValis = 150;
@@ -172,6 +207,15 @@ export const createNewGameState = (
             接取时间: '第1日 07:10'
         });
 
+        introLogs = [
+            `${selfRef}推开“丰饶的女主人”的门，炉火带来的暖意并不能驱散肩上的沉重。酒馆里人声嘈杂，却多是短句与低语，像每个人都在计算下一步该做什么。`,
+            `希儿在吧台忙着招呼客人，笑容里带着职业性的明亮；琉把酒桶抬上架，目光扫过大厅，仿佛在为一切突发做好准备。角落里有人翻看破旧的地图，指尖在褶皱上停留很久。`,
+            `${selfPossessive}护具简陋，旧刀挂在腰侧，刃口不够锋利却仍能使用。行囊里补给稀薄，法利紧张，任何一次错误选择都会拖慢${selfRef}在欧拉丽站稳脚跟的速度。`,
+            `告示板上写着公会的注意事项与近期风险，纸张的边缘被反复撕扯。门外的街道传来嘈杂的脚步声与铁器摩擦声，城市的压力从门缝里一点点涌进来。`,
+            `${selfRef}把目光从人群移开，留意到桌面上的旧痕与被反复划过的木纹。先稳住眼前的资源，再决定要去哪里探路，这一步会影响接下来的一切。`,
+            `墙角的油灯偶尔轻轻摇晃，影子在桌脚间拉长又缩短。周围的谈话没有多余的寒暄，像把“选择”摆在每个人面前。`
+        ];
+
     } else if (difficulty === Difficulty.HELL) {
         // Hell: 近乎赤贫，设备损坏
         startValis = 0;
@@ -180,16 +224,17 @@ export const createNewGameState = (
         maxMind = 60;
 
         initialInventory = [
-            { id: 'Eq_Wpn_X', 名称: '缺口小刀', 描述: '随身破旧的小刀，勉强能用。', 数量: 1, 类型: 'weapon', 武器: { 类型: '小刀', 伤害类型: '斩击', 射程: '近战', 攻速: '快', 双手: false }, 已装备: true, 装备槽位: '主手', 攻击力: 1, 品质: 'Broken', 耐久: 6, 最大耐久: 20, 价值: 0, 重量: 0.4 },
-            { id: 'Eq_Arm_X', 名称: '破旧外套', 描述: '缝补多次的旧外套，几乎没有防护力。', 数量: 1, 类型: 'armor', 防具: { 类型: '布甲', 部位: '身体', 护甲等级: '极低' }, 已装备: true, 装备槽位: '身体', 防御力: 0, 品质: 'Broken', 耐久: 8, 最大耐久: 20, 价值: 0 },
-            { id: 'Eq_Leg_X', 名称: '破布长裤', 描述: '边缘磨损的破旧长裤。', 数量: 1, 类型: 'armor', 防具: { 类型: '布甲', 部位: '腿部', 护甲等级: '极低' }, 已装备: true, 装备槽位: '腿部', 防御力: 0, 品质: 'Broken', 耐久: 8, 最大耐久: 20, 价值: 0 },
-            { id: 'Eq_Boot_X', 名称: '磨破布鞋', 描述: '几乎失去缓冲的旧鞋。', 数量: 1, 类型: 'armor', 防具: { 类型: '布甲', 部位: '足部', 护甲等级: '极低' }, 已装备: true, 装备槽位: '足部', 防御力: 0, 品质: 'Broken', 耐久: 6, 最大耐久: 15, 价值: 0 },
-            { id: 'Itm_Bag_X', 名称: '空水袋', 描述: '破旧的水袋，急需补给。', 数量: 1, 类型: 'key_item', 品质: 'Broken', 价值: 0 }
+            { id: 'Eq_Wpn_X', 名称: '铁制短剑', 描述: '常见的短剑，刃口规整。', 数量: 1, 类型: 'weapon', 武器: { 类型: '短剑', 伤害类型: '突刺', 射程: '近战', 攻速: '快', 双手: false }, 已装备: true, 装备槽位: '主手', 攻击力: 5, 品质: 'Common', 耐久: 40, 最大耐久: 40, 价值: 2000, 重量: 0.8 },
+            { id: 'Eq_Arm_X', 名称: '旧皮甲', 描述: '普通皮甲，缝合结实。', 数量: 1, 类型: 'armor', 防具: { 类型: '轻甲', 部位: '身体', 护甲等级: '轻' }, 已装备: true, 装备槽位: '身体', 防御力: 2, 品质: 'Common', 耐久: 35, 最大耐久: 35, 价值: 1500, 重量: 1.2 },
+            { id: 'Eq_Glv_X', 名称: '布护手', 描述: '粗布缝制的护手。', 数量: 1, 类型: 'armor', 防具: { 类型: '布甲', 部位: '手部', 护甲等级: '轻' }, 已装备: true, 装备槽位: '手部', 防御力: 1, 品质: 'Common', 耐久: 25, 最大耐久: 25, 价值: 300, 重量: 0.2 },
+            { id: 'Eq_Leg_X', 名称: '粗布长裤', 描述: '结实耐磨的粗布长裤。', 数量: 1, 类型: 'armor', 防具: { 类型: '布甲', 部位: '腿部', 护甲等级: '轻' }, 已装备: true, 装备槽位: '腿部', 防御力: 1, 品质: 'Common', 耐久: 25, 最大耐久: 25, 价值: 300, 重量: 0.5 },
+            { id: 'Eq_Boot_X', 名称: '旧皮靴', 描述: '行走多年的旧皮靴，仍能支撑长途。', 数量: 1, 类型: 'armor', 防具: { 类型: '轻甲', 部位: '足部', 护甲等级: '轻' }, 已装备: true, 装备槽位: '足部', 防御力: 1, 品质: 'Common', 耐久: 28, 最大耐久: 28, 价值: 400, 重量: 0.6 },
+            { id: 'Itm_Pot_S', 名称: '低级回复药', 描述: '基础的红色药水。', 数量: 1, 类型: 'consumable', 恢复量: 50, 品质: 'Common', 价值: 600 }
         ];
 
         startEquipment = {
-            头部: '', 身体: '破旧外套', 手部: '', 腿部: '破布长裤', 足部: '磨破布鞋',
-            主手: '缺口小刀', 副手: '', 饰品1: '', 饰品2: '', 饰品3: ''
+            头部: '', 身体: '旧皮甲', 手部: '布护手', 腿部: '粗布长裤', 足部: '旧皮靴',
+            主手: '铁制短剑', 副手: '', 饰品1: '', 饰品2: '', 饰品3: ''
         };
 
         initialTasks.push({
@@ -210,6 +255,15 @@ export const createNewGameState = (
             评级: 'S',
             接取时间: '第1日 07:05'
         });
+
+        introLogs = [
+            `${selfRef}踏入“丰饶的女主人”，门被合上时，外面的冷风被暂时隔在街道。酒馆里暖意并不奢侈，却足以让人回想起城市依旧在转动的事实。`,
+            `吧台处的灯光把杯沿映得发亮，希儿忙着穿行于桌与桌之间；琉的身影在火光里沉稳而清晰，像一根稳住场面的钉子。冒险者们低声交换消息，偶尔抬眼评估新面孔。`,
+            `${selfPossessive}装备是普通而完整的一套，护甲扣带齐全，武器也尚可依靠，虽然没有多余的选择，但至少不存在破损的隐患。行囊里空隙很多，补给稀少，起步显得格外艰难。`,
+            `告示板上贴着新人登记与地下城提醒，纸上墨迹还很新。门缝透进街道的喧嚣，像在催促${selfRef}尽快作出选择，但此刻仍能先确认下一步的方向。`,
+            `靠墙的座位空着，木椅有些硬，却能给${selfRef}一个短暂的停靠。${selfRef}需要在这里整理思路，决定是立刻离开还是先探听能救命的线索。`,
+            `酒馆的门帘被人掀起又放下，冷风夹着尘土味短暂地扫过桌面。短促的喧哗过后，空气里只剩下杯底碰桌的轻响。`
+        ];
     }
 
     // 3. 初始资源包逻辑 (Initial Resource Selection)
@@ -267,26 +321,6 @@ export const createNewGameState = (
     // }
 
     // 5. 构造最终状态
-    
-    // 生成开局描述 Text
-    let introText = "";
-    if (difficulty === Difficulty.EASY) {
-        introText = `${playerName}刚抵达巴别塔广场。晨光铺在石砖上，人潮与公会卫队让广场秩序井然，贵宾通道提示在公告牌上闪烁如同通行印章。
-
-补给与装备齐整，地图与推荐信被妥善收起，足以支撑一段从容的起步。怪物祭倒计时的公告贴在广场一侧，喧闹声里夹着紧张的节奏。`;
-    } else if (difficulty === Difficulty.NORMAL) {
-        introText = `${playerName}踏入巴别塔广场时，人声与铁匠铺的敲击混在一起。基础装备与几份补给勉强齐备，公会登记提醒在手心里微微震动。
-
-怪物祭倒计时的通告贴在公告栏，公会旗帜随风摆动。广场的节奏正在加快。`;
-    } else if (difficulty === Difficulty.HARD) {
-        introText = `${playerName}在巴别塔广场停下脚步，口袋里的法利所剩无几，旧刀贴着腰侧发出轻响。行人匆匆，公会告示反复提醒上层异常频发，紧张的空气把广场压得更低。
-
-怪物祭倒计时的标语在风里抖动，物价与警戒的阴影逐渐笼罩街区。`;
-    } else {
-        introText = `风掠过巴别塔广场的石阶，${playerName}的徽章只剩微光。饥饿与寒意沉在身上，卫兵的影子在石砖上拉长，人群的脚步声像潮水。
-
-怪物祭倒计时的布告在高处摇晃，喧闹与冷风一同卷过。`;
-    }
 
     const initialNpcTracking = [
         {
@@ -377,12 +411,16 @@ export const createNewGameState = (
             状态: [],
             最大负重: 0
         },
-        日志: [
-            { id: 'Log_Intro', text: introText, sender: '旁白', timestamp: Date.now() + 100, turnIndex: 0 }
-        ],
+        日志: introLogs.map((text, index) => ({
+            id: `Log_Intro_${index + 1}`,
+            text,
+            sender: '旁白',
+            timestamp: Date.now() + 100 + index,
+            turnIndex: 0
+        })),
         游戏时间: "第1日 07:00",
         当前日期: "1000-01-01",
-        当前地点: "巴别塔广场",
+        当前地点: "丰饶的女主人",
         当前楼层: 0,
         天气: "晴朗",
         

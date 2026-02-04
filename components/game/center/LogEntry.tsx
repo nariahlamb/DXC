@@ -267,7 +267,7 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
         const bgGlow = isHellMode ? 'via-red-950/10' : 'via-blue-950/10';
 
         return (
-            <div className="group relative w-full my-1 animate-in fade-in duration-1000">
+            <div className="group relative w-full my-[0.01px] animate-in fade-in duration-1000">
                 {/* Action Menu - Hover to reveal on Desktop */}
                 <div className="absolute top-0 right-4 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
                     <ActionMenu />
@@ -276,11 +276,11 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
                 <div className="flex flex-col items-center">
                     <AiActionHeader align="center" />
                     
-                    <div className="relative w-full md:w-[96%] px-4 md:px-4 py-3">
+                    <div className="relative w-full md:w-[96%] px-4 md:px-4 py-2">
                         {/* Ambient Background Glow */}
                         <div className={`absolute inset-0 bg-gradient-to-b from-transparent ${bgGlow} to-transparent -z-10`} />
 
-                        <div className={`relative border ${isHellMode ? 'border-red-900/60' : 'border-blue-900/60'} bg-black/40 px-4 md:px-6 py-4 shadow-sm`}>
+                        <div className={`relative border ${isHellMode ? 'border-red-900/60' : 'border-blue-900/60'} bg-black/40 px-4 md:px-6 py-3 shadow-sm`}>
                             {renderDecoratedText(content, `font-serif text-zinc-300 text-justify tracking-wide text-sm md:text-base leading-relaxed drop-shadow-md`)}
                         </div>
                     </div>
