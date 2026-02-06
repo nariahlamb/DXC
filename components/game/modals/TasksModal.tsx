@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, ListTodo, CheckCircle2, Circle, AlertCircle, Clock, ScrollText, History, Trash2 } from 'lucide-react';
+import { X, ListTodo, CheckCircle2, Circle, AlertCircle, Clock, ScrollText, History, Trash2, Pin } from 'lucide-react';
 import { Task } from '../../../types';
 
 interface TasksModalProps {
@@ -36,10 +36,10 @@ export const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks =
     switch (grade) {
       case 'SSS':
       case 'SS':
-      case 'S': return 'text-yellow-400 border-yellow-400 bg-yellow-900/30';
-      case 'A': return 'text-red-400 border-red-400 bg-red-900/30';
-      case 'B': return 'text-blue-400 border-blue-400 bg-blue-900/30';
-      default: return 'text-zinc-400 border-zinc-600 bg-zinc-900';
+      case 'S': return 'text-yellow-600 border-yellow-600 bg-yellow-100';
+      case 'A': return 'text-red-600 border-red-600 bg-red-100';
+      case 'B': return 'text-blue-600 border-blue-600 bg-blue-100';
+      default: return 'text-zinc-600 border-zinc-400 bg-zinc-100';
     }
   };
 
@@ -60,31 +60,42 @@ export const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks =
 
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-200">
-      <div className="w-full max-w-5xl bg-zinc-900 border-t-8 border-yellow-500 relative shadow-[0_0_50px_rgba(234,179,8,0.3)] max-h-[85vh] flex flex-col">
+      <div className="w-full max-w-6xl h-[85vh] bg-zinc-900 border-4 border-yellow-500 relative shadow-[0_0_60px_rgba(234,179,8,0.2)] flex flex-col overflow-hidden">
+        
         {/* Header */}
-        <div className="bg-yellow-500 p-4 flex justify-between items-center text-black shrink-0">
-          <div className="flex items-center gap-3 font-display">
-            <ListTodo className="w-8 h-8" />
-            <h2 className="text-3xl uppercase tracking-widest">公会委托</h2>
+        <div className="bg-yellow-500 p-6 flex justify-between items-center text-black shrink-0 relative z-10">
+          {/* Diagonal Stripes Pattern */}
+          <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(0,0,0,0.05)_10px,rgba(0,0,0,0.05)_20px)] pointer-events-none" />
+          
+          <div className="flex items-center gap-4 relative z-10">
+            <div className="bg-black text-yellow-500 p-3 transform -rotate-3 shadow-lg">
+                <ListTodo className="w-8 h-8" />
+            </div>
+            <div>
+                <h2 className="text-4xl font-black uppercase tracking-tighter italic">公会委托板</h2>
+                <div className="text-xs font-mono font-bold tracking-widest">GUILD REQUESTS BOARD</div>
+            </div>
           </div>
-          <button onClick={onClose} className="hover:bg-black hover:text-yellow-500 transition-colors p-1 border-2 border-black">
+          <button onClick={onClose} className="bg-black text-yellow-500 hover:bg-zinc-800 hover:text-white transition-colors p-3 rounded-full relative z-10">
             <X className="w-6 h-6" />
           </button>
         </div>
 
         {/* Content Container */}
-        <div className="flex flex-col md:flex-row flex-1 overflow-hidden bg-[url('https://www.transparenttextures.com/patterns/cork-board.png')] bg-zinc-800">
+        <div className="flex flex-col md:flex-row flex-1 overflow-hidden bg-[#27272a] relative">
+          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cork-board.png')] opacity-20 pointer-events-none" />
+          
           {/* Left: List & Filter */}
-          <div className="w-full md:w-1/3 border-r-4 border-zinc-900 flex flex-col bg-zinc-900/50 backdrop-blur-sm">
-            <div className="flex border-b-2 border-zinc-900">
+          <div className="w-full md:w-80 border-r-4 border-black/20 flex flex-col bg-zinc-900/80 backdrop-blur-sm relative z-10 shadow-xl">
+            <div className="flex bg-black">
               {(['ACTIVE', 'COMPLETED', 'FAILED'] as TaskFilter[]).map(f => (
                 <button
                   key={f}
                   onClick={() => { setFilter(f); setSelectedTask(null); }}
-                  className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider transition-colors
+                  className={`flex-1 py-4 text-xs font-black uppercase tracking-wider transition-all border-b-4
                     ${filter === f 
-                      ? 'bg-yellow-500 text-black' 
-                      : 'bg-zinc-800 text-zinc-500 hover:text-zinc-300'
+                      ? 'bg-yellow-500 text-black border-yellow-700' 
+                      : 'bg-zinc-900 text-zinc-500 border-zinc-800 hover:bg-zinc-800 hover:text-zinc-300'
                     }
                   `}
                 >
@@ -93,99 +104,108 @@ export const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks =
               ))}
             </div>
             
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3">
               {filteredTasks.length > 0 ? filteredTasks.map(task => (
                 <div 
                   key={task.id}
                   onClick={() => setSelectedTask(task)}
-                  className={`p-3 border-l-4 cursor-pointer transition-all hover:translate-x-1 group
+                  className={`p-4 border-l-8 cursor-pointer transition-all hover:-translate-y-1 shadow-md group relative overflow-hidden
                     ${selectedTask?.id === task.id 
-                      ? 'bg-yellow-900/40 border-yellow-500' 
-                      : 'bg-zinc-900 border-zinc-700 hover:border-zinc-500'
+                      ? 'bg-yellow-100 border-yellow-600' 
+                      : 'bg-zinc-100 border-zinc-400 hover:bg-white'
                     }
                   `}
                 >
-                  <div className="flex justify-between items-start mb-1">
-                    <h4 className={`font-display uppercase truncate ${selectedTask?.id === task.id ? 'text-white' : 'text-zinc-300'}`}>
+                  <div className="flex justify-between items-start mb-2 relative z-10">
+                    <h4 className={`font-black uppercase text-sm leading-tight line-clamp-2 ${selectedTask?.id === task.id ? 'text-black' : 'text-zinc-800'}`}>
                       {task.标题}
                     </h4>
-                    <span className={`text-[10px] font-mono px-1.5 border ${getGradeColor(task.评级)}`}>
+                    <span className={`text-[10px] font-black px-1.5 py-0.5 border-2 ml-2 whitespace-nowrap ${getGradeColor(task.评级)}`}>
                       {task.评级}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 text-[10px] text-zinc-500">
-                    {task.状态 === 'completed' && <CheckCircle2 size={12} className="text-green-500"/>}
-                    {task.状态 === 'failed' && <AlertCircle size={12} className="text-red-500"/>}
-                    {task.状态 === 'active' && <Circle size={12} className="text-yellow-500 animate-pulse"/>}
-                    <span>{task.奖励}</span>
+                  <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500 relative z-10">
+                    {task.状态 === 'completed' && <span className="text-green-600 flex items-center gap-1"><CheckCircle2 size={12}/> 完成</span>}
+                    {task.状态 === 'failed' && <span className="text-red-600 flex items-center gap-1"><AlertCircle size={12}/> 失败</span>}
+                    {task.状态 === 'active' && <span className="text-yellow-600 flex items-center gap-1"><Circle size={12} className="fill-current"/> 进行中</span>}
+                    <span className="truncate max-w-[100px]">| {task.奖励}</span>
                   </div>
+                  
+                  {/* Selection Indicator */}
+                  {selectedTask?.id === task.id && (
+                      <div className="absolute top-2 right-2 text-yellow-600 opacity-20 transform rotate-12 pointer-events-none">
+                          <Pin size={48} className="fill-current" />
+                      </div>
+                  )}
                 </div>
               )) : (
-                <div className="text-center py-10 text-zinc-600 font-mono text-xs">
-                  暂无记录
+                <div className="text-center py-12 text-zinc-500 font-mono text-xs border-2 border-dashed border-zinc-700 mx-2">
+                  暂无相关委托
                 </div>
               )}
             </div>
           </div>
 
           {/* Right: Details */}
-          <div className="flex-1 p-6 md:p-8 overflow-y-auto custom-scrollbar relative">
+          <div className="flex-1 p-6 md:p-10 overflow-y-auto custom-scrollbar relative z-10">
             {selectedTask ? (
-              <div className="bg-[#f0e6d2] text-[#4a3b32] p-8 shadow-xl min-h-full relative transform rotate-1 transition-transform">
+              <div className="max-w-3xl mx-auto bg-[#fdfbf7] text-[#292524] p-8 md:p-12 shadow-[0_10px_40px_rgba(0,0,0,0.5)] min-h-full relative transform rotate-1 transition-transform border border-[#e7e5e4]">
                 {/* Paper Texture & Pin */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 -mt-3 w-4 h-4 rounded-full bg-red-800 shadow-md border border-white z-20" />
-                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/paper.png')] opacity-30 pointer-events-none" />
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-red-700 shadow-lg border-2 border-red-900 z-20 flex items-center justify-center">
+                    <div className="w-3 h-3 bg-red-900/50 rounded-full" />
+                </div>
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/paper.png')] opacity-50 pointer-events-none" />
                 
                 {/* Stamp */}
-                <div className={`absolute top-8 right-8 border-4 rounded px-4 py-2 transform rotate-[-15deg] opacity-70 font-display font-black text-2xl uppercase tracking-widest mix-blend-multiply
-                  ${selectedTask.状态 === 'active' ? 'border-blue-800 text-blue-800' : 
-                    selectedTask.状态 === 'completed' ? 'border-red-800 text-red-800' : 'border-black text-black'}
+                <div className={`absolute top-10 right-10 border-8 rounded px-6 py-2 transform rotate-[-12deg] opacity-60 font-black text-4xl uppercase tracking-widest mix-blend-multiply pointer-events-none
+                  ${selectedTask.状态 === 'active' ? 'border-blue-700 text-blue-700' : 
+                    selectedTask.状态 === 'completed' ? 'border-red-700 text-red-700' : 'border-zinc-800 text-zinc-800'}
                 `}>
-                  {statusLabel(selectedTask.状态)}
+                  {selectedTask.状态 === 'active' ? 'ACCEPTED' : selectedTask.状态 === 'completed' ? 'CLEARED' : 'FAILED'}
                 </div>
 
                 <div className="relative z-10 font-serif">
-                  <h2 className="text-4xl font-display uppercase tracking-tighter border-b-2 border-[#8b7e66] pb-2 mb-4">
+                  <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter border-b-4 border-black pb-4 mb-6 leading-none">
                     {selectedTask.标题}
                   </h2>
                   
-                  <div className="flex gap-6 text-xs font-mono text-[#786c5e] mb-6">
-                    <span className="flex items-center gap-1">
-                      <AlertCircle size={14} /> 评级: {selectedTask.评级}
+                  <div className="flex flex-wrap gap-6 text-sm font-bold text-zinc-600 mb-8 bg-yellow-50 p-4 border-l-4 border-yellow-500">
+                    <span className="flex items-center gap-2 uppercase tracking-wider">
+                      <AlertCircle size={16} /> 评级: <span className="text-black text-lg">{selectedTask.评级}</span>
                     </span>
-                    <span className="flex items-center gap-1">
-                      <Clock size={14} /> 截止: {selectedTask.截止时间 || "无"}
+                    <span className="flex items-center gap-2 uppercase tracking-wider">
+                      <Clock size={16} /> 截止: <span className="text-black">{selectedTask.截止时间 || "无限制"}</span>
                     </span>
                   </div>
 
-                  <div className="mb-8">
-                    <h4 className="text-sm font-bold uppercase tracking-widest text-[#8b7e66] mb-2 flex items-center gap-2">
-                      <ScrollText size={16}/> 任务描述
+                  <div className="mb-10">
+                    <h4 className="text-sm font-black uppercase tracking-[0.2em] text-zinc-400 mb-3 flex items-center gap-2">
+                      <ScrollText size={16}/> 委托详情 / DESCRIPTION
                     </h4>
-                    <p className="leading-relaxed whitespace-pre-wrap">
+                    <p className="text-lg leading-relaxed whitespace-pre-wrap text-zinc-800">
                       {selectedTask.描述}
                     </p>
                   </div>
 
-                  <div className="bg-[#e6dbc4] p-4 border border-[#cfc4ad] mb-8">
-                    <h4 className="text-xs font-bold uppercase tracking-widest text-[#8b7e66] mb-1">奖励</h4>
-                    <p className="font-bold text-lg">{selectedTask.奖励}</p>
+                  <div className="bg-zinc-100 p-6 border-2 border-dashed border-zinc-300 mb-8 relative">
+                    <div className="absolute -top-3 left-6 bg-zinc-800 text-white px-3 py-0.5 text-xs font-bold uppercase tracking-widest">REWARD</div>
+                    <p className="font-black text-2xl text-zinc-800">{selectedTask.奖励}</p>
                   </div>
 
                   {onUpdateTask && (
-                    <div className="bg-[#f7f0e2] p-4 border border-[#cfc4ad] mb-8">
-                      <h4 className="text-xs font-bold uppercase tracking-widest text-[#8b7e66] mb-2">手动操作</h4>
+                    <div className="bg-yellow-50 p-6 border border-yellow-200 mb-8">
+                      <h4 className="text-xs font-black uppercase tracking-widest text-yellow-700 mb-3">管理员操作 / ADMIN ACTIONS</h4>
                       <textarea
                         value={manualNote}
                         onChange={(e) => setManualNote(e.target.value)}
-                        placeholder="可选：填写手动备注/结案说明"
-                        className="w-full h-16 bg-white/70 border border-[#cfc4ad] p-2 text-xs resize-none"
+                        placeholder="可选：填写手动备注/结案说明..."
+                        className="w-full h-20 bg-white border border-yellow-300 p-3 text-sm resize-none mb-4 outline-none focus:border-yellow-500"
                       />
-                      <div className="flex flex-wrap gap-2 mt-3">
+                      <div className="flex flex-wrap gap-3">
                         {selectedTask.状态 !== 'completed' && (
                           <button
                             onClick={() => handleStatusUpdate('completed')}
-                            className="px-3 py-1 text-xs font-bold border-2 border-green-700 text-green-700 hover:bg-green-700 hover:text-white"
+                            className="px-4 py-2 text-xs font-bold border-2 border-green-600 text-green-700 hover:bg-green-600 hover:text-white uppercase tracking-wider transition-colors"
                           >
                             标记完成
                           </button>
@@ -193,7 +213,7 @@ export const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks =
                         {selectedTask.状态 !== 'failed' && (
                           <button
                             onClick={() => handleStatusUpdate('failed')}
-                            className="px-3 py-1 text-xs font-bold border-2 border-red-700 text-red-700 hover:bg-red-700 hover:text-white"
+                            className="px-4 py-2 text-xs font-bold border-2 border-red-600 text-red-700 hover:bg-red-600 hover:text-white uppercase tracking-wider transition-colors"
                           >
                             标记失败
                           </button>
@@ -201,7 +221,7 @@ export const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks =
                         {selectedTask.状态 !== 'active' && (
                           <button
                             onClick={() => handleStatusUpdate('active')}
-                            className="px-3 py-1 text-xs font-bold border-2 border-blue-700 text-blue-700 hover:bg-blue-700 hover:text-white"
+                            className="px-4 py-2 text-xs font-bold border-2 border-blue-600 text-blue-700 hover:bg-blue-600 hover:text-white uppercase tracking-wider transition-colors"
                           >
                             重新激活
                           </button>
@@ -211,40 +231,41 @@ export const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks =
                   )}
 
                   {selectedTask.日志 && selectedTask.日志.length > 0 && (
-                    <div className="border-t-2 border-[#8b7e66] pt-4">
-                      <h4 className="text-sm font-bold uppercase tracking-widest text-[#8b7e66] mb-3 flex items-center gap-2">
-                        <History size={16}/> 更新记录
+                    <div className="border-t-4 border-zinc-200 pt-6">
+                      <h4 className="text-sm font-black uppercase tracking-widest text-zinc-400 mb-4 flex items-center gap-2">
+                        <History size={16}/> 更新记录 / LOGS
                       </h4>
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         {selectedTask.日志.map((log, idx) => (
-                          <div key={idx} className="flex gap-3 text-xs">
-                            <span className="font-mono text-[#8b7e66] bg-[#ded3be] px-1 h-fit whitespace-nowrap">{log.时间戳}</span>
-                            <span>{log.内容}</span>
+                          <div key={idx} className="flex gap-4 text-sm border-b border-zinc-100 pb-2 last:border-0">
+                            <span className="font-mono text-zinc-400 text-xs shrink-0 pt-0.5">{log.时间戳}</span>
+                            <span className="text-zinc-700">{log.内容}</span>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
                   
-                  <div className="flex justify-between items-end mt-8">
-                    <div className="text-[10px] uppercase text-[#8b7e66] font-mono tracking-widest">
-                      任务ID: #{selectedTask.id.substring(0,8).toUpperCase()}
+                  <div className="flex justify-between items-end mt-12 pt-6 border-t border-black">
+                    <div className="text-[10px] uppercase text-zinc-400 font-mono tracking-widest">
+                      REF_ID: #{selectedTask.id.substring(0,8).toUpperCase()}
                     </div>
                     {onDeleteTask && selectedTask.状态 !== 'active' && (
                       <button 
                         onClick={handleDelete}
-                        className="flex items-center gap-2 text-red-800 border-2 border-red-800 px-3 py-1 font-bold hover:bg-red-800 hover:text-white transition-colors"
+                        className="flex items-center gap-2 text-red-700 border-b-2 border-transparent hover:border-red-700 font-bold transition-colors text-xs uppercase tracking-wider"
                       >
-                        <Trash2 size={16} /> 删除记录
+                        <Trash2 size={14} /> 删除记录
                       </button>
                     )}
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-full text-zinc-500 opacity-50">
-                <ScrollText size={64} className="mb-4" />
-                <span className="font-display text-2xl uppercase tracking-widest">请选择任务</span>
+              <div className="flex flex-col items-center justify-center h-full text-zinc-500 opacity-30">
+                <ScrollText size={80} className="mb-6" />
+                <span className="font-black text-3xl uppercase tracking-widest italic">请选择任务</span>
+                <span className="text-sm font-mono mt-2">SELECT A REQUEST TO VIEW DETAILS</span>
               </div>
             )}
           </div>

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Package, Shield, Sword, Box, Gem, ArrowRightCircle, LogOut, Beaker, Leaf, Moon } from 'lucide-react';
+import { Package, Shield, Sword, Box, Gem, ArrowRightCircle, LogOut, Beaker, Leaf, Moon, X, Crosshair, Zap, Anchor, Clock, AlertTriangle, Hammer, Tag } from 'lucide-react';
 import { InventoryItem } from '../../../types';
 import { getItemCategory, getDefaultEquipSlot, getTypeLabel, normalizeQuality, getQualityLabel, isWeaponItem, isArmorItem } from '../../../utils/itemUtils';
 
@@ -14,140 +14,87 @@ interface InventoryModalProps {
   onUseItem: (item: InventoryItem) => void;
 }
 
-const DurabilityRing: React.FC<{ current: number; max: number }> = ({ current, max }) => {
-  const safeMax = max > 0 ? max : 1;
-  const percent = Math.max(0, Math.min(100, (current / safeMax) * 100));
-  const deg = percent * 3.6;
-  const color = percent < 25 ? '#ef4444' : percent < 60 ? '#f59e0b' : '#22c55e';
+// --- Utility Components ---
+
+const RarityBadge = ({ quality }: { quality: string }) => {
+  const config = getRarityConfig(quality);
   return (
-    <div
-      className="relative w-7 h-7 rounded-full"
-      style={{ background: `conic-gradient(${color} ${deg}deg, rgba(24,24,27,0.8) 0deg)` }}
-    >
-      <div className="absolute inset-[3px] rounded-full bg-black flex items-center justify-center text-[7px] font-mono text-zinc-200">
-        {current}/{max}
+    <div className={`px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider border ${config.border} ${config.bg} ${config.text} transform -skew-x-12 shadow-sm`}>
+      {getQualityLabel(quality)}
+    </div>
+  );
+};
+
+const StatRow = ({ label, value, icon }: { label: string; value: string | number | undefined; icon?: React.ReactNode }) => {
+  if (value === undefined || value === null || value === '') return null;
+  return (
+    <div className="flex justify-between items-center py-1.5 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors px-2">
+      <div className="flex items-center gap-2">
+        {icon && <span className="text-zinc-500">{icon}</span>}
+        <span className="text-zinc-500 text-xs uppercase tracking-widest">{label}</span>
+      </div>
+      <span className="text-cyan-100 font-mono text-sm text-right max-w-[60%] truncate">{value}</span>
+    </div>
+  );
+};
+
+const SectionHeader = ({ title, subTitle, icon }: { title: string; subTitle?: string; icon?: React.ReactNode }) => (
+  <div className="flex items-center gap-2 mb-2 mt-4 pb-1 border-b-2 border-blue-900/50">
+    {icon && <span className="text-blue-500">{icon}</span>}
+    <div>
+      <h4 className="text-sm font-bold text-blue-400">{title}</h4>
+      {subTitle && <div className="text-[9px] uppercase font-bold text-blue-900 tracking-[0.2em] leading-none">{subTitle}</div>}
+    </div>
+  </div>
+);
+
+const DurabilityBar = ({ current, max }: { current: number; max: number }) => {
+  const percent = Math.max(0, Math.min(100, (current / max) * 100));
+  const color = percent < 25 ? 'bg-red-500' : percent < 50 ? 'bg-yellow-500' : 'bg-green-500';
+  
+  return (
+    <div className="w-full space-y-1">
+      <div className="flex justify-between text-[9px] uppercase tracking-wider text-zinc-500 font-mono">
+        <span>耐久度 Durability</span>
+        <span>{current} / {max}</span>
+      </div>
+      <div className="h-1.5 w-full bg-zinc-800 skew-x-[-12deg] overflow-hidden border border-zinc-700">
+        <div 
+          className={`h-full ${color} transition-all duration-300`}
+          style={{ width: `${percent}%` }}
+        />
       </div>
     </div>
   );
 };
 
-type DetailRow = { label: string; value: string };
-type DetailSection = { title: string; rows: DetailRow[] };
+// --- Helper Functions ---
 
-const toText = (value: unknown): string => {
-  if (value === undefined || value === null) return '';
-  if (typeof value === 'boolean') return value ? '是' : '否';
-  if (Array.isArray(value)) {
-    return value
-      .map(v => (v === undefined || v === null ? '' : String(v)))
-      .filter(v => v.trim().length > 0)
-      .join(' / ');
+const getRarityConfig = (quality: string = 'Common') => {
+  switch(normalizeQuality(quality)) {
+    case 'Legendary': return { border: 'border-yellow-400', text: 'text-yellow-400', bg: 'bg-yellow-900/40', shadow: 'shadow-yellow-500/50' };
+    case 'Epic': return { border: 'border-purple-400', text: 'text-purple-300', bg: 'bg-purple-900/40', shadow: 'shadow-purple-500/50' };
+    case 'Rare': return { border: 'border-cyan-400', text: 'text-cyan-300', bg: 'bg-cyan-900/40', shadow: 'shadow-cyan-500/50' };
+    case 'Broken': return { border: 'border-red-500', text: 'text-red-400', bg: 'bg-red-950/40', shadow: 'shadow-red-500/50' };
+    case 'Pristine': return { border: 'border-white', text: 'text-white', bg: 'bg-zinc-800', shadow: 'shadow-white/20' };
+    default: return { border: 'border-blue-800', text: 'text-blue-200', bg: 'bg-blue-900/20', shadow: 'shadow-blue-900/30' };
   }
-  const text = String(value);
-  return text.trim().length > 0 ? text : '';
 };
 
-const pushRow = (rows: DetailRow[], label: string, value: unknown) => {
-  const text = toText(value);
-  if (text) rows.push({ label, value: text });
+const getItemIcon = (item: InventoryItem, size: number = 24) => {
+  const category = getItemCategory(item);
+  switch(category) {
+    case 'WEAPON': return <Sword size={size} />;
+    case 'ARMOR': return <Shield size={size} />;
+    case 'LOOT': return <Gem size={size} />;
+    case 'CONSUMABLE': return <Beaker size={size} />;
+    case 'MATERIAL': return <Leaf size={size} />;
+    case 'KEY_ITEM': return <Box size={size} />;
+    default: return <Package size={size} />;
+  }
 };
 
-const buildItemDetailSections = (item: InventoryItem, qualityLabel: string): DetailSection[] => {
-  const sections: DetailSection[] = [];
-
-  const baseRows: DetailRow[] = [];
-  pushRow(baseRows, '类型', getTypeLabel(item.类型));
-  pushRow(baseRows, '品质', qualityLabel);
-  pushRow(baseRows, '稀有度', item.稀有度);
-  pushRow(baseRows, '数量', item.数量);
-  pushRow(baseRows, '获取途径', item.获取途径);
-  pushRow(baseRows, '装备槽位', item.装备槽位);
-  if (item.已装备 !== undefined) pushRow(baseRows, '已装备', item.已装备);
-  pushRow(baseRows, '是否绑定', item.是否绑定);
-  pushRow(baseRows, '堆叠上限', item.堆叠上限);
-  pushRow(baseRows, '价值', item.价值);
-  pushRow(baseRows, '重量', item.重量);
-  pushRow(baseRows, '等级需求', item.等级需求);
-  pushRow(baseRows, '来源', item.来源);
-  pushRow(baseRows, '制作者', item.制作者);
-  pushRow(baseRows, '材质', item.材质);
-  pushRow(baseRows, '标签', item.标签);
-  if (baseRows.length) sections.push({ title: '基础信息', rows: baseRows });
-
-  const combatRows: DetailRow[] = [];
-  pushRow(combatRows, '攻击力', item.攻击力);
-  pushRow(combatRows, '防御力', item.防御力);
-  pushRow(combatRows, '恢复量', item.恢复量);
-  if (combatRows.length) sections.push({ title: '战斗数值', rows: combatRows });
-
-  const effectRows: DetailRow[] = [];
-  pushRow(effectRows, '效果', item.效果);
-  if (item.攻击特效) pushRow(effectRows, '攻击特效', item.攻击特效);
-  if (item.防御特效) pushRow(effectRows, '防御特效', item.防御特效);
-  if (effectRows.length) sections.push({ title: '特效', rows: effectRows });
-
-  if (item.附加属性 && item.附加属性.length > 0) {
-    const affixRows = item.附加属性.map(stat => ({
-      label: stat.名称,
-      value: stat.数值
-    }));
-    sections.push({ title: '附加属性', rows: affixRows });
-  }
-
-  if (item.武器) {
-    const weaponRows: DetailRow[] = [];
-    pushRow(weaponRows, '类型', item.武器.类型);
-    pushRow(weaponRows, '伤害类型', item.武器.伤害类型);
-    pushRow(weaponRows, '射程', item.武器.射程);
-    pushRow(weaponRows, '攻速', item.武器.攻速);
-    if (item.武器.双手 !== undefined) pushRow(weaponRows, '双手', item.武器.双手);
-    pushRow(weaponRows, '特性', item.武器.特性);
-    if (weaponRows.length) sections.push({ title: '武器', rows: weaponRows });
-  }
-
-  if (item.防具) {
-    const armorRows: DetailRow[] = [];
-    pushRow(armorRows, '类型', item.防具.类型);
-    pushRow(armorRows, '部位', item.防具.部位);
-    pushRow(armorRows, '护甲等级', item.防具.护甲等级);
-    pushRow(armorRows, '抗性', item.防具.抗性);
-    if (armorRows.length) sections.push({ title: '防具', rows: armorRows });
-  }
-
-  if (item.消耗) {
-    const consumeRows: DetailRow[] = [];
-    pushRow(consumeRows, '类别', item.消耗.类别);
-    pushRow(consumeRows, '持续', item.消耗.持续);
-    pushRow(consumeRows, '冷却', item.消耗.冷却);
-    pushRow(consumeRows, '副作用', item.消耗.副作用);
-    if (consumeRows.length) sections.push({ title: '消耗', rows: consumeRows });
-  }
-
-  if (item.材料) {
-    const materialRows: DetailRow[] = [];
-    pushRow(materialRows, '来源', item.材料.来源);
-    pushRow(materialRows, '用途', item.材料.用途);
-    pushRow(materialRows, '处理', item.材料.处理);
-    if (materialRows.length) sections.push({ title: '材料', rows: materialRows });
-  }
-
-  if (item.魔剑) {
-    const magicRows: DetailRow[] = [];
-    pushRow(magicRows, '魔法名称', item.魔剑.魔法名称);
-    pushRow(magicRows, '属性', item.魔剑.属性);
-    pushRow(magicRows, '威力', item.魔剑.威力);
-    pushRow(magicRows, '触发方式', item.魔剑.触发方式);
-    pushRow(magicRows, '冷却', item.魔剑.冷却);
-    pushRow(magicRows, '剩余次数', item.魔剑.剩余次数);
-    pushRow(magicRows, '最大次数', item.魔剑.最大次数);
-    pushRow(magicRows, '破损率', item.魔剑.破损率);
-    pushRow(magicRows, '过载惩罚', item.魔剑.过载惩罚);
-    pushRow(magicRows, '备注', item.魔剑.备注);
-    if (magicRows.length) sections.push({ title: '魔剑', rows: magicRows });
-  }
-
-  return sections;
-};
+// --- Main Component ---
 
 export const InventoryModal: React.FC<InventoryModalProps> = ({ 
   isOpen, 
@@ -160,6 +107,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
   onUseItem
 }) => {
   const [activeTab, setActiveTab] = useState<string>(initialTab);
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
   // Merge equipped items logic 
   const allItems = useMemo(() => {
@@ -206,16 +154,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
     return Array.from(cats);
   }, [allItems]);
 
-  useEffect(() => {
-    if (isOpen) {
-      if (!categories.includes(activeTab) && activeTab !== 'ALL') {
-        setActiveTab('ALL');
-      } else if (initialTab && categories.includes(initialTab)) {
-        setActiveTab(initialTab);
-      }
-    }
-  }, [isOpen, categories, initialTab]);
-
+  // Filter items
   const filteredItems = useMemo(() => {
     let filtered = allItems;
     if (activeTab !== 'ALL') {
@@ -227,216 +166,354 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
     });
   }, [allItems, activeTab]);
 
-  const handleUseItem = (item: InventoryItem) => {
-    onUseItem(item);
-  };
-
-  const handleEquipClick = (item: InventoryItem) => {
-    onEquipItem(item);
-  };
-
-  const handleUnequipClick = (item: InventoryItem) => {
-    const slot = getDefaultEquipSlot(item);
-    onUnequipItem(slot, item.名称, item.id);
-  };
-
-  const getItemIcon = (item: InventoryItem) => {
-    switch(getItemCategory(item)) {
-      case 'WEAPON': return <Sword size={28} />;
-      case 'ARMOR': return <Shield size={28} />;
-      case 'LOOT': return <Gem size={28} />;
-      case 'CONSUMABLE': return <Beaker size={28} />;
-      case 'MATERIAL': return <Leaf size={28} />;
-      case 'KEY_ITEM': return <Box size={28} />;
-      default: return <Package size={28} />;
+  // Update selected item when list changes
+  useEffect(() => {
+    if (isOpen) {
+      if (filteredItems.length > 0) {
+         // Keep selection if it exists in new list, otherwise select first
+         const stillExists = filteredItems.find(i => i.id === selectedItemId);
+         if (!stillExists) setSelectedItemId(filteredItems[0].id);
+      } else {
+        setSelectedItemId(null);
+      }
     }
-  };
+  }, [isOpen, activeTab, filteredItems]);
 
-  const getRarityConfig = (quality: string = 'Common') => {
-    switch(normalizeQuality(quality)) {
-      case 'Legendary': return { border: 'border-yellow-400', text: 'text-yellow-400', bg: 'bg-yellow-900/40', shadow: 'shadow-yellow-500/50' };
-      case 'Epic': return { border: 'border-purple-400', text: 'text-purple-300', bg: 'bg-purple-900/40', shadow: 'shadow-purple-500/50' };
-      case 'Rare': return { border: 'border-cyan-400', text: 'text-cyan-300', bg: 'bg-cyan-900/40', shadow: 'shadow-cyan-500/50' };
-      case 'Broken': return { border: 'border-red-500', text: 'text-red-400', bg: 'bg-red-950/40', shadow: 'shadow-red-500/50' };
-      case 'Pristine': return { border: 'border-white', text: 'text-white', bg: 'bg-zinc-800', shadow: 'shadow-white/20' };
-      default: return { border: 'border-blue-900', text: 'text-blue-200', bg: 'bg-black', shadow: 'shadow-blue-900/30' };
-    }
-  };
+  const selectedItem = useMemo(() => 
+    allItems.find(i => i.id === selectedItemId) || null
+  , [allItems, selectedItemId]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in zoom-in-95 duration-200">
-      <div className="w-full max-w-7xl h-[90vh] relative flex flex-col md:flex-row overflow-hidden border-4 border-blue-900 bg-black shadow-[0_0_50px_rgba(30,58,138,0.5)]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-sm p-4 lg:p-12 animate-in fade-in duration-300">
+      {/* Main Container - P5 Style skewed box */}
+      <div className="w-full h-full max-w-[1600px] flex relative overflow-hidden bg-zinc-950 border-2 border-blue-900 shadow-[0_0_100px_rgba(30,58,138,0.3)]">
+        
         {/* Background Decor */}
-        <div className="absolute inset-0 pointer-events-none z-0">
-          <div className="absolute top-0 right-0 w-[60%] h-full bg-blue-900/20 transform -skew-x-12 translate-x-32" />
-          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagmonds-light.png')] opacity-10" />
-          <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-900" />
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-[-50%] right-[-20%] w-full h-[200%] bg-blue-900/10 transform -rotate-12 transform-origin-center" />
+          <div className="absolute bottom-0 left-0 w-full h-2 bg-gradient-to-r from-blue-600 via-cyan-400 to-transparent" />
+          <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/5 blur-[100px] rounded-full" />
+          {/* Grid Pattern */}
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(30,58,138,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(30,58,138,0.1)_1px,transparent_1px)] bg-[size:40px_40px]" />
         </div>
 
-        {/* Sidebar */}
-        <div className="md:w-64 bg-zinc-950/90 z-10 flex flex-col border-b-4 md:border-b-0 md:border-r-4 border-blue-800 relative">
-          <div className="p-6 bg-blue-700 text-white transform -skew-x-6 -ml-4 w-[120%] border-b-4 border-black shadow-lg overflow-hidden relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-800 to-blue-600 opacity-80" />
-            <div className="transform skew-x-6 ml-4 flex items-center gap-3 relative z-10">
-              <Moon size={32} className="text-cyan-200 fill-current" />
-              <div>
-                <h2 className="text-4xl font-display uppercase tracking-tighter italic text-cyan-50">背包</h2>
-                <p className="text-xs font-mono tracking-widest opacity-80 text-blue-200">INVENTORY SYSTEM</p>
-              </div>
+        {/* Global Close Button (Top Right) - Re-positioned to avoid overlap */}
+        <div className="absolute top-0 right-0 p-4 z-[100]">
+           <button 
+               onClick={onClose} 
+               className="p-2 bg-zinc-900/90 border-2 border-red-500/80 text-red-500 hover:bg-red-600 hover:text-white hover:border-red-600 transition-all transform hover:scale-110 hover:rotate-90 duration-300 rounded-full shadow-[0_0_20px_rgba(239,68,68,0.3)] group"
+               title="关闭"
+           >
+               <X size={20} strokeWidth={3} className="group-hover:scale-125 transition-transform" />
+           </button>
+        </div>
+
+        {/* --- LEFT COLUMN: CATEGORIES --- */}
+        <div className="w-64 flex-shrink-0 flex flex-col z-10 border-r border-blue-900/50 bg-black/60 backdrop-blur-md relative">
+          {/* Header */}
+          <div className="p-8 pb-4 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-2 h-full bg-cyan-500" />
+            <h2 className="text-5xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-white to-blue-400 transform -skew-x-12">
+              ITEM
+            </h2>
+            <div className="text-xs font-mono text-cyan-500 tracking-[0.5em] ml-1 mt-1 uppercase">
+              物品 / Inventory
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-2 relative z-10">
+          {/* Tabs */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar py-6 space-y-1">
             {categories.map(cat => (
               <button 
                 key={cat}
                 onClick={() => setActiveTab(cat)}
-                className={`w-full text-left px-4 py-3 font-display uppercase tracking-wider text-lg border-l-4 transition-all transform hover:translate-x-2
-                  ${activeTab === cat 
-                    ? 'border-cyan-400 bg-blue-900/50 text-cyan-300 shadow-[0_0_15px_rgba(34,211,238,0.2)]' 
-                    : 'border-zinc-800 text-zinc-500 hover:text-white hover:border-blue-500'
-                  }
+                className={`w-full group relative h-14 flex items-center px-8 transition-all duration-300 outline-none
+                  ${activeTab === cat ? 'translate-x-4' : 'hover:translate-x-2'}
                 `}
               >
-                {TAB_LABELS[cat] || cat}
+                {/* Active Background Shape */}
+                <div className={`absolute inset-0 transform -skew-x-12 transition-all duration-300 origin-left
+                  ${activeTab === cat 
+                    ? 'bg-blue-600 shadow-[0_0_20px_rgba(37,99,235,0.5)] scale-x-100 opacity-100' 
+                    : 'bg-zinc-800 scale-x-0 opacity-0 group-hover:opacity-50 group-hover:scale-x-75'}
+                `} />
+                
+                <span className={`relative z-10 font-black italic text-xl uppercase tracking-wider transition-colors duration-200
+                  ${activeTab === cat ? 'text-white' : 'text-zinc-500 group-hover:text-zinc-300'}
+                `}>
+                  {TAB_LABELS[cat] || cat}
+                </span>
               </button>
             ))}
           </div>
 
-          <button 
-            onClick={onClose} 
-            className="p-4 bg-zinc-900 text-zinc-500 hover:text-cyan-400 hover:bg-black border-t-2 border-zinc-800 transition-colors uppercase font-bold flex items-center justify-center gap-2"
-          >
-            <LogOut size={20} /> 关闭
-          </button>
+          {/* Footer Decor */}
+          <div className="p-6 opacity-30 pointer-events-none">
+             <div className="w-full h-1 bg-gradient-to-r from-transparent via-blue-900 to-transparent" />
+             <div className="text-[10px] font-mono text-center text-blue-900 mt-2 tracking-widest">PHANTOM SYSTEM</div>
+          </div>
         </div>
 
-        {/* Item Grid Area */}
-        <div className="flex-1 relative z-10 overflow-y-auto custom-scrollbar p-4 md:p-8 bg-black/50">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-12">
-            {filteredItems.length > 0 ? filteredItems.map((item) => {
-              const quality = item.品质 || item.稀有度 || 'Common';
-              const qualityLabel = getQualityLabel(quality);
-              const style = getRarityConfig(quality);
+        {/* --- MIDDLE COLUMN: ITEM LIST --- */}
+        <div className="flex-1 flex flex-col min-w-0 z-10 bg-gradient-to-b from-black/40 to-black/80">
+          {/* List Header */}
+          <div className="h-16 flex items-center px-8 border-b border-white/10">
+            <div className="flex items-center gap-2 text-zinc-400 font-mono text-sm">
+              <Crosshair size={14} />
+              <span>选择物品 // {filteredItems.length} ITEMS FOUND</span>
+            </div>
+          </div>
 
-              const durCurrent = item.耐久 ?? 0;
-              const durMax = item.最大耐久 ?? 100;
-              const hasDurability = item.耐久 !== undefined;
-              const isBroken = hasDurability && durCurrent <= 0;
-              const detailSections = buildItemDetailSections(item, qualityLabel);
+          {/* Items Grid/List */}
+          <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+              {filteredItems.map(item => {
+                const isSelected = selectedItemId === item.id;
+                const rarity = getRarityConfig(item.品质 || 'Common');
+                
+                return (
+                  <div 
+                    key={item.id}
+                    onClick={() => setSelectedItemId(item.id)}
+                    className={`group relative h-20 flex items-center gap-4 px-4 cursor-pointer transition-all duration-200 border-l-4 overflow-hidden
+                      ${isSelected 
+                        ? 'bg-gradient-to-r from-blue-900/80 to-transparent border-cyan-400 translate-x-2' 
+                        : 'bg-black/40 hover:bg-white/5 border-zinc-800 hover:border-zinc-600'}
+                    `}
+                  >
+                    {/* Selection Highlight */}
+                    {isSelected && <div className="absolute inset-0 bg-cyan-400/5 animate-pulse" />}
 
-              return (
-                <div 
-                  key={item.id} 
-                  className={`group relative min-h-[220px] flex flex-col border-2 transition-all duration-300 
-                    ${style.border} ${style.bg} hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:z-20 hover:border-cyan-400
-                    ${item.已装备 ? 'ring-1 ring-offset-2 ring-offset-black ring-cyan-500' : ''}
-                  `}
-                >
-                  <div className={`absolute top-0 right-0 p-1 px-2 text-[10px] font-bold uppercase tracking-widest border-l-2 border-b-2
-                    ${item.已装备 ? 'bg-cyan-900 border-cyan-500 text-cyan-200' : `bg-black ${style.border} ${style.text}`}
-                  `}>
-                    {item.已装备 ? '已装备' : qualityLabel}
-                  </div>
-
-                  {hasDurability && (
-                    <div className="absolute bottom-3 right-3 pointer-events-none">
-                      <DurabilityRing current={durCurrent} max={durMax} />
+                    {/* Icon Box */}
+                    <div className={`w-12 h-12 flex items-center justify-center border ${rarity.border} bg-black/50 ${rarity.text} relative z-10`}>
+                      {getItemIcon(item, 24)}
                     </div>
-                  )}
 
-                  <div className="p-4 pt-12 flex gap-4 items-start">
-                    <div className={`w-14 h-14 shrink-0 flex items-center justify-center border-2 bg-black/80 ${style.border} ${style.text} group-hover:bg-blue-900/20 group-hover:text-cyan-300 transition-colors`}>
-                      {getItemIcon(item)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className={`font-display text-xl uppercase tracking-wide truncate ${style.text} ${isBroken ? 'line-through opacity-50' : ''} group-hover:text-white transition-colors`}>
-                        {item.名称}
-                      </h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] font-mono bg-black/50 px-1.5 py-0.5 border border-zinc-700 text-zinc-400 group-hover:border-blue-500 group-hover:text-blue-300 transition-colors">
-                          x{item.数量}
-                        </span>
-                        <span className="text-[10px] font-mono uppercase text-zinc-500">{getTypeLabel(item.类型)}</span>
-                        {item.魔剑 && (
-                          <span className="text-[9px] font-mono uppercase text-purple-300 border border-purple-700/60 px-1.5 py-0.5">
-                            魔剑
+                    {/* Info */}
+                    <div className="flex-1 min-w-0 z-10">
+                      <div className="flex items-center gap-2">
+                        <h4 className={`font-bold uppercase tracking-wide truncate ${isSelected ? 'text-white' : 'text-zinc-300'}`}>
+                          {item.名称}
+                        </h4>
+                        {item.已装备 && (
+                          <span className="px-1.5 py-0.5 bg-cyan-900 text-cyan-200 text-[9px] font-bold uppercase tracking-wider border border-cyan-700">
+                            已装备
                           </span>
                         )}
                       </div>
+                      <div className="flex items-center gap-2 mt-1">
+                         <span className="text-xs font-mono text-zinc-500">x{item.数量}</span>
+                         <span className="text-[10px] text-zinc-600 uppercase border border-zinc-800 px-1">{getTypeLabel(item.类型)}</span>
+                         {item.耐久 !== undefined && (
+                            <span className={`text-[10px] uppercase px-1 border ${item.耐久 > 0 ? 'text-zinc-500 border-zinc-700' : 'text-red-500 border-red-800'}`}>
+                                {item.耐久 <= 0 ? '损坏' : `${Math.floor((item.耐久 / (item.最大耐久 || 100)) * 100)}%`}
+                            </span>
+                         )}
+                      </div>
+                    </div>
+
+                    {/* Arrow Indicator for selection */}
+                    <div className={`opacity-0 transition-opacity transform -rotate-45 ${isSelected ? 'opacity-100' : 'group-hover:opacity-50'}`}>
+                      <ArrowRightCircle className="text-cyan-500" size={20} />
                     </div>
                   </div>
+                );
+              })}
 
-                  <div className={`flex-1 px-4 pb-2 flex flex-col gap-2 ${hasDurability ? 'pr-10 pb-10' : ''}`}>
-                    <p className="text-xs text-cyan-100/80 italic font-serif leading-relaxed">
-                      “{item.描述}”
-                    </p>
-
-                    {detailSections.length > 0 && (
-                      <div className="space-y-2 text-[10px] font-mono">
-                        {detailSections.map((section, sectionIndex) => (
-                          <div
-                            key={`${section.title}-${sectionIndex}`}
-                            className="bg-black/40 p-2 border border-blue-900/30 group-hover:border-cyan-500/30 transition-colors"
-                          >
-                            <div className="text-[9px] uppercase tracking-widest text-zinc-500 mb-1">
-                              {section.title}
-                            </div>
-                            <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-                              {section.rows.map((row, rowIndex) => (
-                                <div key={`${section.title}-${rowIndex}`} className="flex justify-between gap-2">
-                                  <span className="text-zinc-500">{row.label}</span>
-                                  <span className="text-zinc-200 text-right break-words">{row.value}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="px-4 pb-4 mt-auto flex gap-2 pr-12">
-                    {(isWeaponItem(item) || isArmorItem(item)) && (
-                      item.已装备 ? (
-                        <ActionButton onClick={() => handleUnequipClick(item)} label="卸下" color="yellow" icon={<LogOut size={14}/>} />
-                      ) : (
-                        <ActionButton onClick={() => handleEquipClick(item)} label="装备" color="cyan" icon={<Shield size={14}/>} />
-                      )
-                    )}
-                    {getItemCategory(item) === 'CONSUMABLE' && (
-                      <ActionButton onClick={() => handleUseItem(item)} label="使用" color="green" icon={<ArrowRightCircle size={14}/>} />
-                    )}
-                  </div>
+              {filteredItems.length === 0 && (
+                <div className="col-span-full py-20 text-center opacity-30">
+                   <Package size={64} className="mx-auto mb-4 text-blue-500" />
+                   <p className="text-2xl font-black italic text-blue-200">背包为空</p>
                 </div>
-              );
-            }) : (
-              <div className="col-span-full flex flex-col items-center justify-center h-64 opacity-50">
-                <Package size={64} className="mb-4 text-blue-900" />
-                <h3 className="text-2xl font-display uppercase text-blue-800">背包是空的</h3>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
+
+        {/* --- RIGHT COLUMN: DETAILS --- */}
+        <div className="w-[450px] flex-shrink-0 bg-zinc-900/95 border-l border-blue-900/50 flex flex-col z-20 shadow-[-10px_0_30px_rgba(0,0,0,0.5)] relative">
+          {selectedItem ? (
+            <>
+              {/* Item Preview Header */}
+              {/* Reduced height and icon size to avoid blocking, also padding-top added for close button clearance */}
+              <div className="relative h-56 bg-black flex items-center justify-center overflow-hidden border-b-4 border-blue-600">
+                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagmonds-light.png')] opacity-20" />
+                 <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 to-transparent" />
+                 
+                 {/* Main Icon Circle - Reduced Size */}
+                 <div className={`relative z-10 p-6 rounded-full border-4 ${getRarityConfig(selectedItem.品质).border} bg-zinc-900/80 shadow-[0_0_50px_rgba(30,58,138,0.5)] animate-in zoom-in duration-500`}>
+                    <div className={getRarityConfig(selectedItem.品质).text}>
+                      {getItemIcon(selectedItem, 48)}
+                    </div>
+                 </div>
+
+                 {/* Rarity Badge - Moved to Top Left to balance */}
+                 <div className="absolute top-4 left-4">
+                    <RarityBadge quality={selectedItem.品质 || 'Common'} />
+                 </div>
+                 
+                 <div className="absolute bottom-4 left-4 right-4">
+                    {selectedItem.最大耐久 && (
+                        <DurabilityBar current={selectedItem.耐久 || 0} max={selectedItem.最大耐久} />
+                    )}
+                 </div>
+              </div>
+
+              {/* Item Info Scrollable */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+                <div>
+                  <h3 className="text-3xl font-black uppercase italic tracking-wide text-white leading-tight mb-2 drop-shadow-lg">
+                    {selectedItem.名称}
+                  </h3>
+                  <p className="text-sm text-cyan-200/70 font-serif italic border-l-2 border-cyan-500/30 pl-3 leading-relaxed">
+                    “{selectedItem.描述}”
+                  </p>
+                </div>
+
+                {/* Basic Info */}
+                <div className="bg-black/40 p-4 border border-white/5 rounded-sm">
+                   <SectionHeader title="基础信息" subTitle="BASIC INFO" icon={<Tag size={12} />} />
+                   <StatRow label="类型" value={getTypeLabel(selectedItem.类型)} />
+                   <StatRow label="堆叠" value={selectedItem.堆叠上限 || 99} />
+                   <StatRow label="重量" value={selectedItem.重量} />
+                   <StatRow label="价值" value={selectedItem.价值 ? `${selectedItem.价值} G` : undefined} />
+                   <StatRow label="来源" value={selectedItem.来源} />
+                   <StatRow label="制作者" value={selectedItem.制作者} />
+                   <StatRow label="材质" value={selectedItem.材质} />
+                </div>
+
+                {/* Combat Stats */}
+                {(selectedItem.攻击力 || selectedItem.防御力 || selectedItem.恢复量) && (
+                   <div className="bg-black/40 p-4 border border-white/5 rounded-sm">
+                       <SectionHeader title="战斗数值" subTitle="STATS" icon={<Sword size={12} />} />
+                       <StatRow label="攻击力" value={selectedItem.攻击力} icon={<Sword size={10} />} />
+                       <StatRow label="防御力" value={selectedItem.防御力} icon={<Shield size={10} />} />
+                       <StatRow label="恢复量" value={selectedItem.恢复量} icon={<Beaker size={10} />} />
+                   </div>
+                )}
+
+                {/* Weapon Specific */}
+                {selectedItem.武器 && (
+                   <div className="bg-black/40 p-4 border border-white/5 rounded-sm">
+                       <SectionHeader title="武器详情" subTitle="WEAPON" icon={<Crosshair size={12} />} />
+                       <StatRow label="类型" value={selectedItem.武器.类型} />
+                       <StatRow label="伤害类型" value={selectedItem.武器.伤害类型} />
+                       <StatRow label="射程" value={selectedItem.武器.射程} />
+                       <StatRow label="攻速" value={selectedItem.武器.攻速} />
+                       <StatRow label="双手" value={selectedItem.武器.双手 ? '是' : '否'} />
+                       <StatRow label="特性" value={Array.isArray(selectedItem.武器.特性) ? selectedItem.武器.特性.join(', ') : selectedItem.武器.特性} />
+                   </div>
+                )}
+
+                {/* Armor Specific */}
+                {selectedItem.防具 && (
+                   <div className="bg-black/40 p-4 border border-white/5 rounded-sm">
+                       <SectionHeader title="防具详情" subTitle="ARMOR" icon={<Shield size={12} />} />
+                       <StatRow label="类型" value={selectedItem.防具.类型} />
+                       <StatRow label="部位" value={selectedItem.防具.部位} />
+                       <StatRow label="护甲等级" value={selectedItem.防具.护甲等级} />
+                       <StatRow label="抗性" value={Array.isArray(selectedItem.防具.抗性) ? selectedItem.防具.抗性.join(', ') : selectedItem.防具.抗性} />
+                   </div>
+                )}
+
+                {/* Magic Sword Specific */}
+                {selectedItem.魔剑 && (
+                   <div className="bg-black/40 p-4 border border-purple-500/20 rounded-sm">
+                       <SectionHeader title="魔剑属性" subTitle="MAGIC SWORD" icon={<Zap size={12} />} />
+                       <StatRow label="魔法名称" value={selectedItem.魔剑.魔法名称} />
+                       <StatRow label="属性" value={selectedItem.魔剑.属性} />
+                       <StatRow label="威力" value={selectedItem.魔剑.威力} />
+                       <StatRow label="触发方式" value={selectedItem.魔剑.触发方式} />
+                       <StatRow label="次数" value={`${selectedItem.魔剑.剩余次数} / ${selectedItem.魔剑.最大次数}`} />
+                       <StatRow label="破损率" value={typeof selectedItem.魔剑.破损率 === 'number' ? `${selectedItem.魔剑.破损率}%` : selectedItem.魔剑.破损率} />
+                       <StatRow label="过载惩罚" value={selectedItem.魔剑.过载惩罚} />
+                   </div>
+                )}
+
+                {/* Consumable Specific */}
+                {selectedItem.消耗 && (
+                   <div className="bg-black/40 p-4 border border-white/5 rounded-sm">
+                       <SectionHeader title="消耗品" subTitle="CONSUMABLE" icon={<Beaker size={12} />} />
+                       <StatRow label="类别" value={selectedItem.消耗.类别} />
+                       <StatRow label="持续" value={selectedItem.消耗.持续} icon={<Clock size={10} />} />
+                       <StatRow label="冷却" value={selectedItem.消耗.冷却} />
+                       <StatRow label="副作用" value={selectedItem.消耗.副作用} icon={<AlertTriangle size={10} />} />
+                   </div>
+                )}
+
+                {/* Material Specific */}
+                {selectedItem.材料 && (
+                   <div className="bg-black/40 p-4 border border-white/5 rounded-sm">
+                       <SectionHeader title="材料信息" subTitle="MATERIAL" icon={<Hammer size={12} />} />
+                       <StatRow label="来源" value={selectedItem.材料.来源} />
+                       <StatRow label="用途" value={selectedItem.材料.用途} />
+                       <StatRow label="处理" value={selectedItem.材料.处理} />
+                   </div>
+                )}
+
+                {/* Affixes / Effects */}
+                {(selectedItem.效果 || selectedItem.攻击特效 || selectedItem.防御特效 || (selectedItem.附加属性 && selectedItem.附加属性.length > 0)) && (
+                  <div className="bg-black/40 p-4 border border-white/5 rounded-sm space-y-2">
+                    <SectionHeader title="特效与词缀" subTitle="EFFECTS" icon={<Zap size={12} />} />
+                    {selectedItem.效果 && <p className="text-xs text-zinc-300">{selectedItem.效果}</p>}
+                    {selectedItem.攻击特效 && <p className="text-xs text-red-300">[攻] {selectedItem.攻击特效}</p>}
+                    {selectedItem.防御特效 && <p className="text-xs text-blue-300">[防] {selectedItem.防御特效}</p>}
+                    
+                    {selectedItem.附加属性 && selectedItem.附加属性.map((affix, idx) => (
+                        <div key={idx} className="flex justify-between text-xs">
+                            <span className="text-purple-300">{affix.名称}</span>
+                            <span className="text-purple-200">{affix.数值}</span>
+                        </div>
+                    ))}
+                  </div>
+                )}
+                
+                <div className="h-12" /> {/* Spacer */}
+              </div>
+
+              {/* Action Bar */}
+              <div className="p-6 bg-black border-t border-zinc-800">
+                <div className="flex gap-3">
+                  {(isWeaponItem(selectedItem) || isArmorItem(selectedItem)) && (
+                    selectedItem.已装备 ? (
+                       <button 
+                        onClick={() => { onUnequipItem(getDefaultEquipSlot(selectedItem), selectedItem.名称, selectedItem.id); }}
+                        className="flex-1 py-3 bg-yellow-600 hover:bg-yellow-500 text-black font-black uppercase tracking-wider text-sm flex items-center justify-center gap-2 transform skew-x-[-10deg] transition-transform hover:skew-x-[-15deg]"
+                       >
+                         <LogOut size={16} /> <span>卸下</span>
+                       </button>
+                    ) : (
+                       <button 
+                        onClick={() => onEquipItem(selectedItem)}
+                        className="flex-1 py-3 bg-cyan-600 hover:bg-cyan-500 text-black font-black uppercase tracking-wider text-sm flex items-center justify-center gap-2 transform skew-x-[-10deg] transition-transform hover:skew-x-[-15deg]"
+                       >
+                         <Shield size={16} /> <span>装备</span>
+                       </button>
+                    )
+                  )}
+
+                  {getItemCategory(selectedItem) === 'CONSUMABLE' && (
+                    <button 
+                      onClick={() => onUseItem(selectedItem)}
+                      className="flex-1 py-3 bg-green-600 hover:bg-green-500 text-black font-black uppercase tracking-wider text-sm flex items-center justify-center gap-2 transform skew-x-[-10deg] transition-transform hover:skew-x-[-15deg]"
+                    >
+                      <ArrowRightCircle size={16} /> <span>使用</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center opacity-20 text-blue-200">
+              <Crosshair size={64} className="mb-4 animate-spin-slow" />
+              <p className="font-mono uppercase tracking-widest">请选择物品</p>
+            </div>
+          )}
+        </div>
+
       </div>
     </div>
-  );
-};
-
-const ActionButton = ({ onClick, label, color, icon }: any) => {
-  const colors: any = {
-    yellow: 'border-yellow-500 text-yellow-400 hover:bg-yellow-500 hover:text-black',
-    cyan: 'border-cyan-500 text-cyan-400 hover:bg-cyan-500 hover:text-black',
-    green: 'border-green-500 text-green-400 hover:bg-green-500 hover:text-black',
-  };
-  return (
-    <button 
-      onClick={onClick}
-      className={`flex-1 py-2 border-2 ${colors[color]} font-display font-bold uppercase tracking-wider text-sm flex items-center justify-center gap-2 transition-all hover:-translate-y-1 active:translate-y-0 shadow-[0_0_10px_rgba(0,0,0,0.5)]`}
-    >
-      {icon} {label}
-    </button>
   );
 };

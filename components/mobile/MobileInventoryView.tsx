@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Package, Sword, Shield, Box, Gem, ArrowRightCircle, LogOut, Beaker, Leaf } from 'lucide-react';
+import { Package, Sword, Shield, Box, Gem, ArrowRightCircle, LogOut, Beaker, Leaf, Zap, Tag, Clock, AlertTriangle, Hammer, X } from 'lucide-react';
 import { InventoryItem } from '../../types';
 import { getItemCategory, getDefaultEquipSlot, getTypeLabel, getQualityLabel, normalizeQuality, isWeaponItem, isArmorItem } from '../../utils/itemUtils';
 
@@ -11,139 +11,74 @@ interface MobileInventoryViewProps {
   onUseItem: (item: InventoryItem) => void;
 }
 
-const DurabilityRing: React.FC<{ current: number; max: number }> = ({ current, max }) => {
-  const safeMax = max > 0 ? max : 1;
-  const percent = Math.max(0, Math.min(100, (current / safeMax) * 100));
-  const deg = percent * 3.6;
-  const color = percent < 25 ? '#ef4444' : percent < 60 ? '#f59e0b' : '#22c55e';
+// --- Styled Components ---
+
+const RarityBadge = ({ quality }: { quality: string }) => {
+  const config = getRarityConfig(quality);
   return (
-    <div
-      className="relative w-7 h-7 rounded-full"
-      style={{ background: `conic-gradient(${color} ${deg}deg, rgba(24,24,27,0.8) 0deg)` }}
-    >
-      <div className="absolute inset-[3px] rounded-full bg-black flex items-center justify-center text-[7px] font-mono text-zinc-200">
-        {current}/{max}
+    <span className={`px-1.5 py-0.5 text-[9px] uppercase font-bold tracking-wider border ${config.border} ${config.bg} ${config.text} transform -skew-x-12 inline-block`}>
+      {getQualityLabel(quality)}
+    </span>
+  );
+};
+
+const StatRow = ({ label, value }: { label: string; value: string | number }) => (
+  <div className="flex justify-between items-center py-1 border-b border-white/5 last:border-0">
+    <span className="text-zinc-500 text-[10px] uppercase tracking-widest">{label}</span>
+    <span className="text-cyan-100 font-mono text-xs text-right break-words max-w-[70%]">{value}</span>
+  </div>
+);
+
+const SectionHeader = ({ title, icon }: { title: string; icon?: React.ReactNode }) => (
+  <div className="flex items-center gap-1.5 mb-1.5 mt-3 pb-1 border-b border-blue-900/50 first:mt-0">
+    {icon && <span className="text-blue-500">{icon}</span>}
+    <h4 className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">{title}</h4>
+  </div>
+);
+
+const DurabilityBar = ({ current, max }: { current: number; max: number }) => {
+  const percent = Math.max(0, Math.min(100, (current / max) * 100));
+  const color = percent < 25 ? 'bg-red-500' : percent < 50 ? 'bg-yellow-500' : 'bg-green-500';
+  
+  return (
+    <div className="w-full mt-2">
+      <div className="flex justify-between text-[8px] uppercase tracking-wider text-zinc-500 font-mono mb-0.5">
+        <span>耐久度</span>
+        <span>{current}/{max}</span>
+      </div>
+      <div className="h-1 w-full bg-zinc-800 skew-x-[-12deg] overflow-hidden border border-zinc-700">
+        <div 
+          className={`h-full ${color} transition-all duration-300`}
+          style={{ width: `${percent}%` }}
+        />
       </div>
     </div>
   );
 };
 
-type DetailRow = { label: string; value: string };
-type DetailSection = { title: string; rows: DetailRow[] };
+// --- Helper Functions ---
 
-const toText = (value: unknown): string => {
-  if (value === undefined || value === null) return '';
-  if (typeof value === 'boolean') return value ? '是' : '否';
-  if (Array.isArray(value)) {
-    return value
-      .map(v => (v === undefined || v === null ? '' : String(v)))
-      .filter(v => v.trim().length > 0)
-      .join(' / ');
+const getRarityConfig = (quality: string = 'Common') => {
+  switch(normalizeQuality(quality)) {
+    case 'Legendary': return { border: 'border-yellow-400', text: 'text-yellow-400', bg: 'bg-yellow-900/20' };
+    case 'Epic': return { border: 'border-purple-400', text: 'text-purple-300', bg: 'bg-purple-900/20' };
+    case 'Rare': return { border: 'border-cyan-400', text: 'text-cyan-300', bg: 'bg-cyan-900/20' };
+    case 'Broken': return { border: 'border-red-500', text: 'text-red-400', bg: 'bg-red-950/20' };
+    default: return { border: 'border-blue-800', text: 'text-blue-200', bg: 'bg-blue-900/10' };
   }
-  const text = String(value);
-  return text.trim().length > 0 ? text : '';
 };
 
-const pushRow = (rows: DetailRow[], label: string, value: unknown) => {
-  const text = toText(value);
-  if (text) rows.push({ label, value: text });
-};
-
-const buildItemDetailSections = (item: InventoryItem, qualityLabel: string): DetailSection[] => {
-  const sections: DetailSection[] = [];
-
-  const baseRows: DetailRow[] = [];
-  pushRow(baseRows, '类型', getTypeLabel(item.类型));
-  pushRow(baseRows, '品质', qualityLabel);
-  pushRow(baseRows, '稀有度', item.稀有度);
-  pushRow(baseRows, '数量', item.数量);
-  pushRow(baseRows, '获取途径', item.获取途径);
-  pushRow(baseRows, '装备槽位', item.装备槽位);
-  if (item.已装备 !== undefined) pushRow(baseRows, '已装备', item.已装备);
-  pushRow(baseRows, '是否绑定', item.是否绑定);
-  pushRow(baseRows, '堆叠上限', item.堆叠上限);
-  pushRow(baseRows, '价值', item.价值);
-  pushRow(baseRows, '重量', item.重量);
-  pushRow(baseRows, '等级需求', item.等级需求);
-  pushRow(baseRows, '来源', item.来源);
-  pushRow(baseRows, '制作者', item.制作者);
-  pushRow(baseRows, '材质', item.材质);
-  pushRow(baseRows, '标签', item.标签);
-  if (baseRows.length) sections.push({ title: '基础信息', rows: baseRows });
-
-  const combatRows: DetailRow[] = [];
-  pushRow(combatRows, '攻击力', item.攻击力);
-  pushRow(combatRows, '防御力', item.防御力);
-  pushRow(combatRows, '恢复量', item.恢复量);
-  if (combatRows.length) sections.push({ title: '战斗数值', rows: combatRows });
-
-  const effectRows: DetailRow[] = [];
-  pushRow(effectRows, '效果', item.效果);
-  if (item.攻击特效) pushRow(effectRows, '攻击特效', item.攻击特效);
-  if (item.防御特效) pushRow(effectRows, '防御特效', item.防御特效);
-  if (effectRows.length) sections.push({ title: '特效', rows: effectRows });
-
-  if (item.附加属性 && item.附加属性.length > 0) {
-    const affixRows = item.附加属性.map(stat => ({
-      label: stat.名称,
-      value: stat.数值
-    }));
-    sections.push({ title: '附加属性', rows: affixRows });
+const getItemIcon = (item: InventoryItem, size: number = 20) => {
+  const category = getItemCategory(item);
+  switch(category) {
+    case 'WEAPON': return <Sword size={size} />;
+    case 'ARMOR': return <Shield size={size} />;
+    case 'LOOT': return <Gem size={size} />;
+    case 'CONSUMABLE': return <Beaker size={size} />;
+    case 'MATERIAL': return <Leaf size={size} />;
+    case 'KEY_ITEM': return <Box size={size} />;
+    default: return <Package size={size} />;
   }
-
-  if (item.武器) {
-    const weaponRows: DetailRow[] = [];
-    pushRow(weaponRows, '类型', item.武器.类型);
-    pushRow(weaponRows, '伤害类型', item.武器.伤害类型);
-    pushRow(weaponRows, '射程', item.武器.射程);
-    pushRow(weaponRows, '攻速', item.武器.攻速);
-    if (item.武器.双手 !== undefined) pushRow(weaponRows, '双手', item.武器.双手);
-    pushRow(weaponRows, '特性', item.武器.特性);
-    if (weaponRows.length) sections.push({ title: '武器', rows: weaponRows });
-  }
-
-  if (item.防具) {
-    const armorRows: DetailRow[] = [];
-    pushRow(armorRows, '类型', item.防具.类型);
-    pushRow(armorRows, '部位', item.防具.部位);
-    pushRow(armorRows, '护甲等级', item.防具.护甲等级);
-    pushRow(armorRows, '抗性', item.防具.抗性);
-    if (armorRows.length) sections.push({ title: '防具', rows: armorRows });
-  }
-
-  if (item.消耗) {
-    const consumeRows: DetailRow[] = [];
-    pushRow(consumeRows, '类别', item.消耗.类别);
-    pushRow(consumeRows, '持续', item.消耗.持续);
-    pushRow(consumeRows, '冷却', item.消耗.冷却);
-    pushRow(consumeRows, '副作用', item.消耗.副作用);
-    if (consumeRows.length) sections.push({ title: '消耗', rows: consumeRows });
-  }
-
-  if (item.材料) {
-    const materialRows: DetailRow[] = [];
-    pushRow(materialRows, '来源', item.材料.来源);
-    pushRow(materialRows, '用途', item.材料.用途);
-    pushRow(materialRows, '处理', item.材料.处理);
-    if (materialRows.length) sections.push({ title: '材料', rows: materialRows });
-  }
-
-  if (item.魔剑) {
-    const magicRows: DetailRow[] = [];
-    pushRow(magicRows, '魔法名称', item.魔剑.魔法名称);
-    pushRow(magicRows, '属性', item.魔剑.属性);
-    pushRow(magicRows, '威力', item.魔剑.威力);
-    pushRow(magicRows, '触发方式', item.魔剑.触发方式);
-    pushRow(magicRows, '冷却', item.魔剑.冷却);
-    pushRow(magicRows, '剩余次数', item.魔剑.剩余次数);
-    pushRow(magicRows, '最大次数', item.魔剑.最大次数);
-    pushRow(magicRows, '破损率', item.魔剑.破损率);
-    pushRow(magicRows, '过载惩罚', item.魔剑.过载惩罚);
-    pushRow(magicRows, '备注', item.魔剑.备注);
-    if (magicRows.length) sections.push({ title: '魔剑', rows: magicRows });
-  }
-
-  return sections;
 };
 
 export const MobileInventoryView: React.FC<MobileInventoryViewProps> = ({
@@ -153,7 +88,8 @@ export const MobileInventoryView: React.FC<MobileInventoryViewProps> = ({
   onUnequipItem,
   onUseItem
 }) => {
-  const [filter, setFilter] = useState<'ALL' | 'WEAPON' | 'ARMOR' | 'CONSUMABLE'>('ALL');
+  const [filter, setFilter] = useState<'ALL' | 'WEAPON' | 'ARMOR' | 'CONSUMABLE' | 'MATERIAL'>('ALL');
+  const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
 
   const allItems = useMemo(() => {
     const safeItems = Array.isArray(items) ? items : [];
@@ -185,47 +121,36 @@ export const MobileInventoryView: React.FC<MobileInventoryViewProps> = ({
     return allItems.filter(i => getItemCategory(i) === filter);
   }, [allItems, filter]);
 
-  const getItemIcon = (item: InventoryItem) => {
-    switch(getItemCategory(item)) {
-      case 'WEAPON': return <Sword size={20} />;
-      case 'ARMOR': return <Shield size={20} />;
-      case 'LOOT': return <Gem size={20} />;
-      case 'CONSUMABLE': return <Beaker size={20} />;
-      case 'MATERIAL': return <Leaf size={20} />;
-      case 'KEY_ITEM': return <Box size={20} />;
-      default: return <Package size={20} />;
-    }
-  };
-
-  const getRarityColor = (quality: string = 'Common') => {
-    switch(normalizeQuality(quality)) {
-      case 'Legendary': return 'text-yellow-400 border-yellow-500 bg-yellow-950/20';
-      case 'Epic': return 'text-purple-300 border-purple-500 bg-purple-950/20';
-      case 'Rare': return 'text-cyan-300 border-cyan-500 bg-cyan-950/20';
-      case 'Broken': return 'text-red-400 border-red-600 bg-red-950/20';
-      default: return 'text-blue-100 border-zinc-700 bg-zinc-900';
-    }
-  };
-
   const LABELS = {
     'ALL': '全部',
     'WEAPON': '武器',
     'ARMOR': '防具',
-    'CONSUMABLE': '消耗品'
+    'CONSUMABLE': '消耗品',
+    'MATERIAL': '材料'
+  };
+
+  const toggleExpand = (id: string) => {
+    setExpandedItemId(prev => prev === id ? null : id);
   };
 
   return (
-    <div className="w-full h-full bg-black flex flex-col relative">
+    <div className="w-full h-full bg-zinc-950 flex flex-col relative overflow-hidden">
+      {/* Background Decor */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+         <div className="absolute top-0 right-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/diagmonds-light.png')] opacity-10" />
+         <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 to-cyan-400" />
+      </div>
+
       {/* Filter Tabs */}
-      <div className="flex overflow-x-auto bg-zinc-900 border-b border-blue-900 shrink-0 no-scrollbar py-1">
-        {(['ALL', 'WEAPON', 'ARMOR', 'CONSUMABLE'] as const).map(f => (
+      <div className="relative z-10 flex overflow-x-auto bg-black/80 border-b border-blue-900 shrink-0 no-scrollbar py-2 px-2 gap-2">
+        {(['ALL', 'WEAPON', 'ARMOR', 'CONSUMABLE', 'MATERIAL'] as const).map(f => (
           <button
             key={f}
-            onClick={() => setFilter(f)}
-            className={`px-6 py-3 text-xs font-bold uppercase whitespace-nowrap transition-all transform skew-x-[-10deg] mx-1 border-2
+            onClick={() => { setFilter(f); setExpandedItemId(null); }}
+            className={`px-4 py-2 text-[10px] font-bold uppercase whitespace-nowrap transition-all transform skew-x-[-10deg] border border-transparent
               ${filter === f 
                 ? 'bg-blue-600 text-white border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.5)]' 
-                : 'bg-transparent text-zinc-500 border-zinc-800 hover:border-blue-800 hover:text-blue-400'
+                : 'bg-zinc-900 text-zinc-500 border-zinc-800 hover:border-blue-800 hover:text-blue-400'
               }
             `}
           >
@@ -235,102 +160,179 @@ export const MobileInventoryView: React.FC<MobileInventoryViewProps> = ({
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3 pb-32 bg-[url('https://www.transparenttextures.com/patterns/diagmonds-light.png')] bg-zinc-950">
+      <div className="relative z-10 flex-1 overflow-y-auto p-4 space-y-3 pb-24 custom-scrollbar">
         {filteredItems.length > 0 ? filteredItems.map(item => {
-          const quality = item.品质 || item.稀有度 || 'Common';
-          const qualityLabel = getQualityLabel(quality);
-          const rarityStyle = getRarityColor(quality);
-          const durCurrent = item.耐久 ?? 0;
-          const durMax = item.最大耐久 ?? 100;
-          const hasDurability = item.耐久 !== undefined;
-          const detailSections = buildItemDetailSections(item, qualityLabel);
-
+          const isExpanded = expandedItemId === item.id;
+          const rarity = getRarityConfig(item.品质 || 'Common');
+          const hasDurability = item.耐久 !== undefined && item.最大耐久 !== undefined;
+          
           return (
             <div 
               key={item.id}
-              className={`relative p-3 border-l-4 transition-all bg-black ${rarityStyle.split(' ')[2]} border-zinc-800 ${hasDurability ? 'pr-10 pb-10' : ''}`}
+              className={`group relative border transition-all duration-200 overflow-hidden
+                ${isExpanded 
+                  ? `bg-black/90 border-cyan-500 shadow-[0_0_15px_rgba(34,211,238,0.2)]` 
+                  : `bg-zinc-900/60 border-zinc-800 hover:border-zinc-600`
+                }
+              `}
             >
-              {hasDurability && (
-                <div className="absolute bottom-3 right-3 pointer-events-none">
-                  <DurabilityRing current={durCurrent} max={durMax} />
+              {/* Item Header (Always Visible) */}
+              <div 
+                className="flex items-center p-3 gap-3 cursor-pointer"
+                onClick={() => toggleExpand(item.id)}
+              >
+                <div className={`w-10 h-10 flex items-center justify-center border ${rarity.border} bg-black/50 ${rarity.text} relative shrink-0`}>
+                  {getItemIcon(item, 20)}
                 </div>
-              )}
-              <div className="flex items-start gap-3">
-                <div className={`w-10 h-10 flex items-center justify-center rounded border ${rarityStyle.split(' ')[1]} ${rarityStyle.split(' ')[0]} shrink-0 bg-black`}>
-                  {getItemIcon(item)}
-                </div>
+                
                 <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-center">
-                    <h4 className={`font-bold text-sm truncate uppercase font-display tracking-wide ${rarityStyle.split(' ')[0]}`}>
-                      {item.名称}
-                    </h4>
-                    {item.数量 > 1 && <span className="text-[10px] text-zinc-400 bg-zinc-900 px-1.5 border border-zinc-700">x{item.数量}</span>}
-                  </div>
-                  <div className="flex items-center justify-between mt-1">
-                    <span className="text-[9px] text-zinc-500 uppercase">{qualityLabel} {getTypeLabel(item.类型)}</span>
-                    {item.已装备 && <span className="text-[9px] text-black font-bold bg-cyan-500 px-1 uppercase skew-x-[-10deg]">已装备</span>}
-                  </div>
+                   <div className="flex justify-between items-start">
+                      <h4 className={`font-bold text-sm truncate uppercase font-display tracking-wide ${isExpanded ? 'text-white' : 'text-zinc-300'}`}>
+                        {item.名称}
+                      </h4>
+                      {item.数量 > 1 && <span className="text-[10px] text-zinc-400 font-mono">x{item.数量}</span>}
+                   </div>
+                   <div className="flex items-center gap-2 mt-1">
+                      <RarityBadge quality={item.品质 || 'Common'} />
+                      {item.已装备 && <span className="text-[9px] text-black font-bold bg-cyan-500 px-1 uppercase">已装备</span>}
+                      <span className="text-[9px] text-zinc-500 uppercase">{getTypeLabel(item.类型)}</span>
+                   </div>
+                   
+                   {/* Durability Bar Preview */}
+                   {!isExpanded && hasDurability && item.最大耐久 && (
+                      <div className="mt-1 h-0.5 w-16 bg-zinc-800">
+                         <div 
+                           className={`h-full ${((item.耐久 || 0) / item.最大耐久) < 0.25 ? 'bg-red-500' : 'bg-green-500'}`} 
+                           style={{ width: `${((item.耐久 || 0) / item.最大耐久) * 100}%` }} 
+                         />
+                      </div>
+                   )}
                 </div>
               </div>
 
-              <p className="text-[11px] text-zinc-300 mt-2 leading-relaxed italic">“{item.描述}”</p>
+              {/* Expanded Details */}
+              {isExpanded && (
+                <div className="px-3 pb-3 animate-in slide-in-from-top-2 duration-200">
+                  {hasDurability && item.最大耐久 && (
+                      <div className="mb-3">
+                          <DurabilityBar current={item.耐久 || 0} max={item.最大耐久} />
+                      </div>
+                  )}
 
-              {detailSections.length > 0 && (
-                <div className="space-y-2 text-[10px] font-mono mt-2">
-                  {detailSections.map((section, sectionIndex) => (
-                    <div
-                      key={`${section.title}-${sectionIndex}`}
-                      className="bg-black/50 p-2 border border-zinc-800"
-                    >
-                      <div className="text-[9px] uppercase tracking-widest text-zinc-500 mb-1">
-                        {section.title}
-                      </div>
-                      <div className="grid grid-cols-1 gap-y-1">
-                        {section.rows.map((row, rowIndex) => (
-                          <div key={`${section.title}-${rowIndex}`} className="flex justify-between gap-2">
-                            <span className="text-zinc-500">{row.label}</span>
-                            <span className="text-zinc-200 text-right break-words">{row.value}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+                  <p className="text-xs text-cyan-200/70 italic font-serif border-l-2 border-cyan-500/30 pl-2 mb-3 leading-relaxed">
+                    “{item.描述}”
+                  </p>
+
+                  <div className="bg-black/40 p-2 rounded border border-white/5 space-y-2">
+                      
+                      {/* Basic & Combat */}
+                      <SectionHeader title="基础参数" icon={<Tag size={10} />} />
+                      {(item.攻击力 || item.防御力) && (
+                        <>
+                           {item.攻击力 && <StatRow label="攻击力" value={item.攻击力} />}
+                           {item.防御力 && <StatRow label="防御力" value={item.防御力} />}
+                        </>
+                      )}
+                      <StatRow label="价值" value={item.价值 ? `${item.价值} G` : '-'} />
+                      <StatRow label="重量" value={item.重量 || '-'} />
+
+                      {/* Weapon Specific */}
+                      {item.武器 && (
+                        <>
+                           <SectionHeader title="武器详情" icon={<Sword size={10} />} />
+                           <StatRow label="伤害类型" value={item.武器.伤害类型 || '-'} />
+                           <StatRow label="射程" value={item.武器.射程 || '-'} />
+                           <StatRow label="特性" value={Array.isArray(item.武器.特性) ? item.武器.特性.join(', ') : (item.武器.特性 || '-')} />
+                        </>
+                      )}
+
+                      {/* Armor Specific */}
+                      {item.防具 && (
+                         <>
+                            <SectionHeader title="防具详情" icon={<Shield size={10} />} />
+                            <StatRow label="护甲等级" value={item.防具.护甲等级 || '-'} />
+                            <StatRow label="抗性" value={Array.isArray(item.防具.抗性) ? item.防具.抗性.join(', ') : (item.防具.抗性 || '-')} />
+                         </>
+                      )}
+
+                      {/* Magic Sword Specific */}
+                      {item.魔剑 && (
+                         <>
+                            <SectionHeader title="魔剑属性" icon={<Zap size={10} />} />
+                            <StatRow label="魔法名称" value={item.魔剑.魔法名称 || '-'} />
+                            <StatRow label="威力" value={item.魔剑.威力 || '-'} />
+                            <StatRow label="剩余次数" value={`${item.魔剑.剩余次数}/${item.魔剑.最大次数}`} />
+                            <StatRow label="破损率" value={typeof item.魔剑.破损率 === 'number' ? `${item.魔剑.破损率}%` : item.魔剑.破损率 || '-'} />
+                         </>
+                      )}
+
+                      {/* Consumable Specific */}
+                      {item.消耗 && (
+                        <>
+                           <SectionHeader title="消耗属性" icon={<Beaker size={10} />} />
+                           <StatRow label="持续" value={item.消耗.持续 || '-'} />
+                           <StatRow label="冷却" value={item.消耗.冷却 || '-'} />
+                           <StatRow label="副作用" value={item.消耗.副作用 || '-'} />
+                        </>
+                      )}
+
+                      {/* Material Specific */}
+                      {item.材料 && (
+                        <>
+                           <SectionHeader title="材料信息" icon={<Hammer size={10} />} />
+                           <StatRow label="来源" value={item.材料.来源 || '-'} />
+                           <StatRow label="用途" value={item.材料.用途 || '-'} />
+                        </>
+                      )}
+
+                      {/* Effects */}
+                      {(item.效果 || item.攻击特效 || item.防御特效) && (
+                        <>
+                           <SectionHeader title="特效" icon={<Zap size={10} />} />
+                           {item.效果 && <p className="text-[10px] text-zinc-400">{item.效果}</p>}
+                           {item.攻击特效 && <p className="text-[10px] text-red-400">[攻] {item.攻击特效}</p>}
+                           {item.防御特效 && <p className="text-[10px] text-blue-400">[防] {item.防御特效}</p>}
+                        </>
+                      )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2 mt-3 pt-3 border-t border-zinc-800">
+                    {(isWeaponItem(item) || isArmorItem(item)) && (
+                      item.已装备 ? (
+                         <button 
+                          onClick={(e) => { e.stopPropagation(); onUnequipItem(getDefaultEquipSlot(item), item.名称, item.id); }}
+                          className="flex-1 py-3 bg-yellow-600 text-black font-bold uppercase text-xs flex items-center justify-center gap-1 hover:bg-yellow-500 shadow-lg"
+                         >
+                           <LogOut size={14} /> 卸下
+                         </button>
+                      ) : (
+                         <button 
+                          onClick={(e) => { e.stopPropagation(); onEquipItem(item); }}
+                          className="flex-1 py-3 bg-cyan-600 text-black font-bold uppercase text-xs flex items-center justify-center gap-1 hover:bg-cyan-500 shadow-lg"
+                         >
+                           <Shield size={14} /> 装备
+                         </button>
+                      )
+                    )}
+
+                    {getItemCategory(item) === 'CONSUMABLE' && (
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); onUseItem(item); }}
+                        className="flex-1 py-3 bg-green-600 text-black font-bold uppercase text-xs flex items-center justify-center gap-1 hover:bg-green-500 shadow-lg"
+                      >
+                        <ArrowRightCircle size={14} /> 使用
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
-
-              <div className="flex gap-2 mt-3 pr-10">
-                {(isWeaponItem(item) || isArmorItem(item)) && (
-                  item.已装备 ? (
-                    <button 
-                      onClick={() => onUnequipItem(getDefaultEquipSlot(item), item.名称, item.id)}
-                      className="flex-1 py-2 bg-black text-yellow-500 border-2 border-yellow-600 font-bold uppercase flex items-center justify-center gap-2"
-                    >
-                      <LogOut size={14}/> 卸下
-                    </button>
-                  ) : (
-                    <button 
-                      onClick={() => onEquipItem(item)}
-                      className="flex-1 py-2 bg-blue-600 text-white font-bold uppercase flex items-center justify-center gap-2 border-2 border-blue-400"
-                    >
-                      <Shield size={14}/> 装备
-                    </button>
-                  )
-                )}
-                {getItemCategory(item) === 'CONSUMABLE' && (
-                  <button 
-                    onClick={() => onUseItem(item)}
-                    className="flex-1 py-2 bg-green-600 text-white font-bold uppercase flex items-center justify-center gap-2 border-2 border-green-400"
-                  >
-                    <ArrowRightCircle size={14}/> 使用
-                  </button>
-                )}
-              </div>
             </div>
           );
         }) : (
-          <div className="flex flex-col items-center justify-center py-20 text-blue-900">
-            <Box size={48} className="mb-2 opacity-50"/>
-            <span className="uppercase font-display tracking-widest">暂无物品</span>
+          <div className="flex flex-col items-center justify-center py-20 text-blue-900/50">
+            <Package size={48} className="mb-2" />
+            <span className="uppercase font-display tracking-widest text-sm">背包为空</span>
           </div>
         )}
       </div>

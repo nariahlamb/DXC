@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Globe, Mic2, AlertTriangle, Scroll, Clock, Radar, ListChecks, Swords } from 'lucide-react';
+import { X, Globe, Mic2, AlertTriangle, Scroll, Radar, Swords, Activity, Zap, Radio, Target, Calendar, Clock } from 'lucide-react';
 import { WorldState } from '../../../types';
 
 interface DynamicWorldModalProps {
@@ -59,146 +59,330 @@ export const DynamicWorldModal: React.FC<DynamicWorldModalProps> = ({
 
   if (!isOpen) return null;
 
+  // Theme colors configuration (using full classes for Tailwind JIT)
+  const themeConfig = {
+    GUILD: {
+      main: 'border-cyan-900/50',
+      bgDecor1: 'bg-cyan-900/5',
+      bgDecor2: 'bg-cyan-900/5',
+      iconBg: 'bg-cyan-600',
+      iconShadow: 'shadow-cyan-500/20',
+      titleAccent: 'text-cyan-500',
+      updateBorder: 'border-green-500',
+      cornerBorder: 'border-cyan-600/30'
+    },
+    RUMORS: {
+      main: 'border-emerald-900/50',
+      bgDecor1: 'bg-emerald-900/5',
+      bgDecor2: 'bg-emerald-900/5',
+      iconBg: 'bg-emerald-600',
+      iconShadow: 'shadow-emerald-500/20',
+      titleAccent: 'text-emerald-500',
+      updateBorder: 'border-green-500',
+      cornerBorder: 'border-emerald-600/30'
+    },
+    WAR_GAME: {
+      main: 'border-rose-900/50',
+      bgDecor1: 'bg-rose-900/5',
+      bgDecor2: 'bg-rose-900/5',
+      iconBg: 'bg-rose-600',
+      iconShadow: 'shadow-rose-500/20',
+      titleAccent: 'text-rose-500',
+      updateBorder: 'border-green-500',
+      cornerBorder: 'border-rose-600/30'
+    },
+    TRACKING: {
+      main: 'border-violet-900/50',
+      bgDecor1: 'bg-violet-900/5',
+      bgDecor2: 'bg-violet-900/5',
+      iconBg: 'bg-violet-600',
+      iconShadow: 'shadow-violet-500/20',
+      titleAccent: 'text-violet-500',
+      updateBorder: 'border-green-500',
+      cornerBorder: 'border-violet-600/30'
+    }
+  };
+
+  const currentTheme = themeConfig[activeTab];
+
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-0 md:p-4 animate-in zoom-in-95 duration-200">
-      <div className="w-full h-full md:h-[85vh] md:max-w-6xl bg-[#0f172a] border-0 md:border-4 border-[#3b82f6] relative flex flex-col shadow-[0_0_50px_rgba(59,130,246,0.3)]">
-        {/* Header */}
-        <div className="bg-[#1e3a8a] p-4 flex justify-between items-center border-b-2 border-[#3b82f6] shrink-0">
-          <div className="flex items-center gap-3 text-white">
-            <Globe className="animate-spin-slow" />
-            <div>
-              <h2 className="text-xl md:text-3xl font-display uppercase tracking-widest text-shadow-sm truncate">世界情报监测</h2>
-              <div className="text-[10px] font-mono opacity-70">WORLD MONITOR // ORARIO</div>
-            </div>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-white hover:text-[#1e3a8a] text-white transition-colors border border-white rounded-full">
-            <X size={24} />
-          </button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in zoom-in-95 duration-300">
+      {/* Main Container */}
+      <div className={`w-full h-[90vh] max-w-7xl bg-zinc-950 border-2 ${currentTheme.main} relative flex flex-col shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden transition-colors duration-500`}>
+        
+        {/* Background Decor - Dynamic P5 Style Stripes */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+            <div className={`absolute top-[-10%] right-[-10%] w-[60%] h-[120%] ${currentTheme.bgDecor1} transform -skew-x-12 transition-colors duration-500`} />
+            <div className={`absolute bottom-[-10%] left-[-20%] w-[40%] h-[120%] ${currentTheme.bgDecor2} transform -skew-x-12 transition-colors duration-500`} />
+            <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px]" />
         </div>
 
-        {/* Sidebar + Content Layout */}
-        <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
-          {/* Sidebar */}
-          <div className="w-full md:w-64 bg-[#020617] border-b md:border-b-0 md:border-r border-[#1e293b] p-0 md:p-4 flex md:flex-col shrink-0 overflow-x-auto">
-            <TabButton 
-              label="公会通告" 
-              icon={<Scroll size={18}/>} 
-              active={activeTab === 'GUILD'} 
-              onClick={() => setActiveTab('GUILD')} 
-            />
-            <TabButton 
-              label="街头传闻" 
-              icon={<Mic2 size={18}/>} 
-              active={activeTab === 'RUMORS'} 
-              onClick={() => setActiveTab('RUMORS')} 
-            />
-            <TabButton 
-              label="战争游戏" 
-              icon={<Swords size={18}/>} 
-              active={activeTab === 'WAR_GAME'} 
-              onClick={() => setActiveTab('WAR_GAME')} 
-            />
-            <TabButton 
-              label="后台跟踪" 
-              icon={<Radar size={18}/>} 
-              active={activeTab === 'TRACKING'} 
-              onClick={() => setActiveTab('TRACKING')} 
-            />
-          </div>
+        {/* Header Area */}
+        <div className="relative z-20 flex justify-between items-start p-6 pb-2">
+           <div className="flex items-center gap-6">
+              <div className={`${currentTheme.iconBg} text-black p-3 transform -skew-x-12 shadow-lg ${currentTheme.iconShadow} transition-colors duration-500`}>
+                <Globe className="transform skew-x-12" size={32} strokeWidth={2.5} />
+              </div>
+              <div>
+                <h2 className={`text-4xl font-black italic uppercase tracking-tighter text-white drop-shadow-[2px_2px_0_rgba(0,0,0,1)]`}>
+                  世界情报监测
+                  <span className={`${currentTheme.titleAccent} text-lg ml-2 not-italic tracking-normal`}>// SYSTEM.WORLD</span>
+                </h2>
+                <div className="flex items-center gap-4 mt-1">
+                   <div className="px-2 py-0.5 bg-zinc-800 text-zinc-400 text-[10px] font-mono uppercase tracking-widest border-l-2 border-zinc-600">
+                      EULALIE MONITORING NETWORK
+                   </div>
+                   <div className="text-xs font-bold text-zinc-500 flex items-center gap-2">
+                      <Clock size={12} />
+                      {gameTime || "TIME UNKNOWN"}
+                   </div>
+                </div>
+              </div>
+           </div>
 
-          {/* Main Content */}
-          <div className="flex-1 p-4 pt-16 md:p-8 md:pt-20 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] bg-[#0f172a] relative overflow-y-auto custom-scrollbar pb-32 md:pb-8">
-            {/* Next Update Indicator */}
-            <div className="absolute top-4 right-4 flex items-center gap-3 bg-black/50 px-3 py-2 rounded border border-blue-900/50">
-              <Clock size={12} className="text-blue-400" />
-              <div className="flex flex-col leading-tight">
-                <span className="text-[10px] text-zinc-400 font-mono">当前时间: {gameTime || "未知"}</span>
-                <span className="text-[10px] text-zinc-400 font-mono">下次更新: {safeWorldState.下次更新 || "计算中..."}</span>
-                <span className={`text-[10px] font-mono ${isUpdateDue ? 'text-green-400' : 'text-zinc-500'}`}>
-                  {isUpdateDue ? '已到更新时间' : '监测中'}
+           <div className="flex flex-col items-end gap-2">
+              <button 
+                onClick={onClose} 
+                className="group relative px-6 py-2 bg-zinc-900 border border-zinc-700 hover:bg-red-600 hover:border-red-500 transition-all duration-300 transform -skew-x-12"
+              >
+                <div className="transform skew-x-12 flex items-center gap-2 font-black uppercase tracking-widest text-zinc-400 group-hover:text-white">
+                  <span className="text-xs">Close</span>
+                  <X size={20} />
+                </div>
+              </button>
+              
+              <div className={`flex items-center gap-2 px-4 py-1 bg-black/50 border-b-2 ${isUpdateDue ? 'border-green-500' : 'border-zinc-500'} text-xs font-mono`}>
+                <span className="text-zinc-500">NEXT UPDATE:</span>
+                <span className={isUpdateDue ? 'text-green-400 animate-pulse' : 'text-zinc-300'}>
+                  {safeWorldState.下次更新 || "CALCULATING..."}
                 </span>
               </div>
-              {isUpdateDue && onSilentWorldUpdate && (
-                <button
-                  onClick={onSilentWorldUpdate}
-                  className="ml-2 px-2 py-1 text-[10px] uppercase tracking-widest bg-blue-600 text-white hover:bg-blue-500"
-                >
-                  静默更新
-                </button>
-              )}
-            </div>
+           </div>
+        </div>
 
-            {activeTab === 'GUILD' && <GuildPanel world={safeWorldState} />}
-            {activeTab === 'RUMORS' && <RumorsPanel world={safeWorldState} gameTime={gameTime} />}
-            {activeTab === 'WAR_GAME' && <WarGamePanel world={safeWorldState} />}
-            {activeTab === 'TRACKING' && <TrackingPanel world={safeWorldState} onForceNpcBacklineUpdate={onForceNpcBacklineUpdate} />}
+        {/* Main Content Layout */}
+        <div className="flex flex-col md:flex-row flex-1 overflow-hidden relative z-10">
+          
+          {/* Sidebar Navigation - Stylized Slanted Menu */}
+          <div className="w-full md:w-72 p-6 flex flex-col gap-4 shrink-0 overflow-y-auto custom-scrollbar">
+             <div className="text-zinc-600 text-[10px] font-black uppercase tracking-[0.2em] mb-2 px-2">Navigation</div>
+             
+             <NavButton 
+               label="公会通告" 
+               subLabel="GUILD NEWS" 
+               icon={<Scroll size={20}/>} 
+               isActive={activeTab === 'GUILD'} 
+               onClick={() => setActiveTab('GUILD')}
+               colorClass="cyan"
+               activeBg="bg-cyan-600"
+               activeBorder="border-cyan-400"
+               hoverBorder="hover:border-cyan-500"
+               activeText="text-cyan-400"
+               hoverText="group-hover:text-cyan-400"
+             />
+             <NavButton 
+               label="街头传闻" 
+               subLabel="RUMORS" 
+               icon={<Mic2 size={20}/>} 
+               isActive={activeTab === 'RUMORS'} 
+               onClick={() => setActiveTab('RUMORS')}
+               colorClass="emerald"
+               activeBg="bg-emerald-600"
+               activeBorder="border-emerald-400"
+               hoverBorder="hover:border-emerald-500"
+               activeText="text-emerald-400"
+               hoverText="group-hover:text-emerald-400"
+             />
+             <NavButton 
+               label="战争游戏" 
+               subLabel="WAR GAME" 
+               icon={<Swords size={20}/>} 
+               isActive={activeTab === 'WAR_GAME'} 
+               onClick={() => setActiveTab('WAR_GAME')}
+               colorClass="rose"
+               activeBg="bg-rose-600"
+               activeBorder="border-rose-400"
+               hoverBorder="hover:border-rose-500"
+               activeText="text-rose-400"
+               hoverText="group-hover:text-rose-400"
+             />
+             <NavButton 
+               label="后台跟踪" 
+               subLabel="TRACKING" 
+               icon={<Radar size={20}/>} 
+               isActive={activeTab === 'TRACKING'} 
+               onClick={() => setActiveTab('TRACKING')}
+               colorClass="violet"
+               activeBg="bg-violet-600"
+               activeBorder="border-violet-400"
+               hoverBorder="hover:border-violet-500"
+               activeText="text-violet-400"
+               hoverText="group-hover:text-violet-400"
+             />
+
+             <div className="mt-auto pt-6 border-t border-zinc-800/50">
+                {isUpdateDue && onSilentWorldUpdate && (
+                    <button 
+                        onClick={onSilentWorldUpdate}
+                        className="w-full group relative overflow-hidden p-4 bg-zinc-900 border border-green-900 hover:border-green-500 transition-all duration-300"
+                    >
+                        <div className="absolute inset-0 bg-green-500/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                        <div className="relative z-10 flex items-center justify-center gap-2 text-green-500 group-hover:text-green-300 font-black uppercase tracking-wider text-sm">
+                            <Activity size={16} className="animate-pulse" /> 
+                            <span>获取最新情报</span>
+                        </div>
+                    </button>
+                )}
+             </div>
           </div>
+
+          {/* Main Panel Content */}
+          <div className="flex-1 p-2 md:p-8 overflow-hidden relative">
+             {/* Content Background Box */}
+             <div className="w-full h-full bg-zinc-900/50 border border-zinc-800 backdrop-blur-sm relative overflow-hidden">
+                {/* Decorative Corner Lines */}
+                <div className={`absolute top-0 left-0 w-32 h-32 border-l-4 border-t-4 ${currentTheme.cornerBorder} rounded-tl-3xl pointer-events-none transition-colors duration-500`} />
+                <div className={`absolute bottom-0 right-0 w-32 h-32 border-r-4 border-b-4 ${currentTheme.cornerBorder} rounded-br-3xl pointer-events-none transition-colors duration-500`} />
+                
+                <div className="h-full overflow-y-auto custom-scrollbar p-6">
+                  {activeTab === 'GUILD' && <GuildPanel world={safeWorldState} />}
+                  {activeTab === 'RUMORS' && <RumorsPanel world={safeWorldState} gameTime={gameTime} />}
+                  {activeTab === 'WAR_GAME' && <WarGamePanel world={safeWorldState} />}
+                  {activeTab === 'TRACKING' && <TrackingPanel world={safeWorldState} onForceNpcBacklineUpdate={onForceNpcBacklineUpdate} />}
+                </div>
+             </div>
+          </div>
+
         </div>
       </div>
     </div>
   );
 };
 
-const TabButton = ({ label, icon, active, onClick }: any) => (
-  <button 
-    onClick={onClick}
-    className={`flex-1 md:flex-none md:w-full text-center md:text-left p-3 flex items-center justify-center md:justify-start gap-2 md:gap-3 font-display uppercase tracking-wide transition-all border-b-4 md:border-b-0 md:border-l-4 whitespace-nowrap text-sm md:text-base
-      ${active 
-        ? 'bg-[#1e293b] border-blue-500 text-blue-400' 
-        : 'border-transparent text-zinc-500 hover:text-white hover:bg-[#0f172a]'
-      }
-    `}
-  >
-    {icon} <span>{label}</span>
-  </button>
-);
+// --- Components ---
 
-// --- Panels ---
+interface NavButtonProps {
+  label: string;
+  subLabel: string;
+  icon: React.ReactNode;
+  isActive: boolean;
+  onClick: () => void;
+  colorClass: string;
+  activeBg: string;
+  activeBorder: string;
+  hoverBorder: string;
+  activeText: string;
+  hoverText: string;
+}
+
+const NavButton: React.FC<NavButtonProps> = ({ 
+    label, subLabel, icon, isActive, onClick, 
+    colorClass, activeBg, activeBorder, hoverBorder, activeText, hoverText 
+}) => {
+  return (
+    <button 
+      onClick={onClick}
+      className={`group relative w-full h-16 transform transition-all duration-300 ${isActive ? 'translate-x-4' : 'hover:translate-x-2'}`}
+    >
+      {/* Background Shape */}
+      <div className={`absolute inset-0 transform -skew-x-12 border-2 transition-all duration-300 
+        ${isActive 
+          ? `${activeBg} ${activeBorder} shadow-[4px_4px_0_rgba(0,0,0,0.5)]` 
+          : `bg-zinc-900 border-zinc-800 ${hoverBorder}`
+        }`}
+      />
+      
+      {/* Content */}
+      <div className="absolute inset-0 flex items-center px-6 gap-4 transform -skew-x-12">
+        <div className={`transition-colors duration-300 ${isActive ? 'text-black' : `text-zinc-500 ${hoverText}`}`}>
+          {icon}
+        </div>
+        <div className="flex flex-col items-start">
+           <span className={`text-lg font-black italic uppercase tracking-tighter transition-colors duration-300 ${isActive ? 'text-black' : 'text-zinc-300'}`}>
+             {label}
+           </span>
+           <span className={`text-[10px] font-mono tracking-widest uppercase transition-colors duration-300 ${isActive ? 'text-black/70' : 'text-zinc-600'}`}>
+             {subLabel}
+           </span>
+        </div>
+      </div>
+    </button>
+  );
+};
 
 const GuildPanel = ({ world }: { world: WorldState }) => (
-  <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
-    <div className="border-b border-blue-900 pb-2 mb-6">
-      <h3 className="text-blue-400 font-display text-2xl uppercase tracking-widest">公会官方通告</h3>
+  <div className="space-y-10 animate-in slide-in-from-right-8 duration-500">
+    <PanelHeader title="公会官方通告" subtitle="GUILD ANNOUNCEMENTS" colorClass="text-cyan-500" gradientClass="from-cyan-900" subtitleColor="text-cyan-800" />
+
+    {/* Irregularity Meter */}
+    <div className="relative p-8 bg-zinc-950 border border-zinc-800 overflow-hidden group">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-red-900/10 via-transparent to-transparent" />
+      
+      <div className="relative z-10 flex flex-col md:flex-row gap-8 items-center">
+         {/* Circle Meter */}
+         <div className="relative w-40 h-40 shrink-0 flex items-center justify-center">
+            <svg className="w-full h-full transform -rotate-90">
+              <circle cx="80" cy="80" r="70" fill="none" stroke="#333" strokeWidth="12" />
+              <circle 
+                cx="80" cy="80" r="70" 
+                fill="none" 
+                stroke={world.地下城异常指数 > 70 ? '#ef4444' : world.地下城异常指数 > 30 ? '#eab308' : '#06b6d4'}
+                strokeWidth="12"
+                strokeDasharray="440"
+                strokeDashoffset={440 - (440 * world.地下城异常指数) / 100}
+                className="transition-all duration-1000 ease-out"
+                strokeLinecap="butt"
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+               <span className="text-4xl font-black italic text-white">{world.地下城异常指数}<span className="text-sm not-italic text-zinc-500">%</span></span>
+            </div>
+         </div>
+
+         <div className="flex-1 space-y-4">
+            <div>
+              <h4 className="text-xl font-black text-red-500 uppercase tracking-widest italic flex items-center gap-2">
+                 <AlertTriangle size={24} />
+                 地下城异常指数
+              </h4>
+              <div className="h-1 w-full bg-zinc-800 mt-2 relative overflow-hidden">
+                 <div className="absolute inset-0 bg-red-500/20 animate-pulse" />
+              </div>
+            </div>
+            
+            <div className="bg-zinc-900/50 p-4 border-l-4 border-red-500">
+               <div className="text-xs font-bold text-zinc-500 uppercase mb-1">Current Status / 当前状态</div>
+               <p className={`text-lg font-bold ${world.地下城异常指数 > 50 ? 'text-red-400' : 'text-zinc-300'}`}>
+                 {world.地下城异常指数 < 30 ? "STABLE / 稳定期 - 适合探索" : 
+                  world.地下城异常指数 < 70 ? "CAUTION / 警戒期 - 不规则怪物刷新" : 
+                  "DANGER / 危险期 - 强化种反应，极其危险"}
+               </p>
+            </div>
+         </div>
+      </div>
     </div>
 
-    {/* Irregularity */}
-    <div className="bg-[#020617] p-6 border border-blue-900/50 shadow-lg relative overflow-hidden">
-      <div className="flex justify-between items-center mb-2 z-10 relative">
-        <h4 className="text-white font-bold uppercase flex items-center gap-2">
-          <AlertTriangle size={18} className="text-red-500"/> 地下城异常指数
-        </h4>
-        <span className="text-red-500 font-mono text-2xl font-bold">{world.地下城异常指数}%</span>
-      </div>
-      <div className="w-full h-4 bg-zinc-900 rounded-full overflow-hidden border border-zinc-700 relative z-10">
-        <div 
-          className="h-full bg-gradient-to-r from-green-600 via-yellow-500 to-red-600 transition-all duration-1000"
-          style={{ width: `${world.地下城异常指数}%` }}
-        />
-      </div>
-      <p className="text-zinc-500 text-xs mt-3 italic relative z-10">
-        {world.地下城异常指数 < 30 ? "目前处于稳定期，建议新人进行探索。" : 
-          world.地下城异常指数 < 70 ? "中层区域观测到不规则怪物刷新，请注意安全。" : 
-          "警报！深层区域出现强化种反应，非第一线冒险者请勿靠近。"}
-      </p>
-      <div className="absolute right-0 top-0 text-red-900/10 transform rotate-12 pointer-events-none">
-        <AlertTriangle size={150} />
-      </div>
-    </div>
-
-    {/* Announcements */}
+    {/* News Feed */}
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h4 className="text-blue-300 font-bold uppercase text-sm border-l-4 border-blue-600 pl-2">公会官方通告</h4>
-        <span className="text-[10px] text-zinc-600">SOURCE: GUILD HQ</span>
-      </div>
       {world.公会官方通告.length > 0 ? (
         world.公会官方通告.map((news, i) => (
-          <div key={i} className="bg-zinc-900/80 p-4 border-l-2 border-zinc-700 hover:border-blue-500 transition-colors flex justify-between group">
-            <p className="text-zinc-300 font-sans text-sm">{news}</p>
+          <div key={i} className="group relative bg-zinc-900 border-l-4 border-cyan-600 p-6 hover:bg-zinc-800 transition-all duration-300">
+            <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-100 transition-opacity">
+               <Zap size={48} className="text-cyan-600" />
+            </div>
+            <div className="relative z-10 flex gap-4">
+                <div className="mt-1 shrink-0 w-8 h-8 bg-cyan-900/30 flex items-center justify-center rounded-full text-cyan-400 font-bold border border-cyan-800">
+                   {i + 1}
+                </div>
+                <div>
+                   <div className="text-[10px] font-bold text-cyan-600 uppercase tracking-wider mb-1">Official Notice</div>
+                   <p className="text-zinc-300 text-sm md:text-base leading-relaxed">{news}</p>
+                </div>
+            </div>
           </div>
         ))
       ) : (
-        <div className="text-zinc-600 italic p-4 text-center border border-dashed border-zinc-800">暂无通告</div>
+        <EmptyState message="暂无官方通告" />
       )}
     </div>
   </div>
@@ -207,54 +391,65 @@ const GuildPanel = ({ world }: { world: WorldState }) => (
 const RumorsPanel = ({ world, gameTime }: { world: WorldState; gameTime?: string }) => {
   const currentDay = parseDay(gameTime);
   return (
-    <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
-      <div className="border-b border-green-900 pb-2 mb-6">
-        <h3 className="text-green-400 font-display text-2xl uppercase tracking-widest">街头传闻</h3>
-      </div>
+    <div className="space-y-8 animate-in slide-in-from-right-8 duration-500">
+      <PanelHeader title="街头传闻" subtitle="STREET RUMORS & GOSSIP" colorClass="text-emerald-500" gradientClass="from-emerald-900" subtitleColor="text-emerald-800" />
 
-      <div className="grid grid-cols-1 gap-4">
+      <div className="grid grid-cols-1 gap-6">
         {world.街头传闻.length > 0 ? (
           world.街头传闻.map((rumor, i) => {
             const knownDay = parseDay(rumor.广为人知日);
             const calmDay = parseDay(rumor.风波平息日);
             const knownCountdown = currentDay !== null && knownDay !== null ? knownDay - currentDay : null;
             const calmCountdown = currentDay !== null && calmDay !== null ? calmDay - currentDay : null;
-            const knownLabel = knownCountdown === null
-              ? '未知'
-              : knownCountdown <= 0 ? '已广为人知' : `还有 ${knownCountdown} 日`;
-            const calmLabel = calmCountdown === null
-              ? '未知'
-              : calmCountdown <= 0 ? '风波已平息' : `还有 ${calmCountdown} 日`;
+            
+            const isActive = knownCountdown !== null && knownCountdown <= 0;
 
             return (
-              <div key={i} className="flex gap-4 items-center bg-[#020617] p-4 border border-zinc-800 hover:border-green-600 transition-colors group">
-                <div className="bg-green-900/20 w-12 h-12 flex items-center justify-center shrink-0 rounded-full group-hover:bg-green-600 group-hover:text-black transition-colors text-green-600">
-                  <Mic2 size={20} />
+              <div key={i} className="relative bg-zinc-900 border border-zinc-700 p-6 overflow-hidden group hover:border-emerald-500 transition-colors duration-300">
+                {/* Glitch Effect Background */}
+                <div className="absolute inset-0 bg-[url('/assets/noise.png')] opacity-5 pointer-events-none" />
+                <div className="absolute -right-10 -top-10 text-zinc-800 group-hover:text-emerald-900/20 transition-colors transform rotate-12">
+                   <Radio size={150} />
                 </div>
-                <div className="flex-1">
-                  <p className="text-zinc-200 text-sm mb-2 font-bold">“{rumor.主题}”</p>
-                  <div className="text-[10px] text-zinc-500">
-                    到 <span className="text-green-300">{rumor.广为人知日}</span> 为广为人知，
-                    到 <span className="text-emerald-300">{rumor.风波平息日}</span> 风波平息。
-                  </div>
-                  <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] text-zinc-400">
-                    <div className="flex items-center justify-between bg-black/40 px-2 py-1 border border-zinc-800">
-                      <span>广为人知</span>
-                      <span className="text-green-400">{knownLabel}</span>
-                    </div>
-                    <div className="flex items-center justify-between bg-black/40 px-2 py-1 border border-zinc-800">
-                      <span>风波平息</span>
-                      <span className="text-emerald-400">{calmLabel}</span>
-                    </div>
-                  </div>
+
+                <div className="relative z-10">
+                   <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                         <div className={`p-2 ${isActive ? 'bg-emerald-500 text-black' : 'bg-zinc-800 text-zinc-400'} transform -skew-x-12`}>
+                            <Mic2 size={20} className="transform skew-x-12" />
+                         </div>
+                         <h4 className="text-xl font-bold text-white group-hover:text-emerald-400 transition-colors">“{rumor.主题}”</h4>
+                      </div>
+                      <div className="px-3 py-1 bg-black/50 border border-zinc-700 text-[10px] uppercase font-mono text-zinc-400">
+                         ID: RUMOR-{i+100}
+                      </div>
+                   </div>
+
+                   <div className="flex flex-wrap gap-4 text-xs font-mono">
+                       <div className="flex flex-col border-l-2 border-zinc-700 pl-3">
+                           <span className="text-zinc-500 uppercase text-[9px]">传播日期 / Spread</span>
+                           <span className={knownCountdown !== null && knownCountdown <= 0 ? 'text-emerald-400 font-bold' : 'text-zinc-300'}>
+                              {knownCountdown !== null ? (knownCountdown <= 0 ? "已广为人知" : `${knownCountdown} 日后`) : "未知"}
+                           </span>
+                       </div>
+                       <div className="flex flex-col border-l-2 border-zinc-700 pl-3">
+                           <span className="text-zinc-500 uppercase text-[9px]">消退日期 / Fade</span>
+                           <span className={calmCountdown !== null && calmCountdown <= 0 ? 'text-zinc-500 line-through' : 'text-zinc-300'}>
+                              {calmCountdown !== null ? (calmCountdown <= 0 ? "已平息" : `${calmCountdown} 日后`) : "未知"}
+                           </span>
+                       </div>
+                   </div>
+
+                   <div className="mt-4 pt-4 border-t border-zinc-800/50 text-sm text-zinc-400 italic">
+                       <span className="text-emerald-600 font-bold mr-2">[情报]</span>
+                       有关该话题的讨论正在市井间流传...
+                   </div>
                 </div>
               </div>
             );
           })
         ) : (
-          <div className="text-center py-10 text-zinc-600 border border-dashed border-zinc-800">
-            <p>最近风平浪静，没有特别的流言。</p>
-          </div>
+          <EmptyState message="市井平静，暂无特别流言" />
         )}
       </div>
     </div>
@@ -264,97 +459,161 @@ const RumorsPanel = ({ world, gameTime }: { world: WorldState; gameTime?: string
 const WarGamePanel = ({ world }: { world: WorldState }) => {
   const war = world.战争游戏 || { 状态: "未开始", 参战眷族: [], 形式: "", 赌注: "", 举办时间: "", 结束时间: "", 结果: "", 备注: "" };
   return (
-    <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
-      <div className="border-b border-red-900 pb-2 mb-6">
-        <h3 className="text-red-400 font-display text-2xl uppercase tracking-widest">战争游戏</h3>
-      </div>
-      <div className="bg-[#020617] p-6 border border-red-900/50">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-zinc-300">
-          <div className="flex justify-between border-b border-red-900/30 pb-2">
-            <span className="text-zinc-500">状态</span>
-            <span className="text-red-300 font-mono">{war.状态 || "未开始"}</span>
+    <div className="space-y-8 animate-in slide-in-from-right-8 duration-500">
+       <PanelHeader title="战争游戏" subtitle="WAR GAME STATUS" colorClass="text-rose-500" gradientClass="from-rose-900" subtitleColor="text-rose-800" />
+
+       <div className="bg-zinc-950 border-2 border-rose-900 relative overflow-hidden min-h-[400px] flex flex-col">
+          {/* Stylized Background */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-rose-900/20 via-black to-black" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-rose-900/10 pointer-events-none">
+             <Swords size={400} />
           </div>
-          <div className="flex justify-between border-b border-red-900/30 pb-2">
-            <span className="text-zinc-500">形式</span>
-            <span>{war.形式 || "待定"}</span>
+
+          <div className="relative z-10 p-8 flex-1 flex flex-col">
+              {/* Header Info */}
+              <div className="flex justify-between items-start border-b-2 border-rose-900/50 pb-6 mb-6">
+                 <div>
+                    <div className="text-rose-500 font-black uppercase tracking-[0.2em] text-xs mb-2">Current Status / 状态</div>
+                    <div className="text-5xl md:text-6xl font-black text-white italic uppercase tracking-tighter text-shadow-red">
+                        {war.状态 || "未开始"}
+                    </div>
+                 </div>
+                 <div className="text-right">
+                    <div className="text-zinc-500 font-bold uppercase tracking-[0.2em] text-xs mb-2">Battle Format / 形式</div>
+                    <div className="text-3xl font-display text-zinc-300 uppercase">
+                        {war.形式 || "待定"}
+                    </div>
+                 </div>
+              </div>
+
+              {/* VS Section */}
+              <div className="flex-1 flex items-center justify-center my-8">
+                  {(war.参战眷族 || []).length > 0 ? (
+                      <div className="flex items-center gap-8 md:gap-16">
+                          <div className="text-2xl md:text-4xl font-black text-white">{war.参战眷族[0] || "?"}</div>
+                          <div className="text-6xl md:text-8xl font-black italic text-rose-600 transform -skew-x-12">VS</div>
+                          <div className="text-2xl md:text-4xl font-black text-white">{war.参战眷族[1] || "?"}</div>
+                      </div>
+                  ) : (
+                      <div className="text-zinc-600 font-black text-4xl uppercase tracking-widest opacity-50">
+                          NO ACTIVE MATCH
+                      </div>
+                  )}
+              </div>
+
+              {/* Footer Details */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-rose-900/30">
+                  <InfoBlock label="举办时间" value={war.举办时间 || "未知"} icon={<Calendar size={14} />} />
+                  <InfoBlock label="结束时间" value={war.结束时间 || "未知"} icon={<Clock size={14} />} />
+                  <InfoBlock label="赌注" value={war.赌注 || "未公开"} highlight />
+              </div>
+              
+              {war.备注 && (
+                 <div className="mt-6 bg-rose-950/30 border border-rose-800 p-3 text-xs text-rose-200 font-mono flex gap-2">
+                    <span className="font-bold">NOTE:</span> {war.备注}
+                 </div>
+              )}
           </div>
-          <div className="flex justify-between border-b border-red-900/30 pb-2">
-            <span className="text-zinc-500">举办时间</span>
-            <span>{war.举办时间 || "未知"}</span>
-          </div>
-          <div className="flex justify-between border-b border-red-900/30 pb-2">
-            <span className="text-zinc-500">结束时间</span>
-            <span>{war.结束时间 || "未知"}</span>
-          </div>
-          <div className="md:col-span-2 flex justify-between border-b border-red-900/30 pb-2">
-            <span className="text-zinc-500">赌注</span>
-            <span className="text-red-200">{war.赌注 || "未公开"}</span>
-          </div>
-          <div className="md:col-span-2 flex justify-between">
-            <span className="text-zinc-500">结果</span>
-            <span className="text-emerald-300">{war.结果 || "待定"}</span>
-          </div>
-        </div>
-        <div className="mt-4 text-xs text-zinc-400">
-          参战眷族：{(war.参战眷族 || []).length > 0 ? war.参战眷族.join('、') : "暂无记录"}
-        </div>
-        {war.备注 && <div className="mt-2 text-[10px] text-zinc-500 italic">{war.备注}</div>}
-      </div>
+       </div>
     </div>
   );
 };
 
 const TrackingPanel = ({ world, onForceNpcBacklineUpdate }: { world: WorldState; onForceNpcBacklineUpdate?: () => void }) => (
-  <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
-    <div className="border-b border-cyan-900 pb-2 mb-6">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="text-cyan-400 font-display text-2xl uppercase tracking-widest">NPC 后台跟踪</h3>
+  <div className="space-y-8 animate-in slide-in-from-right-8 duration-500">
+    <div className="flex justify-between items-center">
+        <PanelHeader title="NPC 后台跟踪" subtitle="BACKGROUND SIMULATION MONITOR" colorClass="text-violet-500" gradientClass="from-violet-900" subtitleColor="text-violet-800" />
         {onForceNpcBacklineUpdate && (
-          <button
-            onClick={onForceNpcBacklineUpdate}
-            className="px-3 py-1 text-[10px] uppercase tracking-widest bg-cyan-600 text-black hover:bg-cyan-500 border border-cyan-300 shadow-sm"
-          >
-            强制刷新
-          </button>
-        )}
-      </div>
+           <button
+             onClick={onForceNpcBacklineUpdate}
+             className="px-4 py-2 bg-violet-900/30 border border-violet-500 text-violet-300 hover:bg-violet-500 hover:text-black transition-all font-bold uppercase text-xs transform -skew-x-12"
+           >
+             <div className="transform skew-x-12 flex gap-2 items-center">
+                <Activity size={14} /> 强制刷新
+             </div>
+           </button>
+         )}
     </div>
 
     <div className="grid grid-cols-1 gap-4">
       {world.NPC后台跟踪 && world.NPC后台跟踪.length > 0 ? (
         world.NPC后台跟踪.map((track, i) => (
-          <div key={i} className="flex gap-4 items-start bg-[#020617] p-4 border border-zinc-800 hover:border-cyan-600 transition-colors group">
-            <div className="bg-cyan-900/20 w-12 h-12 flex items-center justify-center shrink-0 rounded-full group-hover:bg-cyan-600 group-hover:text-black transition-colors text-cyan-600">
-              <ListChecks size={20} />
-            </div>
-            <div className="flex-1 space-y-1">
-              <div className="text-zinc-200 text-sm font-bold">{track.NPC}</div>
-              <div className="text-zinc-400 text-xs">行动: {track.当前行动}</div>
-              {(track.地点 || track.位置) && (
-                <div className="text-[10px] text-zinc-500">地点: {track.地点 || track.位置}</div>
-              )}
-              {Array.isArray(track.计划阶段) && track.计划阶段.length > 0 && (
-                <div className="text-[10px] text-zinc-500">
-                  阶段: {(() => {
-                    const total = track.计划阶段.length;
-                    const rawIndex = typeof track.当前阶段 === 'number' ? track.当前阶段 : 0;
-                    const normalizedIndex = rawIndex >= 1 ? rawIndex - 1 : rawIndex;
-                    const safeIndex = Math.min(Math.max(normalizedIndex, 0), total - 1);
-                    return `${safeIndex + 1}/${total}`;
-                  })()}
+          <div key={i} className="bg-black border border-violet-900/50 p-1 hover:border-violet-500 transition-colors group">
+             <div className="bg-zinc-900 p-4 flex gap-5 relative overflow-hidden">
+                {/* Decorative Elements */}
+                <div className="absolute top-0 right-0 p-2">
+                    <Target size={60} className="text-violet-900/20 group-hover:text-violet-900/40 transition-colors" />
                 </div>
-              )}
-              {track.阶段结束时间 && <div className="text-[10px] text-zinc-500">阶段结束: {track.阶段结束时间}</div>}
-              {track.进度 && <div className="text-[10px] text-emerald-400">进度: {track.进度}</div>}
-              {track.预计完成 && <div className="text-[10px] text-zinc-500">预计完成: {track.预计完成}</div>}
-            </div>
+                
+                {/* Avatar Placeholder */}
+                <div className="w-16 h-16 bg-violet-900/20 border border-violet-700/50 flex items-center justify-center shrink-0">
+                    <span className="text-2xl font-black text-violet-500">{track.NPC[0]}</span>
+                </div>
+
+                <div className="flex-1 relative z-10">
+                   <div className="flex justify-between items-start mb-2">
+                      <h4 className="text-lg font-bold text-white tracking-wide">{track.NPC}</h4>
+                      <span className="text-[10px] font-mono bg-violet-900/30 text-violet-300 px-2 py-0.5 border border-violet-800">
+                          PHASE {track.当前阶段 ?? '?'}
+                      </span>
+                   </div>
+                   
+                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                       <div>
+                          <div className="text-zinc-600 uppercase text-[9px] font-bold">Action / 行动</div>
+                          <div className="text-zinc-300 truncate">{track.当前行动}</div>
+                       </div>
+                       <div>
+                          <div className="text-zinc-600 uppercase text-[9px] font-bold">Loc / 地点</div>
+                          <div className="text-zinc-300 truncate">{track.地点 || track.位置 || 'Unknown'}</div>
+                       </div>
+                       <div>
+                          <div className="text-zinc-600 uppercase text-[9px] font-bold">Progress / 进度</div>
+                          <div className="text-green-400 font-mono">{track.进度 || "-"}</div>
+                       </div>
+                       <div>
+                          <div className="text-zinc-600 uppercase text-[9px] font-bold">ETA / 预计</div>
+                          <div className="text-zinc-400 font-mono">{track.预计完成 || "-"}</div>
+                       </div>
+                   </div>
+                </div>
+             </div>
           </div>
         ))
       ) : (
-        <div className="text-center py-10 text-zinc-600 border border-dashed border-zinc-800">
-          <p>暂无后台跟踪事项。</p>
-        </div>
+        <EmptyState message="系统空闲，暂无后台活动追踪" />
       )}
     </div>
   </div>
+);
+
+// --- Utility Components ---
+
+const PanelHeader = ({ title, subtitle, colorClass, gradientClass, subtitleColor }: 
+  { title: string, subtitle: string, colorClass: string, gradientClass: string, subtitleColor: string }) => (
+  <div className="flex items-center gap-4 mb-2">
+      <div>
+          <h3 className={`text-3xl md:text-4xl font-black italic ${colorClass} uppercase tracking-tighter`}>{title}</h3>
+          <div className={`text-[10px] font-bold ${subtitleColor} tracking-[0.3em] uppercase`}>{subtitle}</div>
+      </div>
+      <div className={`h-2 flex-1 bg-gradient-to-r ${gradientClass} to-transparent transform skew-x-[-20deg]`} />
+  </div>
+);
+
+const InfoBlock = ({ label, value, icon, highlight }: any) => (
+    <div>
+        <div className="flex items-center gap-2 text-zinc-500 text-xs font-bold uppercase mb-1">
+            {icon} {label}
+        </div>
+        <div className={`font-mono text-sm ${highlight ? 'text-yellow-500 font-bold' : 'text-zinc-300'}`}>
+            {value}
+        </div>
+    </div>
+);
+
+const EmptyState = ({ message }: { message: string }) => (
+    <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-zinc-800 text-zinc-600">
+        <Radar size={48} className="mb-4 opacity-20" />
+        <p className="italic">{message}</p>
+    </div>
 );
