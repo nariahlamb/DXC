@@ -1155,9 +1155,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* 额外要求提示词设置 */}
           <div className="bg-white p-6 border border-zinc-200 shadow-sm mb-4">
-              <h4 className="font-bold uppercase text-zinc-500 mb-4 flex items-center gap-2">
-                  <Edit2 size={16} /> 额外要求提示词 (Extra Requirement Prompt)
-              </h4>
+              <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-bold uppercase text-zinc-500 flex items-center gap-2">
+                      <Edit2 size={16} /> 额外要求提示词 (Extra Requirement Prompt)
+                  </h4>
+                  <button
+                      onClick={() => setFormData(prev => ({
+                          ...prev,
+                          writingConfig: {
+                              ...prev.writingConfig,
+                              extraRequirementPrompt: DEFAULT_SETTINGS.writingConfig.extraRequirementPrompt
+                          }
+                      }))}
+                      className="px-3 py-1 border border-zinc-300 bg-zinc-100 hover:bg-zinc-200 text-[10px] font-bold uppercase tracking-wider"
+                  >
+                      恢复默认
+                  </button>
+              </div>
               <div className="p-4 bg-zinc-50 border border-zinc-200">
                   <p className="text-[10px] text-zinc-500 mb-3">
                       该内容会插入到上下文的「[玩家输入]」之后。留空表示不追加具体内容。
