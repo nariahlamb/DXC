@@ -197,7 +197,7 @@ export const P_DATA_STRUCT = `<数据结构定义>
 - \`gameState.世界.地下城异常指数\`: Number (0-100)
 - \`gameState.世界.公会官方通告\`: String[]
 - \`gameState.世界.街头传闻\`: Array<{ "主题": String, "广为人知日": String, "风波平息日": String }>
-- \`gameState.世界.NPC后台跟踪\`: Array<{ "NPC": String, "当前行动": String, "地点?": String, "位置?": String, "进度?": String, "预计完成?": String, "计划阶段?": String[], "当前阶段?": Number, "阶段结束时间?": String }>
+- \`gameState.世界.NPC后台跟踪\`: Array<{ "NPC": String, "当前行动": String, "地点?": String, "位置?": String, "计划阶段?": String[], "当前阶段?": Number, "阶段结束时间?": String, "进度?": String, "预计完成?": String }>
 - \`gameState.世界.战争游戏\`: { "状态": String, "参战眷族": String[], "形式": String, "赌注": String, "举办时间": String, "结束时间": String, "结果": String, "备注": String }
 - \`gameState.世界.下次更新\`: String（每回合需确认是否已经抵达下次更新时间，若抵达则更具体的日期如：第一日 18:00）
 

@@ -1,6 +1,7 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { X, Globe, Mic2, AlertTriangle, Scroll, Radar, Swords, Activity, Zap, Radio, Target, Calendar, Clock } from 'lucide-react';
 import { WorldState } from '../../../types';
+import type { NpcBackgroundTracking } from '../../../types/world';
 
 interface DynamicWorldModalProps {
   isOpen: boolean;
@@ -126,15 +127,15 @@ export const DynamicWorldModal: React.FC<DynamicWorldModalProps> = ({
               <div>
                 <h2 className={`text-4xl font-black italic uppercase tracking-tighter text-white drop-shadow-[2px_2px_0_rgba(0,0,0,1)]`}>
                   世界情报监测
-                  <span className={`${currentTheme.titleAccent} text-lg ml-2 not-italic tracking-normal`}>// SYSTEM.WORLD</span>
+                  <span className={`${currentTheme.titleAccent} text-lg ml-2 not-italic tracking-normal`}>// 世界监测系统</span>
                 </h2>
                 <div className="flex items-center gap-4 mt-1">
                    <div className="px-2 py-0.5 bg-zinc-800 text-zinc-400 text-[10px] font-mono uppercase tracking-widest border-l-2 border-zinc-600">
-                      EULALIE MONITORING NETWORK
+                      欧拉丽情报网络
                    </div>
                    <div className="text-xs font-bold text-zinc-500 flex items-center gap-2">
                       <Clock size={12} />
-                      {gameTime || "TIME UNKNOWN"}
+                      {gameTime || "时间未知"}
                    </div>
                 </div>
               </div>
@@ -146,15 +147,15 @@ export const DynamicWorldModal: React.FC<DynamicWorldModalProps> = ({
                 className="group relative px-6 py-2 bg-zinc-900 border border-zinc-700 hover:bg-red-600 hover:border-red-500 transition-all duration-300 transform -skew-x-12"
               >
                 <div className="transform skew-x-12 flex items-center gap-2 font-black uppercase tracking-widest text-zinc-400 group-hover:text-white">
-                  <span className="text-xs">Close</span>
+                  <span className="text-xs">关闭</span>
                   <X size={20} />
                 </div>
               </button>
               
               <div className={`flex items-center gap-2 px-4 py-1 bg-black/50 border-b-2 ${isUpdateDue ? 'border-green-500' : 'border-zinc-500'} text-xs font-mono`}>
-                <span className="text-zinc-500">NEXT UPDATE:</span>
+                <span className="text-zinc-500">下次更新:</span>
                 <span className={isUpdateDue ? 'text-green-400 animate-pulse' : 'text-zinc-300'}>
-                  {safeWorldState.下次更新 || "CALCULATING..."}
+                  {safeWorldState.下次更新 || "计算中..."}
                 </span>
               </div>
            </div>
@@ -165,11 +166,10 @@ export const DynamicWorldModal: React.FC<DynamicWorldModalProps> = ({
           
           {/* Sidebar Navigation - Stylized Slanted Menu */}
           <div className="w-full md:w-72 max-h-[40vh] md:max-h-none p-4 md:p-6 flex flex-col gap-4 shrink-0 overflow-y-auto custom-scrollbar touch-pan-y overscroll-contain">
-             <div className="text-zinc-600 text-[10px] font-black uppercase tracking-[0.2em] mb-2 px-2">Navigation</div>
+             <div className="text-zinc-600 text-[10px] font-black uppercase tracking-[0.2em] mb-2 px-2">导航</div>
              
              <NavButton 
                label="公会通告" 
-               subLabel="GUILD NEWS" 
                icon={<Scroll size={20}/>} 
                isActive={activeTab === 'GUILD'} 
                onClick={() => setActiveTab('GUILD')}
@@ -182,7 +182,6 @@ export const DynamicWorldModal: React.FC<DynamicWorldModalProps> = ({
              />
              <NavButton 
                label="街头传闻" 
-               subLabel="RUMORS" 
                icon={<Mic2 size={20}/>} 
                isActive={activeTab === 'RUMORS'} 
                onClick={() => setActiveTab('RUMORS')}
@@ -195,7 +194,6 @@ export const DynamicWorldModal: React.FC<DynamicWorldModalProps> = ({
              />
              <NavButton 
                label="战争游戏" 
-               subLabel="WAR GAME" 
                icon={<Swords size={20}/>} 
                isActive={activeTab === 'WAR_GAME'} 
                onClick={() => setActiveTab('WAR_GAME')}
@@ -208,7 +206,6 @@ export const DynamicWorldModal: React.FC<DynamicWorldModalProps> = ({
              />
              <NavButton 
                label="后台跟踪" 
-               subLabel="TRACKING" 
                icon={<Radar size={20}/>} 
                isActive={activeTab === 'TRACKING'} 
                onClick={() => setActiveTab('TRACKING')}
@@ -263,7 +260,6 @@ export const DynamicWorldModal: React.FC<DynamicWorldModalProps> = ({
 
 interface NavButtonProps {
   label: string;
-  subLabel: string;
   icon: React.ReactNode;
   isActive: boolean;
   onClick: () => void;
@@ -276,7 +272,7 @@ interface NavButtonProps {
 }
 
 const NavButton: React.FC<NavButtonProps> = ({ 
-    label, subLabel, icon, isActive, onClick, 
+    label, icon, isActive, onClick, 
     colorClass, activeBg, activeBorder, hoverBorder, activeText, hoverText 
 }) => {
   return (
@@ -301,9 +297,6 @@ const NavButton: React.FC<NavButtonProps> = ({
            <span className={`text-lg font-black italic uppercase tracking-tighter transition-colors duration-300 ${isActive ? 'text-black' : 'text-zinc-300'}`}>
              {label}
            </span>
-           <span className={`text-[10px] font-mono tracking-widest uppercase transition-colors duration-300 ${isActive ? 'text-black/70' : 'text-zinc-600'}`}>
-             {subLabel}
-           </span>
         </div>
       </div>
     </button>
@@ -312,7 +305,7 @@ const NavButton: React.FC<NavButtonProps> = ({
 
 const GuildPanel = ({ world }: { world: WorldState }) => (
   <div className="space-y-10 animate-in slide-in-from-right-8 duration-500">
-    <PanelHeader title="公会官方通告" subtitle="GUILD ANNOUNCEMENTS" colorClass="text-cyan-500" gradientClass="from-cyan-900" subtitleColor="text-cyan-800" />
+    <PanelHeader title="公会官方通告" subtitle="公会情报" colorClass="text-cyan-500" gradientClass="from-cyan-900" subtitleColor="text-cyan-800" />
 
     {/* Irregularity Meter */}
     <div className="relative p-8 bg-zinc-950 border border-zinc-800 overflow-hidden group">
@@ -351,11 +344,11 @@ const GuildPanel = ({ world }: { world: WorldState }) => (
             </div>
             
             <div className="bg-zinc-900/50 p-4 border-l-4 border-red-500">
-               <div className="text-xs font-bold text-zinc-500 uppercase mb-1">Current Status / 当前状态</div>
+               <div className="text-xs font-bold text-zinc-500 uppercase mb-1">当前状态</div>
                <p className={`text-lg font-bold ${world.地下城异常指数 > 50 ? 'text-red-400' : 'text-zinc-300'}`}>
-                 {world.地下城异常指数 < 30 ? "STABLE / 稳定期 - 适合探索" : 
-                  world.地下城异常指数 < 70 ? "CAUTION / 警戒期 - 不规则怪物刷新" : 
-                  "DANGER / 危险期 - 强化种反应，极其危险"}
+                 {world.地下城异常指数 < 30 ? "稳定期 - 适合探索" : 
+                  world.地下城异常指数 < 70 ? "警戒期 - 不规则怪物刷新" : 
+                  "危险期 - 强化种反应，极其危险"}
                </p>
             </div>
          </div>
@@ -375,7 +368,7 @@ const GuildPanel = ({ world }: { world: WorldState }) => (
                    {i + 1}
                 </div>
                 <div>
-                   <div className="text-[10px] font-bold text-cyan-600 uppercase tracking-wider mb-1">Official Notice</div>
+                   <div className="text-[10px] font-bold text-cyan-600 uppercase tracking-wider mb-1">官方通告</div>
                    <p className="text-zinc-300 text-sm md:text-base leading-relaxed">{news}</p>
                 </div>
             </div>
@@ -392,7 +385,7 @@ const RumorsPanel = ({ world, gameTime }: { world: WorldState; gameTime?: string
   const currentDay = parseDay(gameTime);
   return (
     <div className="space-y-8 animate-in slide-in-from-right-8 duration-500">
-      <PanelHeader title="街头传闻" subtitle="STREET RUMORS & GOSSIP" colorClass="text-emerald-500" gradientClass="from-emerald-900" subtitleColor="text-emerald-800" />
+      <PanelHeader title="街头传闻" subtitle="市井流言" colorClass="text-emerald-500" gradientClass="from-emerald-900" subtitleColor="text-emerald-800" />
 
       <div className="grid grid-cols-1 gap-6">
         {world.街头传闻.length > 0 ? (
@@ -427,13 +420,13 @@ const RumorsPanel = ({ world, gameTime }: { world: WorldState; gameTime?: string
 
                    <div className="flex flex-wrap gap-4 text-xs font-mono">
                        <div className="flex flex-col border-l-2 border-zinc-700 pl-3">
-                           <span className="text-zinc-500 uppercase text-[9px]">传播日期 / Spread</span>
+                          <span className="text-zinc-500 uppercase text-[9px]">传播日期</span>
                            <span className={knownCountdown !== null && knownCountdown <= 0 ? 'text-emerald-400 font-bold' : 'text-zinc-300'}>
                               {knownCountdown !== null ? (knownCountdown <= 0 ? "已广为人知" : `${knownCountdown} 日后`) : "未知"}
                            </span>
                        </div>
                        <div className="flex flex-col border-l-2 border-zinc-700 pl-3">
-                           <span className="text-zinc-500 uppercase text-[9px]">消退日期 / Fade</span>
+                          <span className="text-zinc-500 uppercase text-[9px]">消退日期</span>
                            <span className={calmCountdown !== null && calmCountdown <= 0 ? 'text-zinc-500 line-through' : 'text-zinc-300'}>
                               {calmCountdown !== null ? (calmCountdown <= 0 ? "已平息" : `${calmCountdown} 日后`) : "未知"}
                            </span>
@@ -460,7 +453,7 @@ const WarGamePanel = ({ world }: { world: WorldState }) => {
   const war = world.战争游戏 || { 状态: "未开始", 参战眷族: [], 形式: "", 赌注: "", 举办时间: "", 结束时间: "", 结果: "", 备注: "" };
   return (
     <div className="space-y-8 animate-in slide-in-from-right-8 duration-500">
-       <PanelHeader title="战争游戏" subtitle="WAR GAME STATUS" colorClass="text-rose-500" gradientClass="from-rose-900" subtitleColor="text-rose-800" />
+       <PanelHeader title="战争游戏" subtitle="战争态势" colorClass="text-rose-500" gradientClass="from-rose-900" subtitleColor="text-rose-800" />
 
        <div className="bg-zinc-950 border-2 border-rose-900 relative overflow-hidden min-h-[400px] flex flex-col">
           {/* Stylized Background */}
@@ -473,13 +466,13 @@ const WarGamePanel = ({ world }: { world: WorldState }) => {
               {/* Header Info */}
               <div className="flex justify-between items-start border-b-2 border-rose-900/50 pb-6 mb-6">
                  <div>
-                    <div className="text-rose-500 font-black uppercase tracking-[0.2em] text-xs mb-2">Current Status / 状态</div>
+                    <div className="text-rose-500 font-black uppercase tracking-[0.2em] text-xs mb-2">当前状态</div>
                     <div className="text-5xl md:text-6xl font-black text-white italic uppercase tracking-tighter text-shadow-red">
                         {war.状态 || "未开始"}
                     </div>
                  </div>
                  <div className="text-right">
-                    <div className="text-zinc-500 font-bold uppercase tracking-[0.2em] text-xs mb-2">Battle Format / 形式</div>
+                    <div className="text-zinc-500 font-bold uppercase tracking-[0.2em] text-xs mb-2">战斗形式</div>
                     <div className="text-3xl font-display text-zinc-300 uppercase">
                         {war.形式 || "待定"}
                     </div>
@@ -491,12 +484,12 @@ const WarGamePanel = ({ world }: { world: WorldState }) => {
                   {(war.参战眷族 || []).length > 0 ? (
                       <div className="flex items-center gap-8 md:gap-16">
                           <div className="text-2xl md:text-4xl font-black text-white">{war.参战眷族[0] || "?"}</div>
-                          <div className="text-6xl md:text-8xl font-black italic text-rose-600 transform -skew-x-12">VS</div>
+                          <div className="text-6xl md:text-8xl font-black italic text-rose-600 transform -skew-x-12">对决</div>
                           <div className="text-2xl md:text-4xl font-black text-white">{war.参战眷族[1] || "?"}</div>
                       </div>
                   ) : (
                       <div className="text-zinc-600 font-black text-4xl uppercase tracking-widest opacity-50">
-                          NO ACTIVE MATCH
+                          暂无进行中的战争游戏
                       </div>
                   )}
               </div>
@@ -510,7 +503,7 @@ const WarGamePanel = ({ world }: { world: WorldState }) => {
               
               {war.备注 && (
                  <div className="mt-6 bg-rose-950/30 border border-rose-800 p-3 text-xs text-rose-200 font-mono flex gap-2">
-                    <span className="font-bold">NOTE:</span> {war.备注}
+                    <span className="font-bold">备注:</span> {war.备注}
                  </div>
               )}
           </div>
@@ -519,10 +512,42 @@ const WarGamePanel = ({ world }: { world: WorldState }) => {
   );
 };
 
+const toTrackingText = (value: unknown, fallback = '-'): string => {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed ? trimmed : fallback;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) {
+    const items = value
+      .map(v => toTrackingText(v, ''))
+      .filter(v => v.trim().length > 0);
+    return items.length > 0 ? items.join('\n') : fallback;
+  }
+  if (typeof value === 'object') {
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return fallback;
+    }
+  }
+  return fallback;
+};
+
+const resolveCurrentStageName = (track: NpcBackgroundTracking): string => {
+  const stages = Array.isArray(track.计划阶段) ? track.计划阶段 : [];
+  if (!stages.length || typeof track.当前阶段 !== 'number') return '-';
+  const idx = Math.max(0, Math.floor(track.当前阶段));
+  const direct = stages[idx];
+  const oneBased = stages[idx - 1];
+  return direct || oneBased || '-';
+};
+
 const TrackingPanel = ({ world, onForceNpcBacklineUpdate }: { world: WorldState; onForceNpcBacklineUpdate?: () => void }) => (
   <div className="space-y-8 animate-in slide-in-from-right-8 duration-500">
     <div className="flex justify-between items-center">
-        <PanelHeader title="NPC 后台跟踪" subtitle="BACKGROUND SIMULATION MONITOR" colorClass="text-violet-500" gradientClass="from-violet-900" subtitleColor="text-violet-800" />
+        <PanelHeader title="NPC 后台跟踪" subtitle="后台模拟追踪" colorClass="text-violet-500" gradientClass="from-violet-900" subtitleColor="text-violet-800" />
         {onForceNpcBacklineUpdate && (
            <button
              onClick={onForceNpcBacklineUpdate}
@@ -537,7 +562,7 @@ const TrackingPanel = ({ world, onForceNpcBacklineUpdate }: { world: WorldState;
 
     <div className="grid grid-cols-1 gap-4">
       {world.NPC后台跟踪 && world.NPC后台跟踪.length > 0 ? (
-        world.NPC后台跟踪.map((track, i) => (
+        world.NPC后台跟踪.map((track: NpcBackgroundTracking, i) => (
           <div key={i} className="bg-black border border-violet-900/50 p-1 hover:border-violet-500 transition-colors group">
              <div className="bg-zinc-900 p-4 flex gap-5 relative overflow-hidden">
                 {/* Decorative Elements */}
@@ -554,28 +579,102 @@ const TrackingPanel = ({ world, onForceNpcBacklineUpdate }: { world: WorldState;
                    <div className="flex justify-between items-start mb-2">
                       <h4 className="text-lg font-bold text-white tracking-wide">{track.NPC}</h4>
                       <span className="text-[10px] font-mono bg-violet-900/30 text-violet-300 px-2 py-0.5 border border-violet-800">
-                          PHASE {track.当前阶段 ?? '?'}
+                          阶段 {track.当前阶段 ?? '?'}
                       </span>
                    </div>
-                   
-                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-                       <div>
-                          <div className="text-zinc-600 uppercase text-[9px] font-bold">Action / 行动</div>
-                          <div className="text-zinc-300 truncate">{track.当前行动}</div>
+
+                   <div className="md:hidden space-y-3 text-xs">
+                     <div className="bg-zinc-950/70 border border-violet-900/40 p-3">
+                       <div className="text-zinc-500 text-[10px] font-bold mb-1">行动</div>
+                       <div className="text-zinc-100 whitespace-pre-wrap break-words leading-relaxed">
+                         {toTrackingText(track.当前行动, '暂无行动')}
+                       </div>
+                     </div>
+                     <div className="grid grid-cols-1 gap-2">
+                       <div className="bg-zinc-950/60 border border-zinc-800 p-2">
+                         <div className="text-zinc-500 text-[10px] font-bold mb-0.5">地点</div>
+                         <div className="text-zinc-200 whitespace-pre-wrap break-words">
+                           {toTrackingText(track.地点 ?? track.位置, '未知')}
+                         </div>
+                       </div>
+                       <div className="bg-zinc-950/60 border border-zinc-800 p-2">
+                         <div className="text-zinc-500 text-[10px] font-bold mb-0.5">当前阶段说明</div>
+                         <div className="text-violet-300 whitespace-pre-wrap break-words">
+                           {resolveCurrentStageName(track)}
+                         </div>
+                       </div>
+                       <div className="bg-zinc-950/60 border border-zinc-800 p-2">
+                         <div className="text-zinc-500 text-[10px] font-bold mb-0.5">进度</div>
+                         <div className="text-green-400 font-mono whitespace-pre-wrap break-words">
+                           {toTrackingText(track.进度, '-')}
+                         </div>
+                       </div>
+                       <div className="bg-zinc-950/60 border border-zinc-800 p-2">
+                         <div className="text-zinc-500 text-[10px] font-bold mb-0.5">预计完成</div>
+                         <div className="text-zinc-300 font-mono whitespace-pre-wrap break-words">
+                           {toTrackingText(track.预计完成, '-')}
+                         </div>
+                       </div>
+                       <div className="bg-zinc-950/60 border border-zinc-800 p-2">
+                         <div className="text-zinc-500 text-[10px] font-bold mb-0.5">阶段结束时间</div>
+                         <div className="text-zinc-300 font-mono whitespace-pre-wrap break-words">
+                           {toTrackingText(track.阶段结束时间, '-')}
+                         </div>
+                       </div>
+                     </div>
+                   </div>
+
+                   <div className="hidden md:grid grid-cols-1 lg:grid-cols-4 gap-4 text-xs">
+                       <div className="lg:col-span-2">
+                          <div className="text-zinc-600 uppercase text-[9px] font-bold">行动</div>
+                          <div className="text-zinc-100 whitespace-pre-wrap break-words leading-relaxed max-h-52 overflow-y-auto custom-scrollbar pr-1">
+                            {toTrackingText(track.当前行动, '暂无行动')}
+                          </div>
                        </div>
                        <div>
-                          <div className="text-zinc-600 uppercase text-[9px] font-bold">Loc / 地点</div>
-                          <div className="text-zinc-300 truncate">{track.地点 || track.位置 || 'Unknown'}</div>
+                          <div className="text-zinc-600 uppercase text-[9px] font-bold">地点</div>
+                          <div className="text-zinc-300 whitespace-pre-wrap break-words">
+                            {toTrackingText(track.地点 ?? track.位置, '未知')}
+                          </div>
+                          <div className="mt-2 text-zinc-600 uppercase text-[9px] font-bold">当前阶段说明</div>
+                          <div className="text-violet-300 whitespace-pre-wrap break-words">
+                            {resolveCurrentStageName(track)}
+                          </div>
                        </div>
                        <div>
-                          <div className="text-zinc-600 uppercase text-[9px] font-bold">Progress / 进度</div>
-                          <div className="text-green-400 font-mono">{track.进度 || "-"}</div>
-                       </div>
-                       <div>
-                          <div className="text-zinc-600 uppercase text-[9px] font-bold">ETA / 预计</div>
-                          <div className="text-zinc-400 font-mono">{track.预计完成 || "-"}</div>
+                          <div className="text-zinc-600 uppercase text-[9px] font-bold">进度</div>
+                          <div className="text-green-400 font-mono whitespace-pre-wrap break-words">
+                            {toTrackingText(track.进度, '-')}
+                          </div>
+                          <div className="mt-2 text-zinc-600 uppercase text-[9px] font-bold">预计完成</div>
+                          <div className="text-zinc-400 font-mono whitespace-pre-wrap break-words">
+                            {toTrackingText(track.预计完成, '-')}
+                          </div>
+                          <div className="mt-2 text-zinc-600 uppercase text-[9px] font-bold">阶段结束时间</div>
+                          <div className="text-zinc-400 font-mono whitespace-pre-wrap break-words">
+                            {toTrackingText(track.阶段结束时间, '-')}
+                          </div>
                        </div>
                    </div>
+
+                   {Array.isArray(track.计划阶段) && track.计划阶段.length > 0 && (
+                     <div className="mt-3 border-t border-violet-900/30 pt-3">
+                       <div className="text-zinc-500 text-[10px] font-bold mb-2">计划阶段</div>
+                       <div className="space-y-1">
+                         {track.计划阶段.map((stage, stageIdx) => {
+                           const current = typeof track.当前阶段 === 'number' && (stageIdx === track.当前阶段 || stageIdx + 1 === track.当前阶段);
+                           return (
+                             <div
+                               key={`${track.NPC}-stage-${stageIdx}`}
+                               className={`text-xs px-2 py-1 border ${current ? 'border-violet-400 bg-violet-900/30 text-violet-200' : 'border-zinc-800 bg-zinc-950/60 text-zinc-300'}`}
+                             >
+                               第 {stageIdx + 1} 阶段：{stage}
+                             </div>
+                           );
+                         })}
+                       </div>
+                     </div>
+                   )}
                 </div>
              </div>
           </div>

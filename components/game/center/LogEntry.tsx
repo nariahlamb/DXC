@@ -32,7 +32,7 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
     fontSize = 'medium',
     showAiToolbar = false,
     isHellMode = false,
-    suppressNsfwJudgment = true
+    suppressNsfwJudgment = false
 }) => {
     
     const senderName = log.sender || "System";

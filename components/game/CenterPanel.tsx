@@ -464,7 +464,7 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
                         fontSize={fontSize} 
                         showAiToolbar={showAiToolbar}
                         isHellMode={isHellMode}
-                        suppressNsfwJudgment={true}
+                        suppressNsfwJudgment={false}
                     />
                 </div>
             );
