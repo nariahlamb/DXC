@@ -1,8 +1,8 @@
-
 import React from 'react';
 import { LogEntry, CharacterStats, Confidant } from '../../../types';
 import { Edit2, Terminal, Trash2, Sparkles } from 'lucide-react';
 import { getAvatarColor } from '../../../utils/uiUtils';
+import { JudgmentMessage } from './JudgmentMessage';
 
 interface LogEntryProps {
   log: LogEntry;
@@ -36,6 +36,7 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
     const isNarrator = ['旁白', 'narrator', 'narrative', 'scene', '环境'].includes(senderName.toLowerCase());
     const isSystem = ['system', '系统', 'hint', 'guide'].includes(senderName.toLowerCase());
     const isPlayer = senderName === 'player';
+    const isJudgment = senderName === '【判定】' || senderName === '判定';
     
     const content = log.text || "";
     const isPrimaryAiLog = !!log.rawResponse;
@@ -87,14 +88,7 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
                     }
                     const isJudge = trimmed.startsWith('【判定】');
                     if (isJudge) {
-                        return (
-                            <div
-                                key={idx}
-                                className="px-2 py-1 border border-blue-600/50 bg-blue-950/40 text-blue-200 font-mono tracking-widest text-[11px] uppercase"
-                            >
-                                {formatLine(line)}
-                            </div>
-                        );
+                        return <JudgmentMessage key={idx} text={line} />;
                     }
                     return (
                         <div key={idx}>
@@ -281,7 +275,7 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
                         <div className={`absolute inset-0 bg-gradient-to-b from-transparent ${bgGlow} to-transparent -z-10`} />
 
                         <div className={`relative border ${isHellMode ? 'border-red-900/60' : 'border-blue-900/60'} bg-black/40 px-4 md:px-6 py-3 shadow-sm`}>
-                            {renderDecoratedText(content, `font-serif text-zinc-300 text-justify tracking-wide text-sm md:text-base leading-relaxed drop-shadow-md`)}
+                            {renderDecoratedText(content, `font-sans font-medium text-zinc-100 text-justify tracking-wide text-sm md:text-base leading-loose drop-shadow-md shadow-black`)}
                         </div>
                     </div>
 
@@ -292,7 +286,22 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
         );
     }
 
-    // --- 3. PLAYER MESSAGE (玩家) ---
+    // --- 3. JUDGMENT MESSAGE (判定) ---
+    if (isJudgment) {
+        return (
+            <div className="group relative flex w-full justify-center my-4 animate-in fade-in duration-300">
+                <ActionMenu />
+                <div className="flex flex-col items-center w-full">
+                     <AiActionHeader align="center" />
+                     <JudgmentMessage text={content} />
+                     <MobileActions align="center" />
+                     <RepairHint align="center" />
+                </div>
+            </div>
+        );
+    }
+
+    // --- 4. PLAYER MESSAGE (玩家) ---
     if (isPlayer) {
         return (
             <div className="group relative flex w-full justify-end my-4 pl-10 animate-in slide-in-from-right-4 fade-in duration-300">
@@ -315,7 +324,7 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
         );
     }
 
-    // --- 4. NPC DIALOGUE (角色对话) ---
+    // --- 5. NPC DIALOGUE (角色对话) ---
     const npc = confidants.find(c => c.姓名 === senderName);
     const avatarUrl = npc?.头像;
     const initial = senderName[0] || "?";

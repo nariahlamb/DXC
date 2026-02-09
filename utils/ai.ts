@@ -1070,7 +1070,7 @@ export const generateSingleModuleContext = (
         case 'COMMAND_HISTORY':
             return commandHistory.length > 0 ? `[指令历史]\n${commandHistory.join('\n')}` : "[指令历史] (Empty)";
         case 'USER_INPUT':
-            let inputText = `\n[玩家输入]\n"${playerInput}"`;
+            let inputText = `\n[玩家输入]\n"${playerInput}"\n\n[额外要求提示词]\n${settings.writingConfig?.extraRequirementPrompt || ''}`;
             if (options.includeIntersectionHint !== false && settings.enableIntersectionPrecheck !== true) {
                 const snapshots = buildNpcSimulationSnapshots(gameState);
                 const hintBlock = buildIntersectionHintBlock(playerInput, snapshots, gameState.游戏时间);

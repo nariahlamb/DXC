@@ -1153,6 +1153,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
           </div>
 
+          {/* 额外要求提示词设置 */}
+          <div className="bg-white p-6 border border-zinc-200 shadow-sm mb-4">
+              <h4 className="font-bold uppercase text-zinc-500 mb-4 flex items-center gap-2">
+                  <Edit2 size={16} /> 额外要求提示词 (Extra Requirement Prompt)
+              </h4>
+              <div className="p-4 bg-zinc-50 border border-zinc-200">
+                  <p className="text-[10px] text-zinc-500 mb-3">
+                      该内容会插入到上下文的「[玩家输入]」之后。留空表示不追加具体内容。
+                  </p>
+                  <textarea
+                      value={formData.writingConfig.extraRequirementPrompt ?? ''}
+                      onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          writingConfig: {
+                              ...prev.writingConfig,
+                              extraRequirementPrompt: e.target.value
+                          }
+                      }))}
+                      placeholder="在此填写额外要求提示词..."
+                      className="w-full min-h-28 bg-white border border-zinc-300 p-3 font-mono text-xs leading-relaxed outline-none focus:border-black custom-scrollbar"
+                  />
+              </div>
+          </div>
+
           {/* 写作人称管理设置 */}
           <div className="bg-white p-6 border border-zinc-200 shadow-sm mb-4">
               <h4 className="font-bold uppercase text-zinc-500 mb-4 flex items-center gap-2">

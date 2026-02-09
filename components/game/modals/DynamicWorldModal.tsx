@@ -106,9 +106,9 @@ export const DynamicWorldModal: React.FC<DynamicWorldModalProps> = ({
   const currentTheme = themeConfig[activeTab];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in zoom-in-95 duration-300">
+    <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center bg-black/90 backdrop-blur-md p-3 md:p-4 animate-in zoom-in-95 duration-300 overflow-y-auto overscroll-contain">
       {/* Main Container */}
-      <div className={`w-full h-[90vh] max-w-7xl bg-zinc-950 border-2 ${currentTheme.main} relative flex flex-col shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden transition-colors duration-500`}>
+      <div className={`w-full max-w-7xl h-auto min-h-[90vh] md:h-[90vh] md:min-h-0 bg-zinc-950 border-2 ${currentTheme.main} relative flex flex-col shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden transition-colors duration-500 my-2 md:my-0`}>
         
         {/* Background Decor - Dynamic P5 Style Stripes */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -161,10 +161,10 @@ export const DynamicWorldModal: React.FC<DynamicWorldModalProps> = ({
         </div>
 
         {/* Main Content Layout */}
-        <div className="flex flex-col md:flex-row flex-1 overflow-hidden relative z-10">
+        <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden relative z-10">
           
           {/* Sidebar Navigation - Stylized Slanted Menu */}
-          <div className="w-full md:w-72 p-6 flex flex-col gap-4 shrink-0 overflow-y-auto custom-scrollbar">
+          <div className="w-full md:w-72 max-h-[40vh] md:max-h-none p-4 md:p-6 flex flex-col gap-4 shrink-0 overflow-y-auto custom-scrollbar touch-pan-y overscroll-contain">
              <div className="text-zinc-600 text-[10px] font-black uppercase tracking-[0.2em] mb-2 px-2">Navigation</div>
              
              <NavButton 
@@ -237,14 +237,14 @@ export const DynamicWorldModal: React.FC<DynamicWorldModalProps> = ({
           </div>
 
           {/* Main Panel Content */}
-          <div className="flex-1 p-2 md:p-8 overflow-hidden relative">
+          <div className="flex-1 min-h-0 p-2 md:p-8 overflow-hidden relative">
              {/* Content Background Box */}
-             <div className="w-full h-full bg-zinc-900/50 border border-zinc-800 backdrop-blur-sm relative overflow-hidden">
+             <div className="w-full h-full min-h-0 bg-zinc-900/50 border border-zinc-800 backdrop-blur-sm relative overflow-hidden">
                 {/* Decorative Corner Lines */}
                 <div className={`absolute top-0 left-0 w-32 h-32 border-l-4 border-t-4 ${currentTheme.cornerBorder} rounded-tl-3xl pointer-events-none transition-colors duration-500`} />
                 <div className={`absolute bottom-0 right-0 w-32 h-32 border-r-4 border-b-4 ${currentTheme.cornerBorder} rounded-br-3xl pointer-events-none transition-colors duration-500`} />
                 
-                <div className="h-full overflow-y-auto custom-scrollbar p-6">
+                <div className="h-full overflow-y-auto custom-scrollbar touch-pan-y overscroll-contain p-4 md:p-6">
                   {activeTab === 'GUILD' && <GuildPanel world={safeWorldState} />}
                   {activeTab === 'RUMORS' && <RumorsPanel world={safeWorldState} gameTime={gameTime} />}
                   {activeTab === 'WAR_GAME' && <WarGamePanel world={safeWorldState} />}

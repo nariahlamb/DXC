@@ -91,6 +91,7 @@ export interface WritingConfig {
     enableWordCountRequirement: boolean;
     /** 要求的正文字数，默认 800 */
     requiredWordCount: number;
+    extraRequirementPrompt: string;
     /** 是否启用叙事人称管理 */
     enableNarrativePerspective: boolean;
     /** 人称模式：'third' 第三人称，'first' 第一人称，'second' 第二人称 */

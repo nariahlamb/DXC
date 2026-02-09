@@ -114,7 +114,7 @@ const NormalCard: React.FC<NormalCardProps> = ({ c, onToggleAttention, onToggleC
                       {c.记忆 && c.记忆.length > 0 ? (
                           c.记忆.map((mem, idx) => (
                               <div key={idx} className="text-[10px] text-zinc-400 border-l-2 border-zinc-700 pl-2 py-0.5">
-                                  <span className="text-pink-500 font-mono mr-2">[{mem.时间戳?.split(' ')[1] || 'LOG'}]</span>
+                                  <span className="text-pink-500 font-mono mr-2">[{mem.时间戳 || 'LOG'}]</span>
                                   {mem.内容}
                               </div>
                           ))
@@ -373,11 +373,11 @@ export const SocialModal: React.FC<SocialModalProps> = ({
                            <h4 className="text-pink-500 font-bold uppercase text-xs flex items-center gap-2 mb-3">
                                <MessageSquareDashed size={12} /> NPC 记忆 / Interaction Log
                            </h4>
-                           <div className="space-y-3">
+                           <div className="space-y-3 overflow-y-auto max-h-[300px] custom-scrollbar pr-2">
                                {c.记忆 && c.记忆.length > 0 ? (
                                    c.记忆.map((mem, idx) => (
                                        <div key={idx} className="text-[10px] text-zinc-400 border-l-2 border-pink-900/50 pl-2 pb-2 last:border-0">
-                                           <div className="font-mono text-zinc-600 text-[9px] mb-0.5">[{mem.时间戳?.split(' ')[1] || 'LOG'}]</div>
+                                           <div className="font-mono text-zinc-600 text-[9px] mb-0.5">[{mem.时间戳 || 'LOG'}]</div>
                                            <div className="leading-relaxed">{mem.内容}</div>
                                        </div>
                                    ))

@@ -56,6 +56,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     writingConfig: {
         enableWordCountRequirement: false,
         requiredWordCount: 800,
+        extraRequirementPrompt: '',
         enableNarrativePerspective: true,
         narrativePerspective: 'third',
     }
@@ -114,6 +115,10 @@ export const useAppSettings = () => {
                       ...(parsed.aiConfig?.serviceOverridesEnabled || {})
                   }
               };
+              const mergedWritingConfig = {
+                  ...DEFAULT_SETTINGS.writingConfig,
+                  ...(parsed.writingConfig || {})
+              };
               if (mergedAiConfig.useServiceOverrides === undefined && parsed.aiConfig?.mode === 'separate') {
                   mergedAiConfig = {
                       ...mergedAiConfig,
@@ -132,7 +137,8 @@ export const useAppSettings = () => {
                   ...parsed,
                   promptModules: mergedPromptModules,
                   contextConfig: contextConfig,
-                  aiConfig: mergedAiConfig
+                  aiConfig: mergedAiConfig,
+                  writingConfig: mergedWritingConfig
               });
           } catch(e) {
               console.error('Failed to load settings', e);
