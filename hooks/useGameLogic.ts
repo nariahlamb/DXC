@@ -4,6 +4,7 @@ import { GameState, AppSettings, LogEntry, InventoryItem, TavernCommand, ActionO
 import { createNewGameState } from '../utils/dataMapper';
 import { computeMaxCarry, computeMaxHp, computeMaxMind, computeMaxStamina } from '../utils/characterMath';
 import { generateDungeonMasterResponse, generateWorldInfoResponse, DEFAULT_PROMPT_MODULES, DEFAULT_MEMORY_CONFIG, dispatchAIRequest, generateMemorySummary, extractThinkingBlocks, parseAIResponseText, mergeThinkingSegments, resolveServiceConfig, buildNpcSimulationSnapshots, buildIntersectionHintBlock, generateIntersectionPrecheck, generateNpcBacklineSimulation, extractIntersectionBlock, hasNpcSyncApiKey } from '../utils/ai';
+import { getSaveSlot, migrateLegacyLocalStorageSaves, putSaveSlot } from '../utils/saveStore';
 import { P_MEM_S2M, P_MEM_M2L } from '../prompts';
 import { Difficulty } from '../types/enums';
 
@@ -465,6 +466,12 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
     }, []);
 
     useEffect(() => {
+        migrateLegacyLocalStorageSaves().catch(() => {
+            // ignore migration errors; saving/loading will continue with IndexedDB
+        });
+    }, []);
+
+    useEffect(() => {
         if (!gameState.游戏难度) return;
         setSettings(prev => {
             const currentDiff = gameState.游戏难度 || Difficulty.NORMAL;
@@ -506,50 +513,44 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
     useEffect(() => {
         if (gameState.回合数 > 1) {
             const slotNum = ((gameState.回合数 - 1) % 3) + 1;
-            const saveKey = `danmachi_save_auto_${slotNum}`;
-            const optimizedState = createStorageSnapshot(gameState);
             const saveData: SaveSlot = {
                 id: `auto_${slotNum}`,
                 type: 'AUTO',
                 timestamp: Date.now(),
-                summary: `AUTO: Lv.${optimizedState.角色.等级} ${optimizedState.当前地点}`,
-                data: optimizedState,
-                version: '3.0'
+                summary: `AUTO: Lv.${gameState.角色.等级} ${gameState.当前地点}`,
+                data: gameState,
+                version: '3.1'
             };
-            try {
-                localStorage.setItem(saveKey, JSON.stringify(saveData));
-            } catch (e) { console.error("Auto-save quota exceeded", e); }
+            putSaveSlot(saveData).catch((e) => {
+                console.error("Auto-save failed", e);
+            });
         }
     }, [gameState.回合数, gameState.当前地点]);
 
-    const manualSave = (slotId: number | string) => {
-        const saveKey = `danmachi_save_manual_${slotId}`;
-        const optimizedState = createStorageSnapshot(gameState);
+    const manualSave = async (slotId: number | string) => {
         const saveData: SaveSlot = {
             id: slotId,
             type: 'MANUAL',
             timestamp: Date.now(),
-            summary: `MANUAL: Lv.${optimizedState.角色.等级} ${optimizedState.当前地点} ${optimizedState.游戏时间}`,
-            data: optimizedState,
-            version: '3.0'
+            summary: `MANUAL: Lv.${gameState.角色.等级} ${gameState.当前地点} ${gameState.游戏时间}`,
+            data: gameState,
+            version: '3.1'
         };
         try {
-            localStorage.setItem(saveKey, JSON.stringify(saveData));
-            console.log(`Saved to ${saveKey}`);
+            await putSaveSlot(saveData);
+            console.log(`Saved to IndexedDB slot ${slotId}`);
         } catch (e) { alert("保存失败：本地存储空间不足"); }
     };
 
-    const loadGame = (slotId: number | string) => {
-        let targetKey = `danmachi_save_manual_${slotId}`;
-        if (String(slotId).startsWith('auto')) targetKey = `danmachi_save_${slotId}`;
-        const raw = localStorage.getItem(targetKey);
-        if (raw) {
-            try {
-                const parsed = JSON.parse(raw);
-                const state = parsed.data || parsed;
-                const migrated = migrateStoryState(migrateNpcActionsToTracking(state));
-                setGameState(ensureDerivedStats(migrated));
-            } catch(e) { console.error("Load failed", e); }
+    const loadGame = async (slotId: number | string) => {
+        try {
+            const parsed = await getSaveSlot(slotId);
+            if (!parsed) return;
+            const state = parsed.data || parsed;
+            const migrated = migrateStoryState(migrateNpcActionsToTracking(state));
+            setGameState(ensureDerivedStats(migrated));
+        } catch (e) {
+            console.error("Load failed", e);
         }
     };
 

@@ -4,6 +4,8 @@ import { X, Settings as SettingsIcon, LogOut, Save, User, ArrowLeft, ChevronRigh
 import { AppSettings, GameState, SaveSlot, PromptModule, PromptUsage, GlobalAISettings } from '../../../types';
 import { DEFAULT_PROMPT_MODULES, assembleFullPrompt } from '../../../utils/ai';
 import { DEFAULT_SETTINGS } from '../../../hooks/useAppSettings';
+import { buildSaveExportPayload, downloadSaveAsZip, parseSaveFile } from '../../../utils/saveArchive';
+import { clearAllSaveSlots, estimateSaveStorageBytes, getAllSaveSlots } from '../../../utils/saveStore';
 import { P5Dropdown } from '../../ui/P5Dropdown';
 import { GAME_SCHEMA_DOCS } from './schemaDocs';
 
@@ -114,7 +116,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       if (isOpen && !wasOpenRef.current) {
           setCurrentView(initialView || 'MAIN');
           setFormData(settings); // Sync settings on open only
-          loadSaveSlots();
+          loadSaveSlots().catch(() => {});
       }
       if (!isOpen) {
           wasOpenRef.current = false;
@@ -123,36 +125,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       wasOpenRef.current = true;
   }, [isOpen, initialView]);
 
-  const loadSaveSlots = () => {
-      // Manual Slots
-      const manual: SaveSlot[] = [];
-      for(let i=1; i<=3; i++) {
-          const raw = localStorage.getItem(`danmachi_save_manual_${i}`);
-          if(raw) {
-              try {
-                  const data = JSON.parse(raw);
-                  manual.push({ id: i, type: 'MANUAL', timestamp: data.timestamp, summary: data.summary, data: data.data });
-              } catch(e) {}
-          }
-      }
+  const loadSaveSlots = async () => {
+      const all = await getAllSaveSlots();
+      const manual = all.filter(s => s.type === 'MANUAL');
+      const auto = all.filter(s => s.type === 'AUTO').sort((a,b) => b.timestamp - a.timestamp);
       setSaveSlots(manual);
-
-      // Auto Slots
-      const auto: SaveSlot[] = [];
-      for(let i=1; i<=3; i++) {
-          const raw = localStorage.getItem(`danmachi_save_auto_${i}`);
-          if(raw) {
-              try {
-                  const data = JSON.parse(raw);
-                  auto.push({ id: `auto_${i}`, type: 'AUTO', timestamp: data.timestamp, summary: data.summary, data: data.data });
-              } catch(e) {}
-          }
-      }
-      auto.sort((a,b) => b.timestamp - a.timestamp);
       setAutoSlots(auto);
   };
 
-  const scanStorage = () => {
+  const scanStorage = async () => {
       const items: {key: string, size: number, label: string, type: string, details?: string[]}[] = [];
       const summary = { total: 0, cache: 0, saves: 0, settings: 0, api: 0 };
       for(let i=0; i<localStorage.length; i++) {
@@ -180,14 +161,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       summary.api += apiSize;
                   } catch (e) {}
               } else if (key.includes('save_auto')) {
-                  label = `自动存档 (Auto Save ${key.split('_').pop()})`;
-                  type = 'SAVE_AUTO';
+                  label = `旧版自动存档 (Legacy Auto ${key.split('_').pop()})`;
+                  type = 'SAVE_LEGACY';
               } else if (key.includes('save_manual')) {
-                  label = `手动存档 (Manual Save ${key.split('_').pop()})`;
-                  type = 'SAVE_MANUAL';
+                  label = `旧版手动存档 (Legacy Manual ${key.split('_').pop()})`;
+                  type = 'SAVE_LEGACY';
               }
 
-              if (type === 'SAVE_AUTO' || type === 'SAVE_MANUAL') {
+              if (type === 'SAVE_LEGACY') {
                   try {
                       const parsed = JSON.parse(value);
                       const state = parsed?.data || parsed;
@@ -204,8 +185,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               summary.total += size;
               if (type === 'CACHE') summary.cache += size;
               if (type === 'SETTINGS') summary.settings += size;
-              if (type === 'SAVE_AUTO' || type === 'SAVE_MANUAL') summary.saves += size;
+              if (type === 'SAVE_LEGACY') summary.cache += size;
           }
+      }
+      const saveBytes = await estimateSaveStorageBytes();
+      summary.saves = saveBytes;
+      summary.total += saveBytes;
+      if (saveBytes > 0) {
+          items.push({
+              key: 'indexeddb:saves',
+              size: saveBytes,
+              label: 'IndexedDB 存档 (Saves)',
+              type: 'SAVE_DB'
+          });
       }
       // Sort by type then key
       items.sort((a, b) => a.type.localeCompare(b.type) || a.key.localeCompare(b.key));
@@ -215,7 +207,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   useEffect(() => {
       if (currentView === 'STORAGE') {
-          scanStorage();
+          scanStorage().catch(() => {});
           refreshContextStats();
       }
   }, [currentView]);
@@ -267,79 +259,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   // --- Export / Import Logic ---
-  const handleExportSave = () => {
-      const exportData = {
-          id: 'export',
-          type: 'EXPORT',
-          timestamp: Date.now(),
-          summary: `Export: ${gameState.角色?.姓名 || 'Player'} - Lv.${gameState.角色?.等级 || '1'}`,
-          data: gameState,
-          version: '3.0'
-      };
-
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `danmachi_save_${gameState.角色?.姓名 || 'player'}_${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+  const handleExportSave = async () => {
+      const exportData = buildSaveExportPayload(gameState);
+      const fileBase = `danmachi_save_${gameState.角色?.姓名 || 'player'}_${new Date().toISOString().split('T')[0]}`;
+      await downloadSaveAsZip(exportData, fileBase);
   };
 
-  const handleImportSave = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportSave = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-          try {
-              const content = ev.target?.result as string;
-              let parsed;
-              try {
-                  parsed = JSON.parse(content);
-              } catch (jsonErr) {
-                  throw new Error("文件格式错误 (Invalid JSON)");
-              }
-              
-              // Determine if it's a wrapped export or direct state
-              let stateToLoad = parsed.data ? parsed.data : parsed;
-
-              // --- MIGRATION LOGIC (Basic English to Chinese keys mapping) ---
-              // If 'character' exists but '角色' doesn't, map it.
-              if (stateToLoad.character && !stateToLoad.角色) stateToLoad.角色 = stateToLoad.character;
-              if (stateToLoad.inventory && !stateToLoad.背包) stateToLoad.背包 = stateToLoad.inventory;
-              if (stateToLoad.logs && !stateToLoad.日志) stateToLoad.日志 = stateToLoad.logs;
-              
-              // Validate Core Fields
-              const missingFields = [];
-              if (!stateToLoad.角色) missingFields.push("角色 (Character)");
-              if (!stateToLoad.地图) missingFields.push("地图 (Map)");
-              
-              if (missingFields.length > 0) {
-                  throw new Error(`存档数据不完整，缺失核心字段:\n${missingFields.join(', ')}`);
-              }
-
-              // Confirm
-              const summary = parsed.summary || stateToLoad.角色?.姓名 || 'Unknown Save';
-              const timeStr = parsed.timestamp ? new Date(parsed.timestamp).toLocaleString() : 'Unknown Time';
-
-              if (window.confirm(`确认导入存档？\n\n信息: ${summary}\n时间: ${timeStr}\n\n警告：这将覆盖当前的未保存进度！`)) {
-                  // Ensure React state update
-                  onUpdateGameState(stateToLoad);
-                  
-                  // Force close and maybe notify
-                  alert("存档导入成功！");
-                  onClose();
-              }
-          } catch(err: any) {
-              console.error("Import Error:", err);
-              alert("导入失败: " + err.message);
+      try {
+          const { stateToLoad, summary, timeStr } = await parseSaveFile(file);
+          if (window.confirm(`确认导入存档？\n\n信息: ${summary}\n时间: ${timeStr}\n\n警告：这将覆盖当前的未保存进度！`)) {
+              onUpdateGameState(stateToLoad);
+              alert("存档导入成功！");
+              onClose();
           }
-      };
-      reader.readAsText(file);
-      e.target.value = ''; // Reset input
+      } catch(err: any) {
+          console.error("Import Error:", err);
+          alert("导入失败: " + err.message);
+      } finally {
+          e.target.value = '';
+      }
   };
 
   // --- Prompt Export / Import ---
@@ -437,9 +378,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const deleteStorageItem = (key: string) => {
       if (confirm(`确定要删除 ${key} 吗？此操作无法撤销。`)) {
+          if (key === 'indexeddb:saves') {
+              clearAllSaveSlots().then(() => scanStorage().catch(() => {}));
+              loadSaveSlots().catch(() => {});
+              return;
+          }
           localStorage.removeItem(key);
           // Manually update the list by rescanning to ensure state sync
-          setTimeout(scanStorage, 50); 
+          setTimeout(() => {
+              scanStorage().catch(() => {});
+          }, 50); 
       }
   };
 
@@ -456,23 +404,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           }
       }
       keysToRemove.forEach(k => localStorage.removeItem(k));
-      setTimeout(scanStorage, 50);
+      setTimeout(() => {
+          scanStorage().catch(() => {});
+      }, 50);
   };
 
   const clearSaves = () => {
       if (!confirm("确定要清除所有存档吗？此操作不可撤销。")) return;
-      const keysToRemove: string[] = [];
-      for(let i=0; i<localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key && (key.includes('save_auto') || key.includes('save_manual'))) {
-              keysToRemove.push(key);
-          }
-      }
-      keysToRemove.forEach(k => localStorage.removeItem(k));
-      setTimeout(() => {
-          loadSaveSlots();
-          scanStorage();
-      }, 50);
+      clearAllSaveSlots().then(() => {
+          setTimeout(() => {
+              loadSaveSlots().catch(() => {});
+              scanStorage().catch(() => {});
+          }, 50);
+      });
   };
 
   const restoreDefaultPrompts = () => {
@@ -509,8 +453,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               const next = buildSettingsWithApi(preservedApi);
               localStorage.setItem('danmachi_settings', JSON.stringify(next));
           }
-          alert("数据已清除。页面将刷新。");
-          window.location.reload();
+          clearAllSaveSlots().finally(() => {
+              alert("数据已清除。页面将刷新。");
+              window.location.reload();
+          });
       }
   };
 
@@ -631,7 +577,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           <h4 className="font-bold text-sm uppercase text-zinc-700">存储与上下文概览</h4>
                       </div>
                       <button
-                          onClick={() => { scanStorage(); refreshContextStats(); }}
+                          onClick={() => { scanStorage().catch(() => {}); refreshContextStats(); }}
                           className="text-xs font-mono text-blue-600 hover:text-blue-800"
                       >
                           刷新
@@ -962,7 +908,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                          <div key={id} className="flex items-center gap-2 bg-white border border-zinc-300 p-4 shadow-sm hover:border-black transition-colors">
                              <div className="font-display text-xl w-8 text-zinc-400">{id}</div>
                              <div className="flex-1 min-w-0">{slot ? ( <><div className="font-bold text-sm truncate">{slot.summary}</div><div className="text-xs text-zinc-400">{new Date(slot.timestamp).toLocaleString()}</div></> ) : ( <div className="text-zinc-300 italic">空槽位</div> )}</div>
-                             <button onClick={() => { onSaveGame(id); loadSaveSlots(); }} className="bg-black text-white px-3 py-1 text-xs font-bold uppercase hover:bg-green-600">保存</button>
+                             <button onClick={async () => { await Promise.resolve(onSaveGame(id)); await loadSaveSlots(); }} className="bg-black text-white px-3 py-1 text-xs font-bold uppercase hover:bg-green-600">保存</button>
                              {slot && ( <button onClick={() => { onLoadGame(id); onClose(); }} className="bg-white border border-black text-black px-3 py-1 text-xs font-bold uppercase hover:bg-blue-600 hover:text-white">读取</button> )}
                          </div>
                      );
@@ -972,8 +918,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <div className="mt-8 border-t border-zinc-200 pt-6">
             <h4 className="font-bold text-sm uppercase text-zinc-500 border-b border-zinc-300 pb-1 mb-4 flex items-center gap-2"><Database size={16} /> 备份与迁移</h4>
             <div className="flex gap-4">
-                <button onClick={handleExportSave} className="flex-1 flex flex-col items-center justify-center p-6 border-2 border-dashed border-zinc-400 hover:border-black hover:bg-zinc-50 transition-all group"><FileDown size={32} className="mb-2 text-zinc-400 group-hover:text-black" /><span className="font-bold uppercase text-sm">导出当前存档</span><span className="text-[10px] text-zinc-400">下载 .json</span></button>
-                <div onClick={() => fileInputRef.current?.click()} className="flex-1 flex flex-col items-center justify-center p-6 border-2 border-dashed border-zinc-400 hover:border-blue-600 hover:bg-blue-50 transition-all group cursor-pointer"><FileUp size={32} className="mb-2 text-zinc-400 group-hover:text-blue-600" /><span className="font-bold uppercase text-sm group-hover:text-blue-600">导入存档</span><span className="text-[10px] text-zinc-400">读取 .json</span><input type="file" ref={fileInputRef} className="hidden" accept=".json" onChange={handleImportSave}/></div>
+                <button onClick={handleExportSave} className="flex-1 flex flex-col items-center justify-center p-6 border-2 border-dashed border-zinc-400 hover:border-black hover:bg-zinc-50 transition-all group"><FileDown size={32} className="mb-2 text-zinc-400 group-hover:text-black" /><span className="font-bold uppercase text-sm">导出当前存档</span><span className="text-[10px] text-zinc-400">下载 .zip</span></button>
+                <div onClick={() => fileInputRef.current?.click()} className="flex-1 flex flex-col items-center justify-center p-6 border-2 border-dashed border-zinc-400 hover:border-blue-600 hover:bg-blue-50 transition-all group cursor-pointer"><FileUp size={32} className="mb-2 text-zinc-400 group-hover:text-blue-600" /><span className="font-bold uppercase text-sm group-hover:text-blue-600">导入存档</span><span className="text-[10px] text-zinc-400">读取 .zip / .json</span><input type="file" ref={fileInputRef} className="hidden" accept=".zip,.json" onChange={handleImportSave}/></div>
             </div>
         </div>
     </div>
