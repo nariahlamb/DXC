@@ -6,7 +6,6 @@ import { CombatPanel } from './CombatPanel';
 import { LogEntryItem } from './center/LogEntry';
 import { GameInput } from './center/GameInput';
 import { EditLogModal } from './center/EditLogModal';
-import { extractJudgmentTarget, shouldTriggerNsfwJudgmentAlert } from '../../utils/judgment';
 
 interface CenterPanelProps {
   logs: LogEntry[];
@@ -90,9 +89,7 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
   const [jumpExpanded, setJumpExpanded] = useState(false);
   const [jumpFocused, setJumpFocused] = useState(false);
   const [filterQuery, setFilterQuery] = useState('');
-  const [nsfwJudgmentAlert, setNsfwJudgmentAlert] = useState<LogEntry | null>(null);
   const jumpHideTimer = useRef<number | null>(null);
-  const lastNsfwAlertId = useRef<string | null>(null);
   
   // Refs for scrolling
   const endRef = useRef<HTMLDivElement>(null);
@@ -165,18 +162,18 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
           return;
       }
       if (!visibleTurnSet.has(target)) {
-          setJumpHint('目标楼层未渲染');
+          setJumpHint('目标回合未在当前显示范围');
           return;
       }
       const targetLog = logs.find(l => l.turnIndex === target);
       if (!targetLog) {
-          setJumpHint('目标楼层不存在');
+          setJumpHint('目标回合不存在');
           return;
       }
       const el = logRefs.current.get(targetLog.id);
       if (el) {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          setJumpHint(`已跳转: ${target}`);
+          setJumpHint(`已跳转到 ${target}`);
           setJumpExpanded(true);
       }
   };
@@ -233,17 +230,6 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
           }, 50);
       }
   }, [showCombatUI]);
-
-  useEffect(() => {
-      if (!logs.length) return;
-      const latest = [...logs]
-          .reverse()
-          .find(log => shouldTriggerNsfwJudgmentAlert(log.sender, log.text));
-      if (!latest) return;
-      if (lastNsfwAlertId.current === latest.id) return;
-      lastNsfwAlertId.current = latest.id;
-      setNsfwJudgmentAlert(latest);
-  }, [logs]);
 
   const handleEditAIClick = (log: LogEntry) => {
       if (log.rawResponse) {
@@ -380,7 +366,7 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
                       className="text-zinc-500 hover:text-white"
                       title="清除筛选"
                   >
-                      ✕
+                      ×
                   </button>
               )}
           </div>
@@ -499,7 +485,7 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
                 {lastThinking && (
                     <details className="mb-3 bg-emerald-950/40 border border-emerald-700/60 px-3 py-2 rounded">
                         <summary className="cursor-pointer text-[10px] uppercase tracking-widest text-emerald-300">
-                            AI 思考 (Streaming)
+                            AI 思考(Streaming)
                         </summary>
                         <div className="mt-2 text-[10px] text-emerald-100 whitespace-pre-wrap leading-relaxed">
                             {lastThinking}
@@ -610,47 +596,6 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
           />
       )}
 
-      {nsfwJudgmentAlert && (
-          <div className="absolute inset-0 z-[80] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-              {(() => {
-                  const target = extractJudgmentTarget(nsfwJudgmentAlert.text);
-                  return (
-              <div className="w-full max-w-xl border-2 border-rose-500 bg-zinc-950 shadow-[0_0_40px_rgba(244,63,94,0.35)]">
-                  <div className="px-4 py-3 border-b border-rose-800 bg-rose-950/40 flex items-center justify-between gap-3">
-                      <div className="text-sm font-black tracking-wider uppercase text-rose-200">NSFW Risk Trigger</div>
-                      <button
-                          type="button"
-                          onClick={() => setNsfwJudgmentAlert(null)}
-                          className="text-xs px-2 py-1 border border-rose-500/60 text-rose-200 hover:bg-rose-700/40"
-                      >
-                          关闭
-                      </button>
-                  </div>
-                  <div className="p-4 space-y-3">
-                      <div className="text-xs text-rose-100 leading-relaxed">
-                          检测到高风险 NSFW 判定结果。普通判定行已在日志区隐藏，但内部判定已生效。
-                      </div>
-                      <div className="text-xs text-zinc-300 border border-zinc-700 bg-zinc-900/40 px-3 py-2">
-                          触发对象：{target.targetName}（{target.targetKind.toUpperCase()}）
-                      </div>
-                      <div className="text-[11px] text-zinc-300 border border-zinc-700 bg-black/50 p-3 whitespace-pre-wrap max-h-56 overflow-y-auto custom-scrollbar">
-                          {nsfwJudgmentAlert.text}
-                      </div>
-                      <div className="flex justify-end">
-                          <button
-                              type="button"
-                              onClick={() => setNsfwJudgmentAlert(null)}
-                              className="px-4 py-2 text-xs uppercase tracking-widest border border-rose-500 text-rose-100 hover:bg-rose-600/30"
-                          >
-                              我知道了
-                          </button>
-                      </div>
-                  </div>
-              </div>
-                  );
-              })()}
-          </div>
-      )}
     </div>
   );
 };
