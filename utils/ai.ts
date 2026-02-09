@@ -108,6 +108,21 @@ const stripPromptLines = (content: string, markers: string[]) => {
         .join('\n');
 };
 
+const JUDGMENT_TARGET_ADDON = `<判定对象规则>
+- 判定不仅作用于玩家，也作用于 NPC。
+- 输出判定日志时，text 必须包含“触发对象”字段并明确阵营与名称。
+- 推荐格式：
+  行动名称｜结果｜触发对象 玩家:玩家名称｜判定值 X/难度 Y｜基础 B (说明)｜环境 E (说明)｜状态 S (说明)｜幸运 L
+  行动名称｜结果｜触发对象 NPC:赫斯缇雅｜判定值 X/难度 Y｜基础 B (说明)｜环境 E (说明)｜状态 S (说明)｜幸运 L
+- 若为 NSFW 场景且命中高风险结果，允许使用 sender=【NSFW判定】；否则使用 sender=【判定】。
+</判定对象规则>`;
+
+const withJudgmentTargetAddon = (content: string) => {
+    if (!content) return content;
+    if (content.includes('触发对象') || content.includes('<判定对象规则>')) return content;
+    return `${content}\n\n${JUDGMENT_TARGET_ADDON}`;
+};
+
 const adjustCotPrompt = (content: string, settings: AppSettings) => {
     let next = content;
     if (isServiceOverrideEnabled(settings, 'social')) {
@@ -1018,6 +1033,9 @@ export const generateSingleModuleContext = (
                 let moduleContent = m.content;
                 if (stripNpcBackline) {
                     moduleContent = stripPromptLines(moduleContent, ['NPC后台跟踪', 'gameState.世界.NPC后台跟踪']);
+                }
+                if (m.group === '判定系统') {
+                    moduleContent = withJudgmentTargetAddon(moduleContent);
                 }
                 return moduleContent;
             }).join('\n\n');

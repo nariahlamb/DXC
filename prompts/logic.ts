@@ -1,4 +1,4 @@
-﻿export const P_COT_LOGIC = `<COT预思考协议>
+export const P_COT_LOGIC = `<COT预思考协议>
 # 【COT 预思考协议 | JSON thinking 字段专用】
 # - 思考输出位置: 仅写入 JSON 字段 "thinking_pre" 与 "thinking_post"，并使用 <thinking>...</thinking> 包裹。
 # - thinking 只包含推理/规划/取舍，不写剧情文本，不写 tavern_commands。
@@ -152,6 +152,8 @@
 - 判定必须写入 logs，格式为：
   - \`{"sender":"【判定】","text":"行动名称｜结果｜判定值 X/难度 Y｜基础 B (说明)｜环境 E (说明)｜状态 S (说明)｜幸运 L"}\`
 - \`text\` 字段必须严格按顺序输出：行动名称 → 结果 → 判定值/难度 → 基础 → 环境 → 状态 → 幸运（有装备修正时可追加装备段）。
+- NSFW 场景：内部仍必须完成判定，但默认不输出常规判定行到 logs。
+- 若出现“无法抵御/榨干/魅惑失控/强制沦陷”等高风险结果，允许改为专用 \`{"sender":"【NSFW判定】","text":"..."}\` 供前端弹窗展示。
 - 结果仅允许：成功/失败/大成功/大失败。
 - 修正值必须带正负号并附简短原因说明；禁止只写“成功了/失败了”。
 - 禁止将该结构写入 shortTerm；shortTerm 仅保留剧情概况。

@@ -3,6 +3,7 @@ import { LogEntry, CharacterStats, Confidant } from '../../../types';
 import { Edit2, Terminal, Trash2, Sparkles } from 'lucide-react';
 import { getAvatarColor } from '../../../utils/uiUtils';
 import { JudgmentMessage } from './JudgmentMessage';
+import { isJudgmentLine, isJudgmentSender, isNsfwJudgment } from '../../../utils/judgment';
 
 interface LogEntryProps {
   log: LogEntry;
@@ -16,6 +17,7 @@ interface LogEntryProps {
   fontSize?: 'small' | 'medium' | 'large';
   showAiToolbar?: boolean; 
   isHellMode?: boolean;
+  suppressNsfwJudgment?: boolean;
 }
 
 export const LogEntryItem: React.FC<LogEntryProps> = ({ 
@@ -29,16 +31,18 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
     aiActionAnchor = false,
     fontSize = 'medium',
     showAiToolbar = false,
-    isHellMode = false
+    isHellMode = false,
+    suppressNsfwJudgment = true
 }) => {
     
     const senderName = log.sender || "System";
     const isNarrator = ['旁白', 'narrator', 'narrative', 'scene', '环境'].includes(senderName.toLowerCase());
     const isSystem = ['system', '系统', 'hint', 'guide'].includes(senderName.toLowerCase());
     const isPlayer = senderName === 'player';
-    const isJudgment = senderName === '【判定】' || senderName === '判定';
+    const isJudgment = isJudgmentSender(senderName);
     
     const content = log.text || "";
+    const isNsfwJudge = isNsfwJudgment(senderName, content);
     const isPrimaryAiLog = !!log.rawResponse;
     const isAiLog = !isPlayer && isPrimaryAiLog;
     const showAiActions = isAiLog && aiActionAnchor;
@@ -86,9 +90,11 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
                         // For Narrator, further reduce spacing (h-0.5 is 0.125rem/2px)
                         return <div key={idx} className={isNarrator ? "h-0.5" : "h-3"} />;
                     }
-                    const isJudge = trimmed.startsWith('【判定】');
+                    const isJudge = isJudgmentLine(trimmed);
                     if (isJudge) {
-                        return <JudgmentMessage key={idx} text={line} />;
+                        const lineIsNsfwJudge = isNsfwJudgment(senderName, line);
+                        if (suppressNsfwJudgment && lineIsNsfwJudge) return null;
+                        return <JudgmentMessage key={idx} text={line} isNsfw={lineIsNsfwJudge} />;
                     }
                     return (
                         <div key={idx}>
@@ -288,12 +294,15 @@ export const LogEntryItem: React.FC<LogEntryProps> = ({
 
     // --- 3. JUDGMENT MESSAGE (判定) ---
     if (isJudgment) {
+        if (suppressNsfwJudgment && isNsfwJudge) {
+            return null;
+        }
         return (
             <div className="group relative flex w-full justify-center my-4 animate-in fade-in duration-300">
                 <ActionMenu />
                 <div className="flex flex-col items-center w-full">
                      <AiActionHeader align="center" />
-                     <JudgmentMessage text={content} />
+                     <JudgmentMessage text={content} isNsfw={isNsfwJudge} />
                      <MobileActions align="center" />
                      <RepairHint align="center" />
                 </div>
