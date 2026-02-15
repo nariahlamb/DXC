@@ -1,0 +1,160 @@
+{
+  "session_id": "BS-我需要优化当前的对话注入上下文-以及生成内容结构的合理性做评估-因为做了一次记忆-2026-02-15",
+  "timestamp": "2026-02-15T03:44:18+08:00",
+  "topic": "我需要优化当前的对话注入上下文，以及生成内容结构的合理性做评估。因为做了一次记忆系统重构，现在分清楚主叙事应当只做好叙事+选项，记忆ai负责分批并发填表+检索召回，地图ai只负责地图生成。但我看到现在主叙事ai仍然在做taverncommand的事且不会被记录。帮我查分析式",
+  "creative": {
+    "ideas": [
+      {
+        "title": "双通道硬协议（Narrative 与 Commands 物理隔离）",
+        "novelty": 4,
+        "impact": 5,
+        "description": "story 非空 tavern_commands 直接失败并重试纯叙事，避免静默丢弃。"
+      },
+      {
+        "title": "过滤即审计（Discard-to-Ledger）",
+        "novelty": 3,
+        "impact": 5,
+        "description": "将过滤命令记录为结构化审计事件。"
+      },
+      {
+        "title": "Prompt 防火墙（profile lint）",
+        "novelty": 3,
+        "impact": 5,
+        "description": "CI 阻断 narrative profile 中的命令导向内容。"
+      },
+      {
+        "title": "上下文注入编排器（配额+溯源）",
+        "novelty": 4,
+        "impact": 5,
+        "description": "memory/map/state 注入按预算和来源标签治理。"
+      },
+      {
+        "title": "两阶段生成（意图草案 -> 纯叙事改写）",
+        "novelty": 5,
+        "impact": 4,
+        "description": "内部先规划，外部只输出纯叙事文本。"
+      }
+    ],
+    "insights": [
+      "可观测性应成为 Prompt 迭代闭环的一等公民。",
+      "把规则前移到编译期能显著减少线上漂移。"
+    ],
+    "challenges": [
+      "两阶段生成会增加延迟。",
+      "编译期 lint 需要维护关键词和语义规则。"
+    ]
+  },
+  "pragmatic": {
+    "approaches": [
+      {
+        "title": "P0：story 空命令强制 + 审计",
+        "effort": "M",
+        "risk": "中",
+        "reuse": "高",
+        "files": [
+          "utils/aiRouting.ts",
+          "hooks/gameLogic/useGameLogicCore.ts"
+        ]
+      },
+      {
+        "title": "P0：map 入口统一 guard",
+        "effort": "S-M",
+        "risk": "低-中",
+        "reuse": "高",
+        "files": [
+          "hooks/gameLogic/useGameLogicCore.ts",
+          "hooks/gameLogic/microservice/commandGuard.ts"
+        ]
+      },
+      {
+        "title": "P1：prompt 协议去冲突",
+        "effort": "M",
+        "risk": "中",
+        "reuse": "中高",
+        "files": [
+          "utils/aiPrompt.ts",
+          "prompts/system.ts",
+          "prompts/logic.ts"
+        ]
+      },
+      {
+        "title": "P1：memory 越权审计强化",
+        "effort": "M",
+        "risk": "低-中",
+        "reuse": "高",
+        "files": [
+          "hooks/gameLogic/microservice/inputBuilder.ts",
+          "hooks/gameLogic/microservice/commandGuard.ts",
+          "hooks/gameLogic/useGameLogicCore.ts"
+        ]
+      }
+    ],
+    "blockers": [
+      "tests/aiRouting.test.ts 当前基线与目标冲突。",
+      "预过滤阶段仍缺结构化 reason_code。",
+      "map/world 双入口策略未完全一致。"
+    ],
+    "recommendations": [
+      "先 P0 再 P1。",
+      "审计字段最小集合：turnId/requestId/source/action/sheetId/reasonCode。"
+    ]
+  },
+  "systematic": {
+    "decomposition": [
+      "D1 Prompt 自冲突：story 同时被要求空命令与生成命令。",
+      "D2 Runtime 多层补丁过滤：routing -> strip -> guard。",
+      "D3 serviceKey 与 endpoint 路由名实不符。",
+      "D4 world/map 入口守卫不完全同构。"
+    ],
+    "patterns": [
+      {
+        "pattern": "Runtime 权威化（短期）",
+        "pros": ["快", "低风险"],
+        "cons": ["Prompt 自校验能力降低"]
+      },
+      {
+        "pattern": "Policy-as-Code（中期）",
+        "pros": ["单一规则源", "消除漂移"],
+        "cons": ["需新增编译层"]
+      },
+      {
+        "pattern": "命令总线化（长期）",
+        "pros": ["强治理", "可回放"],
+        "cons": ["改造面大"]
+      }
+    ],
+    "tradeoffs": [
+      "短期优先稳态，接受临时运行时权威。",
+      "中长期逐步回收到策略统一。"
+    ]
+  },
+  "synthesis": {
+    "convergent_themes": [
+      "运行时边界必须硬化。",
+      "过滤结果必须可审计。",
+      "Prompt 与 Runtime 规则必须收敛。"
+    ],
+    "conflicting_views": [
+      {
+        "topic": "是否立即重构为总线/DSL",
+        "creative": "倾向尽早推进",
+        "pragmatic": "建议先低风险止血",
+        "systematic": "分阶段推进最稳"
+      }
+    ],
+    "unique_contributions": [
+      {
+        "source": "creative",
+        "insight": "引入 command_leak_rate 监控"
+      },
+      {
+        "source": "pragmatic",
+        "insight": "给出 P0/P1 具体文件与测试路径"
+      },
+      {
+        "source": "systematic",
+        "insight": "提出 D1-D4 冲突分解模型"
+      }
+    ]
+  }
+}

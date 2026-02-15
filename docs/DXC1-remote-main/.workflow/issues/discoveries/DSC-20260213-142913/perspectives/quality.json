@@ -1,0 +1,79 @@
+{
+  "perspective": "quality",
+  "analyzed_at": "2026-02-13T14:29:13.518Z",
+  "files_analyzed": 90,
+  "findings": [
+    {
+      "id": "F-001",
+      "title": "移动端导航使用 console.log 输出异常",
+      "priority": "low",
+      "category": "logging",
+      "description": "用户侧异常采用 console.log，缺少统一日志等级与可追踪上下文。",
+      "file": "components/mobile/MobileTopNav.tsx",
+      "line": 35,
+      "snippet": "console.log(`Error attempting to enable fullscreen: ${e.message}`);",
+      "suggested_issue": "改为 console.warn/error 或接入统一日志函数，避免生产噪声。",
+      "confidence": 0.68
+    },
+    {
+      "id": "F-002",
+      "title": "CenterPanel 保留调试日志",
+      "priority": "medium",
+      "category": "logging",
+      "description": "压缩头像流程中存在调试日志，长期会污染控制台并影响问题定位效率。",
+      "file": "components/game/CenterPanel.tsx",
+      "line": 115,
+      "snippet": "console.log('[AvatarUpload] Compressed size:', compressed.length);",
+      "suggested_issue": "移除调试日志，或以 debug 开关控制输出。",
+      "confidence": 0.72
+    },
+    {
+      "id": "F-003",
+      "title": "使用 JSON 深拷贝默认配置，易引入隐式类型丢失",
+      "priority": "high",
+      "category": "data-integrity",
+      "description": "JSON.parse(JSON.stringify(...)) 会丢失 undefined、Date、函数等信息，后续配置结构扩展时容易出现隐蔽问题。",
+      "file": "components/game/modals/SettingsModal.tsx",
+      "line": 473,
+      "snippet": "const base = JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as AppSettings;",
+      "suggested_issue": "改为结构化克隆（structuredClone）或显式字段构建，避免非 JSON 字段丢失。",
+      "confidence": 0.84
+    },
+    {
+      "id": "F-004",
+      "title": "CombatPanel 核心交互参数广泛使用 any",
+      "priority": "medium",
+      "category": "type-safety",
+      "description": "onPlayerAction 与 payload 使用 any，会削弱编译期约束并掩盖命令结构错误。",
+      "file": "components/game/CombatPanel.tsx",
+      "line": 24,
+      "snippet": "onPlayerAction: (action: 'attack' | 'skill' | 'guard' | 'escape' | 'talk' | 'item', payload?: any) => void;",
+      "suggested_issue": "为战斗动作定义判别联合类型（discriminated union）并替换 any。",
+      "confidence": 0.88
+    },
+    {
+      "id": "F-005",
+      "title": "CharacterCreation 组件内部 props 类型过宽",
+      "priority": "low",
+      "category": "type-safety",
+      "description": "展示组件使用 any 破坏了可读性和 IDE 提示，后续重构风险较高。",
+      "file": "components/CharacterCreation.tsx",
+      "line": 347,
+      "snippet": "const SectionTitle = ({ icon, title, theme }: { icon: React.ReactNode, title: string, theme: any }) => (",
+      "suggested_issue": "为 theme 和展示型组件 props 建立明确类型接口。",
+      "confidence": 0.76
+    },
+    {
+      "id": "F-006",
+      "title": "MobileTopNav 存在未使用的全屏状态与处理函数",
+      "priority": "medium",
+      "category": "dead-code",
+      "description": "isFullscreen 和 toggleFullscreen 已定义但在 JSX 中未使用，属于残留逻辑，增加维护负担。",
+      "file": "components/mobile/MobileTopNav.tsx",
+      "line": 30,
+      "snippet": "const [isFullscreen, setIsFullscreen] = useState(false);",
+      "suggested_issue": "若不再支持移动端全屏，删除残留逻辑；若需要支持，补充 UI 入口并加测试。",
+      "confidence": 0.91
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+代码风格：TypeScript + React 函数组件；组件 PascalCase.tsx，工具/钩子 camelCase.ts。遵循现有 import/naming 模式，2 空格缩进常见。Tailwind 类直接写在 JSX，保持可读分组。AI 输出必须保持 logs / tavern_commands 分离。涉及规则改动时通常同步 prompts/* 与 types/*。

@@ -1,0 +1,55 @@
+{
+  "perspective": "bug",
+  "analyzed_at": "2026-02-13T14:29:13.518Z",
+  "files_analyzed": 90,
+  "findings": [
+    {
+      "id": "F-001",
+      "title": "Fullscreen 状态在请求失败时被错误置为 true",
+      "priority": "high",
+      "category": "state-sync",
+      "description": "requestFullscreen 采用异步 Promise，但当前实现在 Promise resolve 之前就直接 setIsFullscreen(true)。若浏览器拒绝全屏（权限或手势限制），UI 图标会与真实状态不一致。",
+      "file": "components/game/TopNav.tsx",
+      "line": 46,
+      "snippet": "setIsFullscreen(true);",
+      "suggested_issue": "将 isFullscreen 状态更新改为基于 fullscreenchange 事件，且仅在 requestFullscreen 成功后更新。",
+      "confidence": 0.93
+    },
+    {
+      "id": "F-002",
+      "title": "未监听 fullscreenchange 导致 ESC 退出后图标状态滞后",
+      "priority": "high",
+      "category": "event-handling",
+      "description": "组件只在点击按钮时更新本地状态，未订阅 document.fullscreenElement 变化。用户通过 ESC 或系统手势退出全屏时，按钮图标可能仍显示“退出全屏”。",
+      "file": "components/game/TopNav.tsx",
+      "line": 41,
+      "snippet": "const [isFullscreen, setIsFullscreen] = useState(false);",
+      "suggested_issue": "添加 fullscreenchange 监听并以 document.fullscreenElement 作为单一真实来源。",
+      "confidence": 0.86
+    },
+    {
+      "id": "F-003",
+      "title": "存档加载失败时仍强制打开加载弹窗",
+      "priority": "medium",
+      "category": "error-handling",
+      "description": "loadSaveSlots 无错误处理，handleOpenLoadModal 在 finally 中无条件打开弹窗。若读取失败，用户仅看到空列表，缺少错误反馈。",
+      "file": "components/Home.tsx",
+      "line": 69,
+      "snippet": "loadSaveSlots().finally(() => {",
+      "suggested_issue": "为 loadSaveSlots 增加 try/catch，并在失败时显示错误提示且避免误导性打开空弹窗。",
+      "confidence": 0.79
+    },
+    {
+      "id": "F-004",
+      "title": "逐字符渲染使用 charAt 可能破坏 emoji 等代理对字符",
+      "priority": "medium",
+      "category": "text-rendering",
+      "description": "charAt 基于 UTF-16 code unit，遇到 emoji 或部分扩展字符时会拆分错误，导致字符显示异常。",
+      "file": "components/ui/TypewriterText.tsx",
+      "line": 11,
+      "snippet": "setDisplayedText((prev) => prev + text.charAt(index));",
+      "suggested_issue": "改用 Array.from(text) 或 grapheme splitter 按用户可见字符粒度渲染。",
+      "confidence": 0.74
+    }
+  ]
+}

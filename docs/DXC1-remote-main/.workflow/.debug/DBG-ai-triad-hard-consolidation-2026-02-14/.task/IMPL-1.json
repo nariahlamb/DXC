@@ -1,0 +1,46 @@
+{
+  "id": "IMPL-1",
+  "title": "类型与配置收敛（仅 3 服务）",
+  "status": "completed",
+  "meta": {
+    "type": "feature",
+    "agent": "code-developer"
+  },
+  "context": {
+    "requirements": [
+      "GlobalAISettings 收敛到 triad-only 语义",
+      "默认配置不再暴露旧模式字段",
+      "设置归一化保持旧存档可迁移但不保留旧入口"
+    ],
+    "focus_paths": [
+      "types/ai.ts",
+      "hooks/useAppSettings.ts",
+      "hooks/gameLogic/settings.ts",
+      "hooks/gameLogic/useGameLogicCore.ts",
+      "components/game/modals/settings/views/AIServicesView.tsx"
+    ],
+    "acceptance": [
+      "代码中不再依赖 mode/unified/useServiceOverrides/storyWorkloadMode 作为运行时入口",
+      "设置页仍只展示 story/state/map 三端点"
+    ],
+    "depends_on": []
+  },
+  "flow_control": {
+    "pre_analysis": [
+      "读取类型定义与默认值构建路径",
+      "确认旧字段读取点"
+    ],
+    "implementation_approach": [
+      {
+        "step": "收敛类型",
+        "action": "调整 GlobalAISettings 为 triad-only，保留必要迁移兜底"
+      },
+      {
+        "step": "收敛默认配置",
+        "action": "统一默认配置与 normalize 逻辑，仅输出 triad 结构"
+      }
+    ]
+  },
+  "depends_on": [],
+  "completed_at": "2026-02-14T03:28:47.1527139+08:00"
+}

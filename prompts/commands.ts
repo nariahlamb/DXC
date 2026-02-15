@@ -1,57 +1,172 @@
-﻿export const P_SYS_COMMANDS = `<指令场景与示例>
+export const P_SYS_COMMANDS = `<指令场景与示例>
 # 【指令场景与示例】
 
+[协议变更 - 表格主导]
+□ 业务写入必须使用表格动作，并严格遵循动作对应的载荷结构。
+□ 仅允许表格动作：upsert_sheet_rows / delete_sheet_rows / upsert_npc / upsert_inventory / append_log_summary / append_log_outline / append_econ_ledger / apply_econ_delta 以及战斗扩展动作。
+□ 若无法确认结构，返回空命令，不要猜测字段。
+
+[主叙事与后台分工]
+□ 主叙事AI：优先输出 logs、action_options（如启用），并保持叙事质量。
+□ 后台Memory服务：仅负责 LOG_Summary + LOG_Outline 成对入表。
+□ LOG_Summary / LOG_Outline 不在本次 state variable writer 迁移范围，禁止切到 writer 链路。
+□ 后台Social/NPC服务：负责 NPC_Registry 与 WORLD_NpcTracking 的补写/校正。
+□ 当运行时启用 state 填表服务时，主叙事不得输出业务写表命令，固定返回 "tavern_commands": []；由后台服务统一填表。
+
+[强制格式]
+□ \`upsert_sheet_rows\` 只能使用对象载荷：\`{ sheetId, rows, keyField? }\`。
+□ \`upsert_sheet_rows\` 的 \`value\` 仅允许 \`{ sheetId, rows, keyField? }\`。
+□ 经济变化优先 \`apply_econ_delta\`，不要把 \`-50\` 当作余额覆盖值。
+
 [必须生成指令的场景]
-□ 时间/日期/位置变化 → set gameState.游戏时间 / set gameState.当前日期 / set gameState.当前地点
-□ 物品获得(明确拾取/收到/放入背包) → push gameState.背包 (必须生成完整InventoryItem结构, id需唯一)
-□ 掉落但未拾取 → 仅叙事描述，不生成指令
-□ 物品消耗 → add gameState.背包[i].数量 -1 (若数量归0，则 delete gameState.背包[i])
-□ 战斗伤害 → add gameState.角色.生命值 -X / add gameState.角色.身体部位.胸部.当前 -X
-□ 属性变化 → add gameState.角色.能力值.力量 1 (仅限恩惠更新时)
-□ 社交变化 → add gameState.社交[i].好感度 X / push gameState.社交 (新NPC) / set gameState.社交[i].是否在场 true
-□ NPC互动记忆 → 只要与NPC发生对话/交易/战斗/短信/委托/问候，必须 push gameState.社交[i].记忆 (确保末条为本次互动)
-□ 任务更新 → set gameState.任务[i].状态 "completed"
+□ 时间/日期/地点/系统通知变化 → upsert_sheet_rows(SYS_GlobalState)
+□ SYS_GlobalState 必须实时更新（本回合发生变化，本回合写入，禁止延后）
+□ SYS_GlobalState 每次只允许一行：value.rows.length 必须等于 1，禁止多行
+□ 物品变化 → upsert_inventory 或 upsert_sheet_rows(ITEM_Inventory)
+□ 经济变化 → append_econ_ledger / apply_econ_delta
+□ 社交变化 → upsert_npc 或 upsert_sheet_rows(NPC_Registry)
+□ 世界NPC后台跟踪 → upsert_sheet_rows(WORLD_NpcTracking)
+□ 任务变化 → upsert_sheet_rows(QUEST_Active)
+□ 剧情主线/触发器/里程碑/契约变化 → upsert_sheet_rows(STORY_Mainline / STORY_Triggers / STORY_Milestones / CONTRACT_Registry)
+□ 手机消息与线程 → upsert_sheet_rows(PHONE_Threads / PHONE_Messages / PHONE_Pending / PHONE_Contacts)
+□ 朋友圈/论坛 → upsert_sheet_rows(PHONE_Moments / FORUM_Boards / FORUM_Posts / FORUM_Replies)
+□ 战斗地图逻辑层（COMBAT_BattleMap）与视觉层（COMBAT_Map_Visuals）必须可互相还原：
+  - BattleMap 推荐包含 1 条 Config 语义（地图尺寸）+ N 条 Token/Wall/Terrain/Zone。
+  - Config 尺寸必须等价于 {w,h} 或 地图尺寸.{宽度,高度}，坐标必须为整数网格坐标。
+  - COMBAT_Map_Visuals 推荐提供 SceneName + VisualJSON + GridSize（如 20x20）。
+  - 禁止像素坐标、禁止缺失地图尺寸。
 
-[前置依赖检查（先有后改）]
-□ 给 NPC 加记忆/改好感前 → 先确认该 NPC 已存在于 gameState.社交；不存在则先 push 新 NPC，再执行记忆/好感指令
-□ 社交索引解析（CRITICAL）→ 先从 [社交与NPC状态] 中的 \`索引/姓名/id\` 建立映射，再写 \`gameState.社交[i].*\`；禁止按正文出场顺序或角色名臆测 i
-□ 修改背包[i].数量前 → 先确认该物品已存在；不存在先 push 完整物品，再 add/set 数量
-□ 修改任务[i]/契约[i]/战斗.敌方[i] 前 → 先确认索引存在；不存在先创建条目，禁止直接操作空索引
-□ 同回合命令顺序固定：创建命令在前，修改命令在后（创建 → 修改）
+[标准示例]
+1) 更新全局状态（地点+时间）
+\`\`\`json
+{
+  "action": "upsert_sheet_rows",
+  "value": {
+    "sheetId": "SYS_GlobalState",
+    "rows": [
+      {
+        "id": "GLOBAL",
+        "当前场景": "丰饶的女主人",
+        "游戏时间": "第3日 16:45",
+        "流逝时长": "2小时15分钟",
+        "系统通知": "公会公告已更新"
+      }
+    ]
+  }
+}
+\`\`\`
 
-[指令操作示例库]
+2) NPC更新
+\`\`\`json
+{
+  "action": "upsert_npc",
+  "value": [
+    {
+      "id": "Char_Ryu",
+      "姓名": "琉·利昂",
+      "当前状态": "在场",
+      "所在位置": "丰饶的女主人",
+      "职业身份": "酒馆店员"
+    }
+  ]
+}
+\`\`\`
 
-**A. 物品指令示例**
-- **获得物品 (完整结构)**:
-  \`{"action":"push", "key":"gameState.背包", "value":{"id":"Itm_gen_01", "名称":"双角兽的角", "描述":"坚硬的素材。", "数量":1, "类型":"material", "品质":"Common", "价值":500}}\`
-- **消耗物品 (指定索引)**:
-  \`{"action":"add", "key":"gameState.背包[2].数量", "value":-1}\`
-- **金钱变化**:
-  \`{"action":"add", "key":"gameState.角色.法利", "value":-1200}\`
+2.1) 经济变化（扣款/奖励）
+\`\`\`json
+{
+  "action": "apply_econ_delta",
+  "value": {
+    "account": "角色.法利",
+    "delta": -50,
+    "reason": "购买晨间果酒"
+  }
+}
+\`\`\`
 
-**B. 恩惠/能力值指令示例**
-- **能力值更新**:
-  \`{"action":"add", "key":"gameState.角色.能力值.力量", "value": 5}\`
-- **习得技能**:
-  \`{"action":"push", "key":"gameState.角色.技能", "value":{"id":"Skl_Argonaut", "名称":"英雄愿望(Argonaut)", "类别":"主动", "描述":"对主动行动进行蓄力...", "效果":"蓄力完成后获得高倍率爆发", "触发":"主动蓄力", "持续":"短", "冷却":"中", "消耗":{"体力":"中","精神":"低"}, "标签":["蓄力"], "稀有":true}}\`
-- **习得魔法**:
-  \`{"action":"push", "key":"gameState.角色.魔法", "value":{"id":"Mag_Firebolt", "名称":"Firebolt", "咏唱":"炎之精灵，化为炽矢。", "类别":"攻击", "属性":"火", "描述":"快速咏唱的火系弹道魔法", "效果":"单体火焰冲击", "射程":"中", "范围":"单体", "消耗":{"精神":30}}}\`
+2.2) 任务状态更新
+\`\`\`json
+{
+  "action": "upsert_sheet_rows",
+  "value": {
+    "sheetId": "QUEST_Active",
+    "keyField": "id",
+    "rows": [
+      {
+        "id": "Tsk_001",
+        "状态": "completed",
+        "最近更新": "在公会完成冒险者登记并领取公会卡"
+      }
+    ]
+  }
+}
+\`\`\`
 
-**C. NPC指令示例**
-- **档案填写要求**: 档案需包含「身份定位/外貌要点/性格特征/背景经历/与玩家关系或当前状态」。特别关注必须具体完整；普通关系可简述但需覆盖至少身份+性格+现状。
-- **创建NPC (普通关系，仅档案)**:
-  \`{"action":"push", "key":"gameState.社交", "value":{"id":"Char_Ryu", "姓名":"琉·利昂", "种族":"精灵", "年龄":21, "身份":"酒馆店员", "眷族":"阿斯特莉亚(前)", "等级":4, "好感度":20, "关系状态":"认识", "是否在场":true, "特别关注":false, "记忆":[], "档案":"冷静的酒馆店员，正在吧台值班。"}}\`
-- **创建NPC (特别关注，补全档案)**:
-  \`{"action":"push", "key":"gameState.社交", "value":{"id":"Char_Syr", "姓名":"希儿", "种族":"人类", "年龄":18, "身份":"酒馆店员", "眷族":"芙蕾雅", "等级":2, "好感度":10, "关系状态":"认识", "是否在场":true, "特别关注":true, "记忆":[], "档案":"活泼亲切的酒馆少女，栗色短发，笑容明亮，性格热情敏锐，出身不详，在酒馆工作且熟悉冒险者圈子。"}}\`
-- **好感变化**:
-  \`{"action":"add", "key":"gameState.社交[3].好感度", "value":5}\`
-- **互动记忆写入**:
-  \`{"action":"push", "key":"gameState.社交[3].记忆", "value":{"内容":"对方询问了当前委托并约定稍后回信。","时间戳":"当前时间"}}\`
-- **不存在NPC时先创建再写记忆（正确顺序）**:
-  \`{"action":"push", "key":"gameState.社交", "value":{"id":"Char_New_01", "姓名":"新角色", "种族":"人类", "年龄":20, "身份":"冒险者", "眷族":"无", "等级":1, "好感度":0, "关系状态":"初识", "是否在场":true, "特别关注":false, "记忆":[], "档案":"初次在公会大厅遇见的新人冒险者。"}}\`
-  \`{"action":"push", "key":"gameState.社交[4].记忆", "value":{"内容":"与玩家完成初次交流并互通姓名。","时间戳":"当前时间"}}\`（示例中假设新索引=4）
-- **错误示例（禁止）**:
-  正文里提到“艾丝”就直接写 \`gameState.社交[7].好感度\`（未在社交映射确认索引）。
+2.3) 背包获得物品
+\`\`\`json
+{
+  "action": "upsert_inventory",
+  "value": [
+    {
+      "id": "Itm_GuildCard",
+      "名称": "公会卡",
+      "数量": 1,
+      "类型": "key_item",
+      "描述": "刻有玩家姓名的身份证明，眷族栏为空。"
+    }
+  ]
+}
+\`\`\`
+
+3) 日志摘要与大纲（同一 AM 编号成对）
+\`\`\`json
+{
+  "action": "append_log_summary",
+  "value": {
+    "时间跨度": "1000-01-03 14:20—1000-01-03 14:30",
+    "地点": "欧拉丽-地下城第7层",
+    "纪要": "Bell在第7层遭遇哥布林后边战边退，确认撤离路线并脱离接触。",
+    "重要对话": "Bell：先撤，别恋战。",
+    "编码索引": "AM0001"
+  }
+}
+\`\`\`
+\`\`\`json
+{
+  "action": "append_log_outline",
+  "value": {
+    "时间跨度": "1000-01-03 14:20—1000-01-03 14:30",
+    "大纲": "第7层遭遇哥布林后执行战术撤离并安全脱离。",
+    "编码索引": "AM0001"
+  }
+}
+\`\`\`
+
+4) 世界NPC后台跟踪
+\`\`\`json
+{
+  "action": "upsert_sheet_rows",
+  "value": {
+    "sheetId": "WORLD_NpcTracking",
+    "keyField": "tracking_id",
+    "rows": [
+      {
+        "tracking_id": "npc_track_ryu",
+        "npc_name": "琉·利昂",
+        "current_action": "酒馆值班",
+        "location": "丰饶的女主人"
+      }
+    ]
+  }
+}
+\`\`\`
+
+[战斗扩展动作]
+□ set_encounter_rows / upsert_battle_map_rows / set_map_visuals / set_initiative
+□ consume_dice_rows / refill_dice_pool / roll_dice_check
+□ set_action_economy / spend_action_resource / resolve_attack_check / resolve_saving_throw / resolve_damage_roll / append_combat_resolution
+
+[日志与配对]
+□ append_log_summary 与 append_log_outline 必须尽量成对，且共享编码索引（AMxxxx）。
+□ 若只产生一条，请补充另一条最小可用记录，避免配对断裂。
 </指令场景与示例>`;
-
-

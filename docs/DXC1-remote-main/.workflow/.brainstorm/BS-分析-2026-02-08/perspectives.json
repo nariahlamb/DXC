@@ -1,0 +1,177 @@
+{
+  "session_id": "BS-分析-2026-02-08",
+  "timestamp": "2026-02-08T18:10:00+08:00",
+  "topic": "DND仪表盘适配 DXC",
+  "sources": [
+    "docs/ref/酒馆助手脚本-DND沉浸式仪表盘 v1.9.0.json",
+    "docs/ref/DND仪表盘配套模板.json",
+    "docs/ref/sillytavern数据库脚本.js"
+  ],
+  "creative": {
+    "ideas": [
+      {
+        "title": "Director Mode（回合导演模式）",
+        "description": "将行动选项、骰池、场景状态合并成可交互事件卡，提供保守/激进/策略三类行动路径。",
+        "novelty": 5,
+        "impact": 5
+      },
+      {
+        "title": "Living Dashboard（活态仪表盘）",
+        "description": "面板不仅显示状态，还主动提示风险、机会、连锁反应。",
+        "novelty": 4,
+        "impact": 5
+      },
+      {
+        "title": "Intent Wheel（意图轮盘）",
+        "description": "将按钮式选项升级为意图轮盘与分层动作菜单。",
+        "novelty": 4,
+        "impact": 4
+      },
+      {
+        "title": "Narrative Dice FX（叙事骰效）",
+        "description": "掷骰后触发即时视觉反馈与叙事分支提示。",
+        "novelty": 4,
+        "impact": 4
+      },
+      {
+        "title": "Co-GM Assistant",
+        "description": "AI 在关键节点提供三种可解释建议，辅助玩家决策。",
+        "novelty": 5,
+        "impact": 3
+      }
+    ],
+    "insights": [
+      "仪表盘可以从被动展示层升级为交互导演层。",
+      "行动反馈速度与可解释性直接影响沉浸感。"
+    ],
+    "challenges": [
+      "需要避免 UI 过载",
+      "需要控制建议系统对玩家自由度的干扰"
+    ]
+  },
+  "pragmatic": {
+    "approaches": [
+      {
+        "title": "Compatibility Adapter First",
+        "description": "基于现有 GameState 与 tavern_commands 实现 sheet 投影与 row translator。",
+        "effort": 2,
+        "risk": 2,
+        "reuse": 5
+      },
+      {
+        "title": "Template Studio Incremental",
+        "description": "先做导入导出+预设，再做 profile 隔离与可视化编辑。",
+        "effort": 3,
+        "risk": 3,
+        "reuse": 4
+      },
+      {
+        "title": "Full Script Parity Rewrite",
+        "description": "对标脚本全量重写，不建议第一阶段。",
+        "effort": 5,
+        "risk": 5,
+        "reuse": 1
+      }
+    ],
+    "blockers": [
+      "缺少多角色角色表/技能表/专长表领域模型",
+      "缺少模板预设与隔离 profile 管理",
+      "缺少自动总结合并编排器"
+    ],
+    "recommendations": [
+      "优先适配 10 张核心表",
+      "复用 hooks/gameLogic/extendedCommands.ts 现有 handlers",
+      "引入 turn transaction 与 invariant validator"
+    ]
+  },
+  "systematic": {
+    "decomposition": [
+      "Schema Layer: sheet registry + typed schema",
+      "State Layer: GameState SSOT + sheet projection cache",
+      "Command Layer: row op -> tavern_commands translator",
+      "Orchestration Layer: turn transaction + settlement",
+      "Experience Layer: interactive HUD + director flow"
+    ],
+    "patterns": [
+      {
+        "pattern": "Sheet-Mirror",
+        "pros": ["迁移快", "兼容强"],
+        "cons": ["长期技术债", "双语义维护成本高"],
+        "best_for": "快速验证"
+      },
+      {
+        "pattern": "Domain-Native",
+        "pros": ["可维护", "结构干净"],
+        "cons": ["初期开发量大"],
+        "best_for": "长期架构"
+      },
+      {
+        "pattern": "Hybrid Dual-Track",
+        "pros": ["短期兼容+中期演进", "风险均衡"],
+        "cons": ["需要明确阶段边界"],
+        "best_for": "当前项目"
+      }
+    ],
+    "tradeoffs": [
+      "首期不追求脚本 UI 1:1",
+      "先能力语义一致，后体验超越"
+    ]
+  },
+  "coverage_matrix": {
+    "fully_covered": [
+      "COMBAT_Encounter",
+      "COMBAT_BattleMap",
+      "UI_ActionOptions",
+      "DICE_Pool",
+      "LOG_Summary",
+      "LOG_Outline"
+    ],
+    "partially_covered": [
+      "SYS_GlobalState",
+      "NPC_Registry",
+      "ITEM_Inventory",
+      "QUEST_Active",
+      "EXPLORATION_Map_Data",
+      "COMBAT_Map_Visuals",
+      "CHARACTER_Attributes",
+      "CHARACTER_Resources"
+    ],
+    "missing_or_weak": [
+      "Template presets + profile isolation",
+      "CHARACTER_Registry multi-role model",
+      "SKILL_Library + CHARACTER_Skills relations",
+      "FEAT_Library + CHARACTER_Feats relations",
+      "Auto-merge summary pipeline",
+      "Visualizer editor workflow"
+    ]
+  },
+  "synthesis": {
+    "convergent_themes": [
+      "GameState 必须是单一真源",
+      "兼容层先行是最低风险路径",
+      "交互层应从信息展示升级为导演交互"
+    ],
+    "conflicting_views": [
+      {
+        "topic": "Template Studio 是否首期全量",
+        "creative": "优先做体验增强",
+        "pragmatic": "先做最小模板切换",
+        "systematic": "分两期推进"
+      }
+    ],
+    "unique_contributions": [
+      {
+        "source": "creative",
+        "insight": "Director Mode 能显著提高互动感"
+      },
+      {
+        "source": "pragmatic",
+        "insight": "Row translator 可复用既有命令链"
+      },
+      {
+        "source": "systematic",
+        "insight": "Turn transaction 是一致性关键"
+      }
+    ]
+  }
+}

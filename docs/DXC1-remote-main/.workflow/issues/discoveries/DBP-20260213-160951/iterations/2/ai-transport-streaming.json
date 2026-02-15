@@ -1,0 +1,43 @@
+{
+  "dimension": "ai-transport-streaming",
+  "iteration": 2,
+  "focus": "stream callback CPU and render pressure",
+  "findings": [
+    {
+      "id": "F-012",
+      "title": "Thinking extraction re-processes entire streamed text repeatedly (O(n^2) risk)",
+      "category": "quadratic-cpu-risk",
+      "file": "hooks/gameLogic/useGameLogicCore.ts",
+      "line": 7410,
+      "snippet": "extractThinkingBlocks(streamedText) on every flush",
+      "confidence": 0.93,
+      "severity": "critical"
+    },
+    {
+      "id": "F-013",
+      "title": "setLastAIResponse receives full accumulated text on high-frequency flushes",
+      "category": "render-pressure",
+      "file": "hooks/gameLogic/useGameLogicCore.ts",
+      "line": 7411,
+      "snippet": "setLastAIResponse(streamedText)",
+      "confidence": 0.84,
+      "severity": "high"
+    }
+  ],
+  "coverage": {
+    "files_explored": 3,
+    "areas_covered": [
+      "stream callback",
+      "thinking parser"
+    ],
+    "areas_remaining": [
+      "incremental parser strategy"
+    ]
+  },
+  "leads": [
+    {
+      "description": "check parser fallback cost on large payloads",
+      "suggested_search": "parseAIResponseText"
+    }
+  ]
+}

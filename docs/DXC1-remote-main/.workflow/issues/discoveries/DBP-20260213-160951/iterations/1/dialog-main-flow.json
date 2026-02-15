@@ -1,0 +1,58 @@
+{
+  "dimension": "dialog-main-flow",
+  "iteration": 1,
+  "focus": "main dialogue lifecycle and release conditions",
+  "findings": [
+    {
+      "id": "F-001",
+      "title": "Main story request has no timeout and can keep processing forever",
+      "category": "timeout-missing",
+      "file": "utils/aiGenerate.ts",
+      "line": 34,
+      "snippet": "dispatchAIRequest(..., { responseFormat: \"json\", signal })",
+      "confidence": 0.95,
+      "severity": "critical",
+      "evidence": [
+        "utils/aiDispatch.ts:147 sets timeoutMs default to 0 when not provided",
+        "hooks/gameLogic/useGameLogicCore.ts:7364 sets processing true and clears only in finally at 7745"
+      ]
+    },
+    {
+      "id": "F-002",
+      "title": "Pre-dialogue AM recall adds a second unbounded request before main generation",
+      "category": "latency-amplifier",
+      "file": "hooks/gameLogic/useGameLogicCore.ts",
+      "line": 7318,
+      "snippet": "const rawRecall = await dispatchAIRequest(...)",
+      "confidence": 0.87,
+      "severity": "high"
+    },
+    {
+      "id": "F-003",
+      "title": "First-turn IP enrichment adds another unbounded request before request completion",
+      "category": "post-response-blocking",
+      "file": "hooks/gameLogic/useGameLogicCore.ts",
+      "line": 7445,
+      "snippet": "await fetchFamousIpProfileWithAI(...)",
+      "confidence": 0.88,
+      "severity": "high"
+    }
+  ],
+  "coverage": {
+    "files_explored": 5,
+    "areas_covered": [
+      "handleAIInteraction",
+      "AM recall",
+      "first-turn enrichment"
+    ],
+    "areas_remaining": [
+      "global timeout settings"
+    ]
+  },
+  "leads": [
+    {
+      "description": "verify settings schema for request timeout support",
+      "suggested_search": "types/ai.ts timeout"
+    }
+  ]
+}

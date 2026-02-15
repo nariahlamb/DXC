@@ -1,0 +1,293 @@
+--- /dev/null
++++ b/utils/mapStructure.ts
+@@ -0,0 +1,52 @@
++export interface DungeonRoom {
++  id: string;
++  name: string;
++  type: 'entrance' | 'corridor' | 'room' | 'hall' | 'secret_room';
++  shape: 'rectangular' | 'circular' | 'irregular' | 'cave_blob';
++  x: number;
++  y: number;
++  width: number;
++  height: number;
++  description?: string;
++  color?: string;
++}
++
++export interface DungeonDoor {
++  x: number;
++  y: number;
++  type: 'open' | 'door' | 'secret_door' | 'barred';
++  orientation: 'horizontal' | 'vertical';
++  connects: string[];
++}
++
++export interface DungeonFeature {
++  x: number;
++  y: number;
++  type: string;
++  description?: string;
++}
++
++export interface MapStructure {
++  mapName: string;
++  mapSize: { width: number; height: number };
++  rooms: DungeonRoom[];
++  doors: DungeonDoor[];
++  features: DungeonFeature[];
++}
++
++export const parseMapStructure = (input: string | object | undefined | null): MapStructure | null => {
++  if (!input) return null;
++  try {
++      const data = typeof input === 'string' ? JSON.parse(input) : input;
++      if (data && data.mapSize && Array.isArray(data.rooms)) {
++          return data as MapStructure;
++      }
++  } catch (e) {
++      // Silent fail for invalid JSON
++  }
++  return null;
++};
+--- /dev/null
++++ b/components/game/map/MapStructureSVG.tsx
+@@ -0,0 +1,102 @@
++import React from 'react';
++import { MapStructure, DungeonRoom } from '../../../utils/mapStructure';
++import { Box, Circle, HelpCircle } from 'lucide-react';
++
++interface MapStructureSVGProps {
++  data: MapStructure;
++  onSelect?: (type: string, id: string, name: string) => void;
++}
++
++export const MapStructureSVG: React.FC<MapStructureSVGProps> = ({ data, onSelect }) => {
++  const { mapSize, rooms, doors, features } = data;
++
++  const getRoomPath = (room: DungeonRoom) => {
++    const { x, y, width, height, shape } = room;
++    if (shape === 'circular') {
++      const rx = width / 2;
++      const ry = height / 2;
++      return `M ${x + rx} ${y} a ${rx} ${ry} 0 1 0 0 ${height} a ${rx} ${ry} 0 1 0 0 -${height}`;
++    }
++    // Default rectangular
++    return `M ${x} ${y} h ${width} v ${height} h -${width} z`;
++  };
++
++  return (
++    <svg
++      width={mapSize.width}
++      height={mapSize.height}
++      viewBox={`0 0 ${mapSize.width} ${mapSize.height}`}
++      className="block bg-[#050505] select-none"
++    >
++      <defs>
++        <pattern id="dungeonGrid" width="20" height="20" patternUnits="userSpaceOnUse">
++          <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255, 255, 255, 0.05)" strokeWidth="1" />
++        </pattern>
++        <filter id="glow-room">
++          <feGaussianBlur stdDeviation="2" result="coloredBlur" />
++          <feMerge>
++            <feMergeNode in="coloredBlur" />
++            <feMergeNode in="SourceGraphic" />
++          </feMerge>
++        </filter>
++      </defs>
++      
++      <rect width="100%" height="100%" fill="url(#dungeonGrid)" />
++
++      {/* Rooms Layer */}
++      <g className="rooms">
++        {rooms.map(room => (
++          <path
++            key={room.id}
++            d={getRoomPath(room)}
++            fill={room.color || "rgba(15, 23, 42, 0.9)"}
++            stroke="rgba(59, 130, 246, 0.3)"
++            strokeWidth="2"
++            className="transition-colors hover:fill-blue-900/50 cursor-pointer"
++            onClick={() => onSelect?.('room', room.id, room.name)}
++          />
++        ))}
++      </g>
++
++      {/* Doors Layer */}
++      <g className="doors">
++        {doors.map((door, idx) => {
++          const isHoriz = door.orientation === 'horizontal';
++          const w = isHoriz ? 20 : 6;
++          const h = isHoriz ? 6 : 20;
++          const cx = door.x - w / 2;
++          const cy = door.y - h / 2;
++          return (
++            <rect
++              key={`door-${idx}`}
++              x={cx}
++              y={cy}
++              width={w}
++              height={h}
++              fill={door.type === 'open' ? 'transparent' : '#d97706'}
++              stroke={door.type === 'open' ? '#64748b' : '#b45309'}
++              strokeWidth={door.type === 'open' ? 1 : 2}
++              strokeDasharray={door.type === 'open' ? '4 2' : undefined}
++            />
++          );
++        })}
++      </g>
++
++      {/* Features Layer */}
++      <g className="features">
++        {features.map((feat, idx) => (
++          <g 
++            key={`feat-${idx}`} 
++            transform={`translate(${feat.x}, ${feat.y})`}
++            className="cursor-help hover:opacity-80"
++            onClick={() => onSelect?.('feature', `feat-${idx}`, feat.type)}
++          >
++            <circle r="6" fill="rgba(6, 182, 212, 0.5)" stroke="#22d3ee" strokeWidth="1" />
++            {/* Simple icon representation */}
++            <rect x="-2" y="-2" width="4" height="4" fill="#cffafe" />
++          </g>
++        ))}
++      </g>
++    </svg>
++  );
++};
+--- a/components/game/modals/MapModal.tsx
++++ b/components/game/modals/MapModal.tsx
+@@ -1,4 +1,4 @@
+-import React, { useState, useRef, useEffect } from 'react';
++import React, { useState, useRef, useEffect, useMemo } from 'react';
+ import { Map as MapIcon, ChevronDown, X, Locate, Plus, Minus, Target, RotateCcw, Layers, Eye, EyeOff } from 'lucide-react';
+ import { WorldMapData, GeoPoint, Confidant, MapMidLocation, MapSmallLocation } from '../../../types';
+ import { computeZoomAnchor } from '../../../utils/mapMath';
+@@ -6,6 +6,8 @@
+ import { LocalMapSVG } from '../map/LocalMapSVG';
+ import { useMapInteraction } from '../map/hooks/useMapInteraction';
+ import { useMapRender } from '../map/hooks/useMapRender';
++import { parseMapStructure } from '../../../utils/mapStructure';
++import { MapStructureSVG } from '../map/MapStructureSVG';
+ import { createEmptyWorldMap, resolveDailyMapViewState } from '../../../utils/mapViewModel';
+ 
+ interface MapModalProps {
+@@ -95,6 +97,13 @@
+       return null;
+   };
+ 
++  const mapStructure = useMemo(() => {
++      if (viewingFloor === 0 && viewMode === 'small' && activeSmall) {
++          return parseMapStructure((activeSmall as any).MapStructureJSON || (activeSmall as any).mapStructure);
++      }
++      return null;
++  }, [viewingFloor, viewMode, activeSmall]);
++
+   const getLayoutSize = (layout: MapSmallLocation["layout"], area?: { width?: number; height?: number }) => ({
+       width: area?.width ?? layout.width,
+       height: area?.height ?? layout.height
+@@ -293,12 +302,12 @@
+       area?: { center?: GeoPoint; width?: number; height?: number },
+       baseCenter?: GeoPoint
+   ) => {
+-      if (!layout) {
++      if (!layout && !mapStructure) {
+           return (
+               <div className="flex-1 bg-[#050505] flex items-center justify-center text-zinc-500 text-sm">
+                   未找到地点布局数据
+               </div>
+           );
+       }
+-      const unit = 14;
+-      const layoutWidth = area?.width ?? layout.width;
+-      const layoutHeight = area?.height ?? layout.height;
+-      const center = area?.center || baseCenter;
++
++      const unit = mapStructure ? 1 : 14;
++      const layoutWidth = mapStructure ? mapStructure.mapSize.width : (area?.width ?? layout?.width ?? 800);
++      const layoutHeight = mapStructure ? mapStructure.mapSize.height : (area?.height ?? layout?.height ?? 600);
++      
++      const center = area?.center || baseCenter;
+       const toLocal = (point?: GeoPoint) => toLocalPoint(point, center, layoutWidth, layoutHeight);
+-      const playerLocal = toLocal(currentPos);
++      const playerLocal = !mapStructure ? toLocal(currentPos) : undefined;
+       const npcLocals = confidants
+           .filter(c => c.坐标)
+           .map(c => ({ name: c.姓名, local: toLocal(c.坐标 as GeoPoint) }))
+           .filter(c => c.local);
++          
+       return (
+           <div
+               ref={layoutContainerRef}
+@@ -321,6 +332,12 @@
+                           transformOrigin: '0 0'
+                       }}
+                   >
++                      {mapStructure ? (
++                          <MapStructureSVG 
++                              data={mapStructure} 
++                              onSelect={(type, id, name) => setHoverInfo({ title: name, sub: type, x: 0, y: 0, desc: id })}
++                          />
++                      ) : layout && (
+                       <LocalMapSVG
+                           layout={layout}
+                           layoutWidth={layoutWidth}
+@@ -328,6 +345,7 @@
+                           unit={unit}
+                           player={playerLocal ? { x: playerLocal.x, y: playerLocal.y, label: 'YOU' } : undefined}
+                           npcs={npcLocals.map(npc => ({ name: npc.name, x: npc.local!.x, y: npc.local!.y }))}
+                       />
++                      )}
+                   </div>
+               </div>
+               
+--- a/components/mobile/MobileMapView.tsx
++++ b/components/mobile/MobileMapView.tsx
+@@ -1,4 +1,4 @@
+-import React, { useState, useRef, useEffect } from 'react';
++import React, { useState, useRef, useEffect, useMemo } from 'react';
+ import { Target, Plus, Minus, Layers, Eye, EyeOff, Map as MapIcon, Info, X, ChevronDown, ListTodo, BookOpen, Clock, GitBranch, ScrollText } from 'lucide-react';
+ import { WorldMapData, GeoPoint, Confidant, MapMidLocation, MapSmallLocation, Task, StoryState } from '../../types';
+ import { LocalMapSVG } from '../game/map/LocalMapSVG';
+@@ -6,6 +6,8 @@
+ import { computeZoomAnchor } from '../../utils/mapMath';
+ import { createEmptyWorldMap, resolveDailyMapViewState } from '../../utils/mapViewModel';
++import { parseMapStructure } from '../../utils/mapStructure';
++import { MapStructureSVG } from '../game/map/MapStructureSVG';
+ 
+ interface MobileMapViewProps {
+   worldMap: WorldMapData;
+@@ -131,8 +133,16 @@
+   const macroLocations = mapData.macroLocations || [];
+   const midLocations = mapData.midLocations || [];
+   const smallLocations = mapData.smallLocations || [];
+-  const isLayoutView = viewingFloor === 0 && ((viewMode === 'small' && !!activeSmall?.layout) || (viewMode === 'mid' && !!activeMid?.layout));
++  
++  const mapStructure = useMemo(() => {
++      if (viewingFloor === 0 && viewMode === 'small' && activeSmall) {
++          return parseMapStructure((activeSmall as any).MapStructureJSON || (activeSmall as any).mapStructure);
++      }
++      return null;
++  }, [viewingFloor, viewMode, activeSmall]);
+ 
++  const isLayoutView = viewingFloor === 0 && (mapStructure || (viewMode === 'small' && !!activeSmall?.layout) || (viewMode === 'mid' && !!activeMid?.layout));
++  
+   const applyResolvedDailyView = (floorValue: number, locationName?: string) => {
+       const resolved = resolveDailyMapViewState(mapData, locationName, floorValue);
+       setViewMode(resolved.viewMode);
+@@ -213,11 +223,15 @@
+                                 onTouchMove={handleTouchMove}
+                                 onTouchEnd={handleTouchEnd}
+                             >
++                                {mapStructure ? (
++                                    <MapStructureSVG data={mapStructure} />
++                                ) : (
+                                 <LocalMapSVG
+                                     layout={(activeSmall || activeMid)?.layout!}
+                                     layoutWidth={800}
+                                     layoutHeight={600}
+                                     unit={10}
+                                 />
++                                )}
+                             </div>
+                         </div>
+                     ) : (

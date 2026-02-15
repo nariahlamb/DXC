@@ -1,0 +1,5 @@
+- [ ] IMPL-1: 类型与配置收敛（仅 3 服务）
+- [ ] IMPL-2: 路由/分发/Prompt 去旧模式化
+- [ ] IMPL-3: 主流程删除 legacy 执行与 fallback 入口
+- [ ] IMPL-4: 服务输入与命令守卫收敛到 triad
+- [ ] IMPL-5: 测试与文档同步 + 验证

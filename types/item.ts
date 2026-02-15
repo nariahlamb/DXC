@@ -8,6 +8,7 @@ export interface InventoryItem {
   // 类型定义
   类型: 'consumable' | 'material' | 'key_item' | 'weapon' | 'armor' | 'loot'
     | '消耗品' | '材料' | '关键物品' | '钥匙物品' | '武器' | '防具' | '护甲' | '饰品' | '战利品' | '掉落' | '杂项'; 
+  图标?: string; // 支持 URL 或 Iconify 格式
   获取途径?: 'dungeon' | 'public'; 
 
   // 标签与来源
@@ -23,9 +24,12 @@ export interface InventoryItem {
   装备槽位?: string; 
   
   // --- 核心属性 (原 ItemStats 扁平化) ---
-  品质?: 'Broken' | 'Common' | 'Rare' | 'Epic' | 'Legendary'
-    | '普通' | '精良' | '稀有' | '史诗' | '传说' | '神话' | '破损'; // 兼容中文枚举
-  稀有度?: string; // 可选中文稀有度别名
+  // 写入标准：统一使用中文品质；仍兼容历史英文/字母档输入
+  品质?: '破损' | '普通' | '稀有' | '史诗' | '传说' | '神话'
+    | '精良' | '完美'
+    | 'Broken' | 'Common' | 'Rare' | 'Epic' | 'Legendary' | 'Pristine'
+    | 'N' | 'R' | 'SR' | 'SSR' | 'UR' | 'EX' | 'S' | 'SS' | 'SSS';
+  稀有度?: string; // 兼容旧字段（最终会与 品质 保持一致）
   
   // 战斗数值
   攻击力?: number;
@@ -89,4 +93,15 @@ export interface InventoryItem {
     过载惩罚?: string;
     备注?: string;
   };
+}
+
+// === TavernDB-Aligned Extensions ===
+// Additional fields to align with TavernDB ITEM_Inventory structure
+
+export interface InventoryItemTavernDB extends InventoryItem {
+  // TavernDB specific fields (all optional for backward compatibility)
+  所属人?: string; // Owner name (empty = public/player)
+  伤害?: string; // Weapon damage (e.g., "1d8+3")
+  特性?: string; // Item properties (e.g., "轻型, 灵巧")
+  价值单位?: string; // Value unit (e.g., "gp", "sp", "cp")
 }

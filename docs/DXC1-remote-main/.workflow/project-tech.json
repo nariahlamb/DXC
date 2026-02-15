@@ -1,0 +1,25 @@
+{
+  "issue_workflow": {
+    "version": "1.0.0",
+    "status_source": "project-guidelines.issue_state_policy.issue_status",
+    "github_pull_state_source": "project-guidelines.issue_state_policy.github_pull_state",
+    "default_issue_status": "registered",
+    "default_github_pull_state": "open",
+    "alias_resolution": "project-guidelines.issue_state_policy.alias_map",
+    "transition_validation": "project-guidelines.issue_state_policy.transition_rules",
+    "error_templates": "project-guidelines.issue_state_policy.error_templates",
+    "extension_strategy": {
+      "type": "single-entry",
+      "entrypoint": "project-guidelines.issue_state_policy.extension_spec",
+      "compatibility": "backward-compatible",
+      "change_control": "additive-only"
+    },
+    "consumers": [
+      "api:/api/issues/pull",
+      "api:/api/issues PATCH",
+      "cli:ccw issue pull",
+      "cli:ccw issue update",
+      "dashboard:pull issues modal"
+    ]
+  }
+}

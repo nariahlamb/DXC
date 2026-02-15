@@ -1,0 +1,49 @@
+{
+  "id": "IMPL-4",
+  "title": "服务输入与命令守卫收敛到 triad",
+  "status": "completed",
+  "meta": {
+    "type": "feature",
+    "agent": "code-developer"
+  },
+  "context": {
+    "requirements": [
+      "保留 memory/state/map 的输入构建核心",
+      "command guard 收敛为 triad 语义",
+      "移除 triad 外服务的守卫分支"
+    ],
+    "focus_paths": [
+      "hooks/gameLogic/microservice/inputBuilder.ts",
+      "hooks/gameLogic/microservice/commandGuard.ts",
+      "hooks/gameLogic/microservice/serviceRunner.ts"
+    ],
+    "acceptance": [
+      "状态更新路径仅由 state/memory/map 驱动",
+      "guard 无 triad 外独立业务语义"
+    ],
+    "depends_on": [
+      "IMPL-3"
+    ]
+  },
+  "flow_control": {
+    "pre_analysis": [
+      "审查微服务输入结构",
+      "审查 command guard 对各 serviceKey 的分支"
+    ],
+    "implementation_approach": [
+      {
+        "step": "输入收敛",
+        "action": "保留 triad 必需上下文，去除无效分支"
+      },
+      {
+        "step": "守卫收敛",
+        "action": "基于 triad-only 重写或简化服务判断"
+      }
+    ]
+  },
+  "depends_on": [
+    "IMPL-3"
+  ],
+  "started_at": "2026-02-14T03:33:56.498998+08:00",
+  "completed_at": "2026-02-14T03:38:00.3288041+08:00"
+}

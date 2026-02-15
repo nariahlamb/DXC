@@ -1,0 +1,7 @@
+- [ ] Task 1: Normalize layout breakpoint in GameInterface.tsx (md -> lg)
+- [ ] Task 2: Wire MobileMapView into mobile entry points (GameInterface.tsx, MobileMenuOverlay.tsx)
+- [ ] Task 3: Wire MobileInventoryView into mobile entry points (GameInterface.tsx, MobileMenuOverlay.tsx)
+- [ ] Task 4: Add safe-area padding and improve touch targets (MobileTopNav.tsx, MobileBottomNav.tsx)
+- [ ] Task 5: Fix mobile viewport height usage (Home.tsx, CharacterCreation.tsx)
+- [ ] Task 6: Reduce fixed min-height in SocialPhoneModal.tsx
+- [ ] Task 7: Verify all changes manually (Visual check)

@@ -1,0 +1,116 @@
+{
+  "session_id": "BS-分析-2026-02-08",
+  "topic": "DND沉浸式仪表盘能力适配 DXC",
+  "completed": "2026-02-08T18:15:00+08:00",
+  "total_rounds": 5,
+  "top_ideas": [
+    {
+      "title": "Hybrid Dual-Track Adapter",
+      "description": "以 GameState 为 SSOT，增加 sheet compatibility adapter + row translator，先兼容后原生化。",
+      "source_perspective": "systematic + pragmatic",
+      "score": 9.4,
+      "novelty": 4,
+      "feasibility": 5,
+      "key_strengths": [
+        "快速复用现有命令体系",
+        "可渐进替换脚本式逻辑",
+        "风险可控且可回滚"
+      ],
+      "main_challenges": [
+        "阶段边界不清会形成长期双系统",
+        "需要强一致性校验"
+      ],
+      "next_steps": [
+        "建立 21 表 schema registry",
+        "先落地 10 张核心表",
+        "增加 turn transaction + invariant validator"
+      ]
+    },
+    {
+      "title": "Director Mode Experience Engine",
+      "description": "把行动选项变成可解释、可预演风险的导演式交互流程。",
+      "source_perspective": "creative",
+      "score": 8.8,
+      "novelty": 5,
+      "feasibility": 4,
+      "key_strengths": [
+        "大幅提升游戏性",
+        "强化行动反馈闭环",
+        "提升玩家决策参与感"
+      ],
+      "main_challenges": [
+        "信息密度控制",
+        "避免引导压制自由叙事"
+      ],
+      "next_steps": [
+        "先做风险标签与结果预览",
+        "再做事件卡与可视化反馈",
+        "提供建议强度开关"
+      ]
+    },
+    {
+      "title": "Template Studio Incremental",
+      "description": "分期建设模板导入导出、预设切换、profile 隔离和可视化编辑。",
+      "source_perspective": "pragmatic + systematic",
+      "score": 8.2,
+      "novelty": 3,
+      "feasibility": 4,
+      "key_strengths": [
+        "复制参考脚本生产力",
+        "增强可配置能力",
+        "便于多剧本/多角色运营"
+      ],
+      "main_challenges": [
+        "配置复杂度高",
+        "需要清晰的 UX 分层"
+      ],
+      "next_steps": [
+        "Phase1: 导入导出+校验",
+        "Phase2: 预设切换",
+        "Phase3: profile隔离+可视化编辑"
+      ]
+    }
+  ],
+  "parked_ideas": [
+    {
+      "title": "Full Script Parity Rewrite",
+      "reason_parked": "投入过高且首期风险不可控",
+      "potential_future_trigger": "当核心能力与商业目标都稳定后"
+    },
+    {
+      "title": "Co-GM Assistant Advanced",
+      "reason_parked": "需要更成熟的剧情评估模型",
+      "potential_future_trigger": "Director Mode v2 完成后"
+    }
+  ],
+  "key_insights": [
+    "当前项目已具备强命令层基础，最大缺口在模板工作流与多角色关系域。",
+    "参考脚本的核心价值在流程编排与配置能力，不在 DOM 细节。",
+    "游戏性提升应由事件编排与反馈系统驱动，而非单纯增加按钮数量。"
+  ],
+  "recommendations": {
+    "primary": "采用三阶段路线：Compatibility Adapter -> Director Mode -> Template Studio Full",
+    "alternatives": [
+      "仅兼容路线（快但体验增益有限）",
+      "全量重构路线（纯但慢）"
+    ],
+    "not_recommended": [
+      "第一阶段追求脚本 UI 1:1 还原",
+      "在无事务机制前引入大规模自动更新"
+    ]
+  },
+  "follow_up": [
+    {
+      "type": "implementation",
+      "summary": "输出一个按周分解的实现计划（含文件级改动清单）"
+    },
+    {
+      "type": "research",
+      "summary": "分析 21 张表到现有类型系统的精确映射差异"
+    },
+    {
+      "type": "validation",
+      "summary": "设计 turn transaction 的一致性测试矩阵"
+    }
+  ]
+}

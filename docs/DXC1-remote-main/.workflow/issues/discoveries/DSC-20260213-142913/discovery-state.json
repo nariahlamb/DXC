@@ -1,0 +1,22 @@
+{
+  "discovery_id": "DSC-20260213-142913",
+  "target_pattern": "components/**",
+  "phase": "complete",
+  "created_at": "2026-02-13T14:29:13.518Z",
+  "updated_at": "2026-02-13T14:29:13.523Z",
+  "perspectives": [
+    "bug",
+    "test",
+    "quality"
+  ],
+  "results": {
+    "total_findings": 14,
+    "issues_generated": 7,
+    "priority_distribution": {
+      "critical": 0,
+      "high": 6,
+      "medium": 6,
+      "low": 2
+    }
+  }
+}

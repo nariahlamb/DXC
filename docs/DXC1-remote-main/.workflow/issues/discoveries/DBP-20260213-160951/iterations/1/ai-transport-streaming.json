@@ -1,0 +1,54 @@
+{
+  "dimension": "ai-transport-streaming",
+  "iteration": 1,
+  "focus": "transport loop and timeout guard coverage",
+  "findings": [
+    {
+      "id": "F-004",
+      "title": "dispatchAIRequest timeout capability is present but not wired in main callers",
+      "category": "config-gap",
+      "file": "utils/aiDispatch.ts",
+      "line": 147,
+      "snippet": "const timeoutMs = ... : 0",
+      "confidence": 0.92,
+      "severity": "high"
+    },
+    {
+      "id": "F-005",
+      "title": "OpenAI-compatible stream reader can wait indefinitely for done signal",
+      "category": "stream-hang-risk",
+      "file": "utils/aiDispatch.ts",
+      "line": 305,
+      "snippet": "while (true) { const { done, value } = await reader.read(); ... }",
+      "confidence": 0.91,
+      "severity": "critical"
+    },
+    {
+      "id": "F-006",
+      "title": "State microservice path does not pass abort signal to service generation",
+      "category": "cancellation-gap",
+      "file": "hooks/gameLogic/useGameLogicCore.ts",
+      "line": 5760,
+      "snippet": "generateServiceCommands(\"state\", scopedInput, stateSnapshot, settings)",
+      "confidence": 0.86,
+      "severity": "high"
+    }
+  ],
+  "coverage": {
+    "files_explored": 4,
+    "areas_covered": [
+      "dispatchAIRequest",
+      "stream read loop",
+      "state microservice routing"
+    ],
+    "areas_remaining": [
+      "idle watchdog"
+    ]
+  },
+  "leads": [
+    {
+      "description": "enumerate every dispatch caller and timeout policy",
+      "suggested_search": "dispatchAIRequest("
+    }
+  ]
+}

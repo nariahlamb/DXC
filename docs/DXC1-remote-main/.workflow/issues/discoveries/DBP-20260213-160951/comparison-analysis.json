@@ -1,0 +1,8 @@
+{
+  "applicable": false,
+  "intent_type": "audit",
+  "reason": "Cross-dimension comparison matrix is only required for comparison intent.",
+  "summary": {
+    "note": "Findings are correlated qualitatively; no A/B match-rate computation executed."
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "dimension": "context-and-phone-performance",
+  "iteration": 3,
+  "focus": "final context size hotspots and phone lock persistence",
+  "findings": [
+    {
+      "id": "F-021",
+      "title": "Map context outputs broad arrays without strict section limits",
+      "category": "unbounded-context",
+      "file": "utils/aiContext.ts",
+      "line": 168,
+      "snippet": "macroSummary/midSummary/floor arrays all serialized",
+      "confidence": 0.81,
+      "severity": "medium"
+    },
+    {
+      "id": "F-022",
+      "title": "Inventory/world context serializes full structures every turn",
+      "category": "repeat-serialization",
+      "file": "utils/aiContext.ts",
+      "line": 585,
+      "snippet": "constructInventoryContext + constructWorldContext full dumps",
+      "confidence": 0.82,
+      "severity": "medium"
+    },
+    {
+      "id": "F-023",
+      "title": "Phone processing state release depends on finally; unresolved await keeps it occupied",
+      "category": "state-release-risk",
+      "file": "hooks/gameLogic/useGameLogicCore.ts",
+      "line": 8448,
+      "snippet": "setIsPhoneProcessing(false) only in finally",
+      "confidence": 0.79,
+      "severity": "medium"
+    }
+  ],
+  "coverage": {
+    "files_explored": 3,
+    "areas_covered": [
+      "map/world/inventory modules",
+      "phone processing release"
+    ],
+    "areas_remaining": [
+      "context byte budget policy"
+    ]
+  },
+  "leads": [
+    {
+      "description": "add module-level size budget and selective field projection",
+      "suggested_search": "ContextModuleConfig detailLevel"
+    }
+  ]
+}

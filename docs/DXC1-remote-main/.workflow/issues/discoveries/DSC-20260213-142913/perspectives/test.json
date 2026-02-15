@@ -1,0 +1,55 @@
+{
+  "perspective": "test",
+  "analyzed_at": "2026-02-13T14:29:13.518Z",
+  "files_analyzed": 90,
+  "findings": [
+    {
+      "id": "F-001",
+      "title": "缺少 TopNav 全屏行为测试（成功/失败/ESC 退出）",
+      "priority": "high",
+      "category": "unit-coverage",
+      "description": "现有 TopNav 测试仅覆盖仪表盘按钮打开流程，未覆盖 requestFullscreen 失败及 fullscreenchange 同步场景。",
+      "file": "components/game/TopNav.tsx",
+      "line": 43,
+      "snippet": "const toggleFullscreen = () => {",
+      "suggested_issue": "新增 TopNav 单测：mock requestFullscreen/exitFullscreen/fullscreenchange，验证图标状态与真实全屏状态一致。",
+      "confidence": 0.9
+    },
+    {
+      "id": "F-002",
+      "title": "缺少 Home 存档读取失败路径测试",
+      "priority": "high",
+      "category": "error-path-coverage",
+      "description": "Home 已覆盖“继续冒险有最新存档”路径，但未覆盖 loadAllSaveSlots/getManagedJson 失败与坏数据分支。",
+      "file": "components/Home.tsx",
+      "line": 68,
+      "snippet": "const handleOpenLoadModal = () => {",
+      "suggested_issue": "补充失败分支测试：loadAllSaveSlots reject、getManagedJson 返回空或损坏数据。",
+      "confidence": 0.88
+    },
+    {
+      "id": "F-003",
+      "title": "缺少 TypewriterText 的 Unicode 与定时器清理测试",
+      "priority": "medium",
+      "category": "edge-case-coverage",
+      "description": "未发现 TypewriterText 相关测试，无法保障 emoji 文本与组件卸载时 interval 清理行为。",
+      "file": "components/ui/TypewriterText.tsx",
+      "line": 9,
+      "snippet": "const timer = setInterval(() => {",
+      "suggested_issue": "增加 TypewriterText 测试：emoji 字符串渲染正确，卸载后不再触发 setState。",
+      "confidence": 0.78
+    },
+    {
+      "id": "F-004",
+      "title": "缺少 SettingsModal 变量编辑器回归测试",
+      "priority": "high",
+      "category": "integration-coverage",
+      "description": "SettingsModal 有 JSON 编辑与错误提示逻辑，但现有测试多为保存/头像保护场景，变量编辑器缺少行为验证。",
+      "file": "components/game/modals/SettingsModal.tsx",
+      "line": 1060,
+      "snippet": "const parsed = JSON.parse(jsonEditText);",
+      "suggested_issue": "新增 SettingsModal 测试：非法 JSON 给出错误，合法 JSON 更新指定变量分类。",
+      "confidence": 0.82
+    }
+  ]
+}

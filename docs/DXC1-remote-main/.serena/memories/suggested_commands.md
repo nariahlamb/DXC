@@ -1,0 +1,12 @@
+Windows/PowerShell 常用命令：
+- npm install
+- npm run dev
+- npm run build
+- npm run preview
+- npm test
+- npm run test:watch
+- npx tsc --noEmit
+- git status
+- git diff
+- git add <specific-files>
+- git commit -m "Fix <area>: <summary>"

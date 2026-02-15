@@ -1,0 +1,63 @@
+{
+  "session_id": "ANL-docs-ref--2026-02-06",
+  "timestamp": "2026-02-06T23:12:00+08:00",
+  "topic": "docs\\ref内酒馆助手相关脚本",
+  "dimensions": [
+    "implementation",
+    "architecture",
+    "decision"
+  ],
+  "sources": [
+    {
+      "type": "docs/ref assets",
+      "summary": "覆盖 TavernDB 模板、DND 仪表盘脚本、SillyTavern 数据脚本、战斗推进规则与迁移总结"
+    },
+    {
+      "type": "codebase implementation",
+      "summary": "覆盖 types/contracts/extendedCommands/useGameLogic 与 UI 消费组件"
+    },
+    {
+      "type": "project docs",
+      "summary": "覆盖 README/DEVREADME 与 ref 迁移方法论文档"
+    }
+  ],
+  "key_findings": [
+    "docs/ref 资产中的 TavernDB 表结构可映射到 DXC 的扩展契约与类型体系。",
+    "DXC 已建立扩展 action 优先、legacy path fallback 的命令处理架构。",
+    "战斗地图、遭遇、骰池、日志、行动选项与先攻在数据层和 UI 层均有落地点。",
+    "sillytavern数据库脚本.js 的核心可借鉴点是存储分层与窗口状态管理，而非 UI 直接复用。",
+    "战斗推进v1-1.json 含有高风险越权 prompt 片段，必须限制为规则层参考，不得原样迁移。"
+  ],
+  "discussion_points": [
+    "是否建立 docs/ref 资产分级（可迁移、仅参考、禁止直接使用）并纳入开发文档？",
+    "是否统一 upsert_inventory 与 upsert_item 的命名语义，避免 prompt 与实现漂移？",
+    "是否对 EXPLORATION_Map_Data 保持延后，还是补齐最小实现占位？"
+  ],
+  "open_questions": [
+    "是否需要为高风险 prompt 片段增加静态扫描规则？",
+    "是否要将 DND 仪表盘脚本拆成“存储策略参考”与“UI 行为参考”两个独立文档？"
+  ],
+  "evidence_paths": [
+    "docs/ref/TavernDB_template_DND仪表盘配套模板v1.5.json",
+    "docs/ref/酒馆助手脚本-DND沉浸式仪表盘 v1.5.0.json",
+    "docs/ref/sillytavern数据库脚本.js",
+    "docs/ref/战斗推进v1-1.json",
+    "docs/ref/METHODOLOGY_EXTRACTION.md",
+    "docs/ref/taverndb-integration.md",
+    "types/gamestate.ts",
+    "types/social.ts",
+    "types/item.ts",
+    "utils/contracts.ts",
+    "hooks/gameLogic/extendedCommands.ts",
+    "hooks/useGameLogic.ts",
+    "components/game/CombatPanel.tsx",
+    "components/game/CenterPanel.tsx",
+    "components/combat/BattleStage.tsx",
+    "components/combat/BattleTimeline.tsx",
+    "prompts/commands.ts",
+    "prompts/schema.ts",
+    "README.md",
+    "DEVREADME.md"
+  ]
+}
+

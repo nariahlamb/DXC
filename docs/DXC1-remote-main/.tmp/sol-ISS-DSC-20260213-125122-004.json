@@ -1,0 +1,229 @@
+{
+  "description": "按领域拆分 useGameLogic 主流程并收敛 any 类型逃逸，保留现有对外 API。",
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "基线化 useGameLogic 拆分边界与类型债",
+      "scope": "hooks/useGameLogic.ts",
+      "action": "Refactor",
+      "description": "建立可执行的拆分边界文档和类型债清单，锁定状态初始化、命令执行、AI交互、手机交互四块职责。",
+      "modification_points": [
+        {
+          "file": "hooks/useGameLogic.ts",
+          "target": "职责分区注释与导出依赖",
+          "change": "标注并切分可迁移代码段"
+        },
+        {
+          "file": "hooks/gameLogic",
+          "target": "新建分层目录骨架",
+          "change": "创建 state/ai/phone/command 子模块文件"
+        }
+      ],
+      "implementation": [
+        "基于现有 8805 行代码按职责分段，输出迁移映射表（函数名 -> 目标模块）。",
+        "统计并归类 useGameLogic 中 any/unknown 强转点，优先标记命令处理与状态迁移路径。",
+        "定义迁移顺序：先无副作用工具函数，再副作用处理器，最后主 hook 装配层。"
+      ],
+      "test": {
+        "unit": [
+          "迁移映射完整性检查脚本",
+          "类型逃逸基线统计脚本"
+        ],
+        "commands": [
+          "powershell -Command \"(Get-Content hooks/useGameLogic.ts | Measure-Object -Line).Lines\"",
+          "powershell -Command \"(rg --line-number '\\bas any\\b|: any\\b|<any>|any\\[\\]' hooks/useGameLogic.ts | Measure-Object).Count\""
+        ]
+      },
+      "acceptance": {
+        "criteria": [
+          "迁移映射覆盖 useGameLogic 中 4 个领域（state/ai/phone/command）且每个领域至少 1 个目标模块。",
+          "类型逃逸清单包含不少于 20 个高风险点并按优先级分组。"
+        ],
+        "verification": [
+          "执行 `rg -n \"\\\\bas any\\\\b|: any\\\\b|<any>\" hooks/useGameLogic.ts hooks/gameLogic` 并记录 any 基线。",
+          "执行 `wc -l hooks/useGameLogic.ts` 对比拆分前后行数。",
+          "执行 `npx tsc --noEmit` 返回 0。"
+        ]
+      },
+      "priority": 1
+    },
+    {
+      "id": "T2",
+      "title": "抽离状态初始化与存档恢复逻辑",
+      "scope": "hooks/gameLogic/state",
+      "action": "Extract",
+      "description": "将初始状态构建、存档恢复迁移、衍生属性补全从主 hook 拆至独立模块。",
+      "modification_points": [
+        {
+          "file": "hooks/useGameLogic.ts",
+          "target": "初始 useState 初始化块",
+          "change": "替换为模块化初始化函数调用"
+        },
+        {
+          "file": "hooks/gameLogic/useGameStateBootstrap.ts",
+          "target": "新建模块",
+          "change": "承载 create/restore/migrate 逻辑"
+        },
+        {
+          "file": "tests/useGameLogic.legacy-save.test.tsx",
+          "target": "回归测试",
+          "change": "补充拆分后导入与行为断言"
+        }
+      ],
+      "implementation": [
+        "提炼 initialState 恢复与默认状态创建流程为纯函数，输入输出均使用 GameState。",
+        "将 migrateNpcActionsToTracking 与 ensureDerivedStats 的串联封装为可复用入口。",
+        "在 useGameLogic 中仅保留调用与依赖注入，减少初始化块体积。"
+      ],
+      "test": {
+        "unit": [
+          "legacy save restore behavior",
+          "state bootstrap migration path"
+        ],
+        "commands": [
+          "npx vitest run tests/useGameLogic.legacy-save.test.tsx --testTimeout=60000",
+          "npx tsc --noEmit"
+        ]
+      },
+      "acceptance": {
+        "criteria": [
+          "useGameLogic 初始化代码段减少至少 300 行。",
+          "legacy-save 相关测试 100% 通过且无新增类型错误。"
+        ],
+        "verification": [
+          "执行 npx vitest run tests/useGameLogic.legacy-save.test.tsx --testTimeout=60000 并通过。",
+          "执行 npx tsc --noEmit 返回 0。"
+        ]
+      },
+      "depends_on": [
+        "T1"
+      ],
+      "priority": 1
+    },
+    {
+      "id": "T3",
+      "title": "抽离命令分发并收敛 any 类型断言",
+      "scope": "hooks/gameLogic/command",
+      "action": "Refactor",
+      "description": "把 tavern command 的 switch 分发迁移到独立 dispatcher，并用类型守卫替换高频 any 强转。",
+      "modification_points": [
+        {
+          "file": "hooks/useGameLogic.ts",
+          "target": "指令分发 switch 区块",
+          "change": "替换为 dispatcher 调用"
+        },
+        {
+          "file": "hooks/gameLogic/commandDispatcher.ts",
+          "target": "新建模块",
+          "change": "集中维护 action->handler 映射与类型守卫"
+        },
+        {
+          "file": "tests/gameLogic/commandDispatcher.test.ts",
+          "target": "新建测试",
+          "change": "覆盖未知 action、非法 payload、成功分发"
+        }
+      ],
+      "implementation": [
+        "定义命令联合类型与 payload 读取工具，替换 (cmd as any)?.value 访问链。",
+        "构建 action-handler 映射并保留现有 extendedCommands 处理函数调用。",
+        "将错误日志格式化逻辑留在 dispatcher，主 hook 仅消费结果。"
+      ],
+      "test": {
+        "unit": [
+          "dispatcher action routing",
+          "invalid payload guard",
+          "unknown action fallback"
+        ],
+        "commands": [
+          "npx vitest run tests/gameLogic/commandDispatcher.test.ts --testTimeout=60000",
+          "npx vitest run tests/taverndb/sheetWriteHandlers.test.ts --testTimeout=60000"
+        ]
+      },
+      "acceptance": {
+        "criteria": [
+          "useGameLogic 内与命令相关的 (cmd as any) 出现次数下降至少 60%。",
+          "新增 dispatcher 单测不少于 8 条且全部通过。"
+        ],
+        "verification": [
+          "执行 npx vitest run tests/gameLogic/commandDispatcher.test.ts --testTimeout=60000 并通过。",
+          "执行 rg 统计命令验证 (cmd as any) 计数下降。"
+        ]
+      },
+      "depends_on": [
+        "T1",
+        "T2"
+      ],
+      "priority": 1
+    },
+    {
+      "id": "T4",
+      "title": "抽离 AI/手机交互流程并完成回归验证",
+      "scope": "hooks/gameLogic/ai-phone",
+      "action": "Refactor",
+      "description": "提取 handleAIInteraction 与 phone sync/chat 核心分支为可复用模块，主 hook 仅保留组合层。",
+      "modification_points": [
+        {
+          "file": "hooks/useGameLogic.ts",
+          "target": "AI 与手机处理函数",
+          "change": "迁移到独立模块并保留原 API"
+        },
+        {
+          "file": "hooks/gameLogic/useAiInteractionFlow.ts",
+          "target": "新建模块",
+          "change": "封装 ACTION/PHONE 交互主流程"
+        },
+        {
+          "file": "hooks/gameLogic/usePhoneActionFlow.ts",
+          "target": "新建模块",
+          "change": "封装 sync/moment/forum/chat 逻辑"
+        },
+        {
+          "file": "tests/useGameLogic.integration-refactor.test.tsx",
+          "target": "新建测试",
+          "change": "验证公开返回 API 与关键流程不变"
+        }
+      ],
+      "implementation": [
+        "将 AI 请求预处理、命令过滤、状态提交拆到独立 flow 模块。",
+        "将手机处理的 scope 状态机封装，输入/输出保持兼容。",
+        "更新 useGameLogic 返回对象引用，确保外部组件调用签名不变。"
+      ],
+      "test": {
+        "unit": [
+          "ai interaction flow",
+          "phone scope state transitions",
+          "public API compatibility"
+        ],
+        "commands": [
+          "npx vitest run tests/useGameLogic.integration-refactor.test.tsx --testTimeout=60000",
+          "npm test",
+          "npm run build"
+        ]
+      },
+      "acceptance": {
+        "criteria": [
+          "hooks/useGameLogic.ts 总行数从 8805 降至 <= 6000。",
+          "hooks/useGameLogic.ts 的 any 相关匹配数从 343 降至 <= 200。",
+          "npm test 与 npm run build 均通过。"
+        ],
+        "verification": [
+          "执行 npm test 并通过。",
+          "执行 npm run build 并通过。",
+          "执行行数与 any 计数命令并满足阈值。"
+        ]
+      },
+      "depends_on": [
+        "T2",
+        "T3"
+      ],
+      "priority": 2
+    }
+  ],
+  "exploration_context": null,
+  "analysis": {
+    "risk": "medium",
+    "impact": "high",
+    "complexity": "high"
+  },
+  "score": 0.9
+}

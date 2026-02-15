@@ -1,0 +1,46 @@
+{
+  "timestamp": "2026-02-03T10:31:26",
+  "modules": [
+    {
+      "path": "prompts",
+      "description": "AI Instructions Core & Game Rules",
+      "tags": ["ai", "logic", "json-schema"],
+      "coverage": "high"
+    },
+    {
+      "path": "components",
+      "description": "React UI Components & Modals",
+      "tags": ["react", "ui", "tailwind"],
+      "coverage": "high"
+    },
+    {
+      "path": "hooks",
+      "description": "Game Logic & State Management",
+      "tags": ["hooks", "state"],
+      "coverage": "medium"
+    },
+    {
+      "path": "types",
+      "description": "TypeScript Definitions",
+      "tags": ["types", "interfaces"],
+      "coverage": "high"
+    }
+  ],
+  "primary_entry": "index.tsx",
+  "key_paths": [
+    "vite.config.ts",
+    "package.json",
+    "prompts/index.ts",
+    "components/game/modals/FamiliaModal.tsx"
+  ],
+  "scan_stats": {
+    "estimated_files": 50,
+    "scanned_files": 15,
+    "coverage_percent": 30,
+    "truncated": false
+  },
+  "next_steps": [
+    "Review hooks/useGameLogic.ts for state complexity",
+    "Check utils/ai.ts for API integration details"
+  ]
+}

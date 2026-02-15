@@ -1,0 +1,87 @@
+{
+  "id": "QUE-20260213145410",
+  "discovery_id": "DSC-20260213-143958",
+  "created_at": "2026-02-13T14:54:10.696Z",
+  "updated_at": "2026-02-13T15:35:40.0161698Z",
+  "status": "completed",
+  "current_issue_id": null,
+  "items": [
+    {
+      "order": 1,
+      "issue_id": "ISS-DSC-20260213-143958-001",
+      "title": "将流式回调改为增量 chunk 协议（delta），并在 UI 端按增量拼接，避免反复全量拷贝。",
+      "priority": 3,
+      "status": "completed"
+    },
+    {
+      "order": 2,
+      "issue_id": "ISS-DSC-20260213-143958-002",
+      "title": "新增 stream 行为测试：验证 delta/fullText 语义、调用频率和最终 flush 一致性。",
+      "priority": 3,
+      "status": "completed"
+    },
+    {
+      "order": 3,
+      "issue_id": "ISS-DSC-20260213-143958-003",
+      "title": "将 `lastAIResponse` 的更新策略切换为增量 append + requestAnimationFrame 节流。",
+      "priority": 3,
+      "status": "completed"
+    },
+    {
+      "order": 4,
+      "issue_id": "ISS-DSC-20260213-143958-004",
+      "title": "为记忆召回加入异步缓存层和脏标记，避免每轮全量投影。",
+      "priority": 3,
+      "status": "completed"
+    },
+    {
+      "order": 5,
+      "issue_id": "ISS-DSC-20260213-143958-005",
+      "title": "为不同服务引入并发槽或独立队列，减少 memory 慢请求对其它服务的阻塞。",
+      "priority": 3,
+      "status": "completed"
+    },
+    {
+      "order": 6,
+      "issue_id": "ISS-DSC-20260213-143958-006",
+      "title": "替换为括号平衡提取器，确保嵌套结构下命令数组完整。",
+      "priority": 3,
+      "status": "completed"
+    },
+    {
+      "order": 7,
+      "issue_id": "ISS-DSC-20260213-143958-007",
+      "title": "新增 aiJson 单测覆盖：嵌套数组命令、SSE 包装、repair path 与错误输入。",
+      "priority": 3,
+      "status": "completed"
+    },
+    {
+      "order": 8,
+      "issue_id": "ISS-DSC-20260213-143958-008",
+      "title": "对 state 服务输入做字段白名单与压缩序列化，减少非必要上下文。",
+      "priority": 3,
+      "status": "completed"
+    },
+    {
+      "order": 9,
+      "issue_id": "ISS-DSC-20260213-143958-009",
+      "title": "保留已配对成功的命令，缺失部分按 turn 精确补齐，避免全量回退。",
+      "priority": 3,
+      "status": "completed"
+    },
+    {
+      "order": 10,
+      "issue_id": "ISS-DSC-20260213-143958-010",
+      "title": "拆分为 input-builder / service-runner / command-guard / apply-transaction 子模块。",
+      "priority": 3,
+      "status": "completed"
+    },
+    {
+      "order": 11,
+      "issue_id": "ISS-DSC-20260213-143958-011",
+      "title": "新增队列测试：优先级顺序、慢任务阻塞、drain 行为与异常隔离。",
+      "priority": 2,
+      "status": "completed"
+    }
+  ]
+}

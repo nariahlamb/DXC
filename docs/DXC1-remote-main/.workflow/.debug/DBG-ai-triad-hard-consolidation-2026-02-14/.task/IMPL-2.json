@@ -1,0 +1,49 @@
+{
+  "id": "IMPL-2",
+  "title": "路由/分发/Prompt 去旧模式化",
+  "status": "completed",
+  "meta": {
+    "type": "feature",
+    "agent": "code-developer"
+  },
+  "context": {
+    "requirements": [
+      "resolveServiceConfig 只走 triad 路由",
+      "删除 unified/override/legacy-memory fallback",
+      "叙事 Prompt 仅根据 state 可用性决定 narrative-only"
+    ],
+    "focus_paths": [
+      "utils/aiDispatch.ts",
+      "utils/aiRouting.ts",
+      "utils/aiPrompt.ts"
+    ],
+    "acceptance": [
+      "serviceKey 非 story/map 时统一落 state",
+      "不存在 aiConfig.unified 回退分支"
+    ],
+    "depends_on": [
+      "IMPL-1"
+    ]
+  },
+  "flow_control": {
+    "pre_analysis": [
+      "梳理 resolveServiceConfig 当前分支",
+      "梳理 routing helper 与 prompt 判定"
+    ],
+    "implementation_approach": [
+      {
+        "step": "重写分发函数",
+        "action": "实现 triad-only 解析并保持 strictService 行为"
+      },
+      {
+        "step": "收敛 routing/prompt",
+        "action": "移除旧 mode 依赖"
+      }
+    ]
+  },
+  "depends_on": [
+    "IMPL-1"
+  ],
+  "started_at": "2026-02-14T03:28:47.1527139+08:00",
+  "completed_at": "2026-02-14T03:31:04.1630799+08:00"
+}

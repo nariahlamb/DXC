@@ -1,0 +1,65 @@
+{
+  "session_id": "ANL-docs-ref--2026-02-06",
+  "topic": "docs\\ref内酒馆助手相关脚本",
+  "completed": "2026-02-06T23:15:00+08:00",
+  "total_rounds": 1,
+  "summary": "本次 full-depth 分析确认：docs/ref 的酒馆助手相关脚本在 DXC 中已形成较完整的落地链路（contracts -> command routing -> state mutation -> UI rendering）。当前主要改进空间在参考资产分级治理、命令命名一致性与安全边界文档化。",
+  "key_conclusions": [
+    {
+      "point": "DXC 已具备 TavernDB 核心结构的类型与校验支撑",
+      "evidence": "utils/contracts.ts 与 types/gamestate.ts/types/social.ts/types/item.ts 定义了对应 schema 与 optional 扩展字段",
+      "confidence": "high"
+    },
+    {
+      "point": "扩展指令处理链路可稳定覆盖战斗和日志主流程",
+      "evidence": "hooks/useGameLogic.ts 中 processTavernCommands 先走扩展 action（set_encounter_rows、upsert_battle_map_rows、set_map_visuals、set_initiative 等）后回退 legacy",
+      "confidence": "high"
+    },
+    {
+      "point": "前端展示面已消费扩展结构，具备战斗决策可视化基础",
+      "evidence": "components/game/CombatPanel.tsx、components/game/CenterPanel.tsx、components/combat/BattleStage.tsx、components/combat/BattleTimeline.tsx",
+      "confidence": "high"
+    },
+    {
+      "point": "docs/ref 中存在高风险 prompt 片段，必须按“规则抽取”而非“原文复用”处理",
+      "evidence": "docs/ref/战斗推进v1-1.json 含 Bypass/限制绕过语句；METHODOLOGY_EXTRACTION.md 已声明仅保留游戏机制",
+      "confidence": "high"
+    }
+  ],
+  "recommendations": [
+    {
+      "action": "新增 docs/ref 资产分级索引文档",
+      "rationale": "明确哪些素材可迁移、哪些仅可参考、哪些禁止直接使用",
+      "priority": "high"
+    },
+    {
+      "action": "统一 inventory 相关 action 的命名约定",
+      "rationale": "降低 prompts 与 handlers 语义漂移，便于未来自动化校验",
+      "priority": "medium"
+    },
+    {
+      "action": "在 DEV 文档补充“参考资产 -> 代码落地矩阵”",
+      "rationale": "减少后续维护者重复分析成本，加快功能扩展定位",
+      "priority": "medium"
+    }
+  ],
+  "open_questions": [
+    "是否在 CI 引入 prompt 风险关键字扫描？",
+    "EXPLORATION_Map_Data 是否进入近期实现计划？"
+  ],
+  "follow_up_suggestions": [
+    {
+      "type": "issue",
+      "summary": "建立 docs/ref 资产分级与引用规范（含风险标记）"
+    },
+    {
+      "type": "task",
+      "summary": "补充 inventory 指令命名统一与文档对齐"
+    },
+    {
+      "type": "task",
+      "summary": "输出参考资产落地矩阵并接入 DEVREADME"
+    }
+  ]
+}
+

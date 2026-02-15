@@ -1,0 +1,94 @@
+{
+  "id": "QUE-20260214003813",
+  "discovery_id": "DBP-20260213-160951",
+  "created_at": "2026-02-13T16:38:13.87Z",
+  "updated_at": "2026-02-13T17:21:32.750Z",
+  "status": "in_progress",
+  "current_issue_id": "ISS-DBP-20260213-160951-009",
+  "items": [
+    {
+      "order": 1,
+      "issue_id": "ISS-DBP-20260213-160951-001",
+      "title": "主对话请求缺少超时，可能导致处理中状态无限挂起",
+      "priority": 3,
+      "status": "completed"
+    },
+    {
+      "order": 2,
+      "issue_id": "ISS-DBP-20260213-160951-002",
+      "title": "OpenAI 兼容流式读取缺少 idle watchdog，半开连接可长期阻塞",
+      "priority": 3,
+      "status": "completed"
+    },
+    {
+      "order": 3,
+      "issue_id": "ISS-DBP-20260213-160951-003",
+      "title": "流式 thinking 提取对累计全文重复解析，存在 O(n^2) 卡顿风险",
+      "priority": 3,
+      "status": "completed"
+    },
+    {
+      "order": 4,
+      "issue_id": "ISS-DBP-20260213-160951-004",
+      "title": "AM 召回请求无超时且串行执行，放大首包延迟",
+      "priority": 3,
+      "status": "completed"
+    },
+    {
+      "order": 5,
+      "issue_id": "ISS-DBP-20260213-160951-005",
+      "title": "首回合 IP 补全请求无超时，延迟主流程释放",
+      "priority": 3,
+      "status": "completed"
+    },
+    {
+      "order": 6,
+      "issue_id": "ISS-DBP-20260213-160951-006",
+      "title": "论坛自动生成无超时，in-flight 锁可长时间占用",
+      "priority": 3,
+      "status": "completed"
+    },
+    {
+      "order": 7,
+      "issue_id": "ISS-DBP-20260213-160951-007",
+      "title": "phone 生成调用分散且大多不可取消，易形成悬挂请求",
+      "priority": 3,
+      "status": "completed"
+    },
+    {
+      "order": 8,
+      "issue_id": "ISS-DBP-20260213-160951-008",
+      "title": "Prompt 拼装无硬预算，易生成超大上下文并拖慢响应",
+      "priority": 3,
+      "status": "completed"
+    },
+    {
+      "order": 9,
+      "issue_id": "ISS-DBP-20260213-160951-009",
+      "title": "上下文模块大量 pretty JSON 序列化，主线程负担高",
+      "priority": 3,
+      "status": "in_progress"
+    },
+    {
+      "order": 10,
+      "issue_id": "ISS-DBP-20260213-160951-010",
+      "title": "每轮双重全量状态快照序列化，触发预处理耗时峰值",
+      "priority": 2,
+      "status": "planned"
+    },
+    {
+      "order": 11,
+      "issue_id": "ISS-DBP-20260213-160951-011",
+      "title": "State 微服务并行路径未传 signal，慢请求难回收",
+      "priority": 2,
+      "status": "planned"
+    },
+    {
+      "order": 12,
+      "issue_id": "ISS-DBP-20260213-160951-012",
+      "title": "配置层缺少 story/phone/world 超时字段，无法运营调优",
+      "priority": 2,
+      "status": "completed"
+    }
+  ]
+}

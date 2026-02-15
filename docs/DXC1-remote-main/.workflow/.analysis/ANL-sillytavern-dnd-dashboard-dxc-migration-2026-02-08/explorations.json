@@ -1,0 +1,60 @@
+{
+  "session_id": "ANL-sillytavern-dnd-dashboard-dxc-migration-2026-02-08",
+  "timestamp": "2026-02-08T16:12:00+08:00",
+  "topic": "SillyTavern DND 仪表盘机制与 DXC 对照迁移",
+  "dimensions": [
+    "architecture",
+    "implementation",
+    "comparison",
+    "decision"
+  ],
+  "sources": [
+    {
+      "type": "reference-script",
+      "path": "docs/ref/酒馆助手脚本-DND沉浸式仪表盘 v1.9.0.json",
+      "summary": "前端脚本，含 chatSheets 读写、地图生成、骰池补充、战斗HUD"
+    },
+    {
+      "type": "reference-template",
+      "path": "docs/ref/DND仪表盘配套模板.json",
+      "summary": "chatSheets 表结构模板，定义 SYS/COMBAT/DICE/MAP/CHARACTER 契约"
+    },
+    {
+      "type": "dxc-implementation",
+      "path": "hooks/gameLogic/extendedCommands.ts",
+      "summary": "扩展命令执行与校验"
+    },
+    {
+      "type": "dxc-implementation",
+      "path": "hooks/useGameLogic.ts",
+      "summary": "指令路由与探索地图 upsert"
+    },
+    {
+      "type": "dxc-implementation",
+      "path": "components/game/modals/MapModal.tsx",
+      "summary": "日常地图 macro/mid/small 与 structure 渲染"
+    },
+    {
+      "type": "dxc-implementation",
+      "path": "components/game/CombatPanel.tsx",
+      "summary": "战斗面板、骰池、判定事件、先攻展示"
+    }
+  ],
+  "key_findings": [
+    "SillyTavern 以 chatSheets 为 SSOT，脚本负责 AI 生成与 UI可视化闭环。",
+    "DXC 已具备 TavernDB 风格命令层与战斗地图显示能力。",
+    "DXC 骰池具备消费语义，但缺少脚本式自动补池机制。",
+    "DXC 探索地图已支持 mapStructure JSON 挂接与渲染。",
+    "属性体系是主要差异：SillyTavern 倾向 DND6 语义，DXC 主体为 DanMachi 五维。"
+  ],
+  "discussion_points": [
+    "在不改 GameState 主模型前提下，优先迁移哪些机制？",
+    "是否需要引入 DND5E 严格公式，还是保留当前判定体系？",
+    "chatSheets 兼容层做导入器还是运行时双写？"
+  ],
+  "open_questions": [
+    "6维是否进入核心结算，还是仅作为可选展示档案？",
+    "地图生成优先探索沉浸还是战斗可读？",
+    "是否要求与酒馆模板字段 100% 同名对齐？"
+  ]
+}

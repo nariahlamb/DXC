@@ -1,0 +1,63 @@
+{
+  "id": "QUE-20260214183959",
+  "status": "completed",
+  "solutions": [
+    {
+      "item_id": "S-1",
+      "issue_id": "ISS-20260214-001",
+      "solution_id": "SOL-ISS-20260214-001-k9v2",
+      "status": "completed",
+      "execution_order": 1,
+      "execution_group": "P1",
+      "depends_on": [],
+      "semantic_priority": 0.85,
+      "files_touched": [
+        "hooks/gameLogic/useGameLogicCore.ts",
+        "components/game/center/LogEntry.tsx",
+        "utils/logTextFormat.ts",
+        "D:/PortableApps/DXC1-main/components/game/center/LogEntry.tsx",
+        "tests/utils/logTextFormat.test.ts",
+        "tests/ui/centerPanelActionOptions.test.tsx",
+        "tests/memory/logPairingFlow.test.tsx"
+      ],
+      "task_count": 5,
+      "completed_at": "2026-02-14T11:15:50.601Z",
+      "result": {
+        "summary": "修复 NPC 对话分段策略与 sender 归一/分类边界，避免记忆模式下误判为系统/旁白并保留空行语义。",
+        "files_modified": [
+          "utils/logTextFormat.ts",
+          "components/game/center/LogEntry.tsx",
+          "hooks/gameLogic/useGameLogicCore.ts",
+          "tests/utils/logTextFormat.test.ts",
+          "tests/ui/centerPanelActionOptions.test.tsx",
+          "tests/memory/logPairingFlow.test.tsx"
+        ],
+        "commit": {
+          "hash": "9cd3646db2eaed0f6cf303433657df99a462e4f2",
+          "type": "fix"
+        },
+        "tasks_completed": 5
+      }
+    }
+  ],
+  "conflicts": [],
+  "execution_groups": [
+    {
+      "id": "P1",
+      "type": "parallel",
+      "solutions": [
+        "S-1"
+      ],
+      "solution_count": 1
+    }
+  ],
+  "_metadata": {
+    "version": "2.0",
+    "total_tasks": 1,
+    "pending_count": 0,
+    "executing_count": 0,
+    "completed_count": 1,
+    "failed_count": 0,
+    "updated_at": "2026-02-14T11:15:50.607Z"
+  }
+}

@@ -1,0 +1,34 @@
+[
+  {
+    "id": "UX-001",
+    "module": "Navigation",
+    "issue": "Deep Modal Nesting",
+    "description": "Core features (Inventory, Character, Tasks) are hidden behind modals, requiring multiple clicks and context switching.",
+    "solution": "Implement a high-level Tab Navigation (Adventure, Character, Inventory, Social, World, System).",
+    "target_files": ["DXC/components/GameInterface.tsx"]
+  },
+  {
+    "id": "UX-002",
+    "module": "RightPanel",
+    "issue": "Button Clutter",
+    "description": "RightPanel contains a long list of text/icon buttons that is hard to scan.",
+    "solution": "Replace quick action buttons with the global Tab Navigation bar or integrate into the new layout.",
+    "target_files": ["DXC/components/game/RightPanel.tsx"]
+  },
+  {
+    "id": "UI-001",
+    "module": "Global",
+    "issue": "Inconsistent RPG Styling",
+    "description": "Some elements use standard Tailwind borders/colors. Lacks a cohesive 'fantasy' texture.",
+    "solution": "Apply 'panel-metal' and 'glass-panel' classes consistently. Use 'Cinzel' font for headers. Enhance 'dungeon-black' theme.",
+    "target_files": ["DXC/index.css", "DXC/components/**/*.tsx"]
+  },
+  {
+    "id": "DEV-001",
+    "module": "Architecture",
+    "issue": "Modal State Management",
+    "description": "GameInterface manages visibility for 20+ modals individually.",
+    "solution": "Refactor to a 'View Switching' architecture where activeTab determines the main content area.",
+    "target_files": ["DXC/components/GameInterface.tsx", "DXC/components/game/views/*.tsx"]
+  }
+]

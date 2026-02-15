@@ -1,0 +1,55 @@
+{
+  "iteration": 3,
+  "timestamp": "2026-02-07T06:26:12+08:00",
+  "hypotheses": [
+    {
+      "id": "H1",
+      "status": "confirmed",
+      "verdict_reason": "Map request bypasses microservice (useWorldService=false)",
+      "evidence": {
+        "log": "world info update start",
+        "data": {
+          "isMapRequest": true,
+          "useWorldService": false
+        }
+      }
+    },
+    {
+      "id": "H2",
+      "status": "confirmed",
+      "verdict_reason": "Map command emitted successfully",
+      "evidence": {
+        "log": "world info update command summary",
+        "data": {
+          "count": 1,
+          "hasMapCommand": true,
+          "actions": ["upsert_exploration_map"]
+        }
+      }
+    },
+    {
+      "id": "H3",
+      "status": "confirmed",
+      "verdict_reason": "Location match failed; fallback small location created",
+      "evidence": {
+        "log": "handleUpsertExplorationMapStructure",
+        "data": {
+          "target": "fallback",
+          "locationName": "赫斯缇雅眷族驻地-地下室"
+        }
+      }
+    }
+  ],
+  "corrections": [
+    {
+      "wrong_assumption": "map update still uses world microservice",
+      "corrected_to": "map update uses non-microservice path for map requests",
+      "reason": "useWorldService=false"
+    },
+    {
+      "wrong_assumption": "map command is not emitted",
+      "corrected_to": "upsert_exploration_map emitted and handled",
+      "reason": "hasMapCommand=true"
+    }
+  ]
+}

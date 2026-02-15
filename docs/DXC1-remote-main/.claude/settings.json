@@ -1,0 +1,32 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "commands": [
+          "cca-roles-hook"
+        ],
+        "matcher": ".*"
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"require('child_process').spawnSync(process.platform==='win32'?'cmd':'ccw',process.platform==='win32'?['/c','ccw','tool','exec','memory_queue',JSON.stringify({action:'add',path:process.env.CLAUDE_PROJECT_DIR,tool:'codex'})]:['tool','exec','memory_queue',JSON.stringify({action:'add',path:process.env.CLAUDE_PROJECT_DIR,tool:'codex'})],{stdio:'inherit'})\""
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const p=JSON.parse(process.env.HOOK_INPUT||'{}');require('child_process').spawnSync('ccw',['tool','exec','skill_context_loader',JSON.stringify({mode:'auto',prompt:p.user_prompt||''})],{stdio:'inherit'})\""
+          }
+        ]
+      }
+    ]
+  }
+}

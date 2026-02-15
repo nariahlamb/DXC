@@ -1,0 +1,125 @@
+{
+  "session_id": "BS-我需要优化当前的对话注入上下文-以及生成内容结构的合理性做评估-因为做了一次记忆-2026-02-15",
+  "topic": "我需要优化当前的对话注入上下文，以及生成内容结构的合理性做评估。因为做了一次记忆系统重构，现在分清楚主叙事应当只做好叙事+选项，记忆ai负责分批并发填表+检索召回，地图ai只负责地图生成。但我看到现在主叙事ai仍然在做taverncommand的事且不会被记录。帮我查分析式",
+  "completed": "2026-02-15T03:44:18+08:00",
+  "total_rounds": 3,
+  "top_ideas": [
+    {
+      "title": "Runtime 权威化 + 丢弃审计",
+      "description": "state 启用时 story 命令执行数固定为 0；过滤命令全部审计。",
+      "source_perspective": "pragmatic+systematic",
+      "score": 9.4,
+      "novelty": 3,
+      "feasibility": 5,
+      "key_strengths": [
+        "改动聚焦，止血快",
+        "直接解决不可见过滤问题",
+        "与现有事务与守卫兼容"
+      ],
+      "main_challenges": [
+        "测试基线需调整",
+        "审计噪音需要分级"
+      ],
+      "next_steps": [
+        "调整 aiRouting narrative-only 行为",
+        "补充 useGameLogicCore 差集审计",
+        "新增审计相关测试"
+      ]
+    },
+    {
+      "title": "Prompt 去冲突（story profile）",
+      "description": "移除 story prompt 中命令导向，保持仅叙事/选项。",
+      "source_perspective": "pragmatic",
+      "score": 8.9,
+      "novelty": 3,
+      "feasibility": 4,
+      "key_strengths": [
+        "从源头降低命令泄漏",
+        "改善模型行为一致性"
+      ],
+      "main_challenges": [
+        "需要回归 prompt 快照",
+        "历史模块依赖需要梳理"
+      ],
+      "next_steps": [
+        "新建 narrative-only 协议模板",
+        "分离命令导向到服务 prompt"
+      ]
+    },
+    {
+      "title": "Map 入口统一守卫",
+      "description": "map 请求分支统一执行 map 白名单守卫，禁止混入业务表命令。",
+      "source_perspective": "pragmatic",
+      "score": 8.6,
+      "novelty": 2,
+      "feasibility": 5,
+      "key_strengths": ["低风险高收益", "责任边界更清晰"],
+      "main_challenges": ["需保证 fallback 地图逻辑不回归"],
+      "next_steps": ["在 world/map 入口接入 commandGuard(map)"]
+    },
+    {
+      "title": "Memory 越权拒绝可追踪",
+      "description": "memory 仅允许 LOG_Summary/LOG_Outline，拒绝命令 reason_code 化。",
+      "source_perspective": "pragmatic+systematic",
+      "score": 8.4,
+      "novelty": 2,
+      "feasibility": 4,
+      "key_strengths": ["与现有配对回滚机制天然匹配"],
+      "main_challenges": ["需要补充审计存储字段"],
+      "next_steps": ["在 memory guard 拒绝路径补审计"]
+    },
+    {
+      "title": "Policy-as-Code 单一策略源",
+      "description": "统一生成 prompt/runtime 规则，防止未来再次漂移。",
+      "source_perspective": "systematic+creative",
+      "score": 8.2,
+      "novelty": 4,
+      "feasibility": 3,
+      "key_strengths": ["长期维护成本最低"],
+      "main_challenges": ["中等改造成本"],
+      "next_steps": ["定义策略 schema 和规则编译流程"]
+    }
+  ],
+  "parked_ideas": [
+    {
+      "title": "叙事 DSL 沙盒",
+      "reason_parked": "重构面过大，不适合立即落地",
+      "potential_future_trigger": "当 triad-only 进入稳定维护期且计划下一代引擎时"
+    },
+    {
+      "title": "两阶段生成链",
+      "reason_parked": "需要额外时延预算和评估",
+      "potential_future_trigger": "当首轮 P0/P1 完成后仍存在较高泄漏率"
+    }
+  ],
+  "key_insights": [
+    "主叙事命令多数已经在运行时被过滤，不是主执行路径问题。",
+    "用户感知问题来自过滤不可见和 Prompt 仍诱导命令生成。",
+    "最佳策略是运行时先收敛，Prompt 再追平。"
+  ],
+  "recommendations": {
+    "primary": "先 P0 后 P1，最终推进 policy-as-code。",
+    "alternatives": [
+      "若人力紧张，先做 Runtime 权威化 + 审计，延后 Prompt 重构。",
+      "若近期有大版本窗口，可提前试点策略编译。"
+    ],
+    "not_recommended": [
+      "只改 Prompt 不改 Runtime 审计。",
+      "直接大规模命令总线重构而不做过渡。"
+    ]
+  },
+  "follow_up": [
+    {
+      "type": "implementation",
+      "summary": "提交 P0 改造 PR：story 空命令强制、map 守卫接入、丢弃命令审计。"
+    },
+    {
+      "type": "validation",
+      "summary": "新增泄漏率与拦截率监控，验证 3 天回合样本。"
+    },
+    {
+      "type": "research",
+      "summary": "设计 policy-as-code schema 与 prompt/runtime 双端生成器 PoC。"
+    }
+  ]
+}

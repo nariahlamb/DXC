@@ -1,0 +1,16 @@
+{
+  "discoveries": [
+    {
+      "discovery_id": "DSC-20260213-142913",
+      "target_pattern": "components/**",
+      "perspectives": [
+        "bug",
+        "test",
+        "quality"
+      ],
+      "created_at": "2026-02-13T14:29:13.518Z",
+      "completed_at": "2026-02-13T14:29:13.523Z"
+    }
+  ],
+  "total": 1
+}

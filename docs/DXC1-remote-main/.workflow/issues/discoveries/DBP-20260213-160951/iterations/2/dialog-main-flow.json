@@ -1,0 +1,43 @@
+{
+  "dimension": "dialog-main-flow",
+  "iteration": 2,
+  "focus": "user-facing freeze amplification and control paths",
+  "findings": [
+    {
+      "id": "F-010",
+      "title": "Input is hard-disabled while processing, amplifying indefinite wait impact",
+      "category": "ux-freeze-amplifier",
+      "file": "components/game/center/GameInput.tsx",
+      "line": 209,
+      "snippet": "disabled={isProcessing}",
+      "confidence": 0.74,
+      "severity": "medium"
+    },
+    {
+      "id": "F-011",
+      "title": "Stop path exists but relies on user action; no automatic timeout fallback",
+      "category": "recovery-gap",
+      "file": "hooks/gameLogic/useGameLogicCore.ts",
+      "line": 7769,
+      "snippet": "stopInteraction aborts manually; no auto watchdog",
+      "confidence": 0.77,
+      "severity": "medium"
+    }
+  ],
+  "coverage": {
+    "files_explored": 3,
+    "areas_covered": [
+      "input lock",
+      "manual abort"
+    ],
+    "areas_remaining": [
+      "auto-timeout release"
+    ]
+  },
+  "leads": [
+    {
+      "description": "add automatic timeout release for stuck turns",
+      "suggested_search": "handleAIInteraction timeout"
+    }
+  ]
+}

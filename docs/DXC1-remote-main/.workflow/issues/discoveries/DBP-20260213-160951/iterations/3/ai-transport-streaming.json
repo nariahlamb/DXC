@@ -1,0 +1,43 @@
+{
+  "dimension": "ai-transport-streaming",
+  "iteration": 3,
+  "focus": "parser fallback and raw payload overhead",
+  "findings": [
+    {
+      "id": "F-019",
+      "title": "parseAIResponseText uses multi-pass parse + repair over full payload",
+      "category": "parse-overhead",
+      "file": "utils/aiJson.ts",
+      "line": 140,
+      "snippet": "cleaned + firstObject + fenced + repaired parse attempts",
+      "confidence": 0.78,
+      "severity": "medium"
+    },
+    {
+      "id": "F-020",
+      "title": "rawBody fallback can forward oversized text into parser on empty stream assembly",
+      "category": "payload-bloat",
+      "file": "utils/aiDispatch.ts",
+      "line": 331,
+      "snippet": "if (!fullText) { const candidate = rawBody.trim(); ... return candidate; }",
+      "confidence": 0.73,
+      "severity": "medium"
+    }
+  ],
+  "coverage": {
+    "files_explored": 2,
+    "areas_covered": [
+      "json parse strategy",
+      "stream fallback"
+    ],
+    "areas_remaining": [
+      "payload size guardrails"
+    ]
+  },
+  "leads": [
+    {
+      "description": "instrument parse duration and payload size",
+      "suggested_search": "AI JSON Parse Error"
+    }
+  ]
+}

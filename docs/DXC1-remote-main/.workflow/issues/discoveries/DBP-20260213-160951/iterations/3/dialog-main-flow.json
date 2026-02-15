@@ -1,0 +1,43 @@
+{
+  "dimension": "dialog-main-flow",
+  "iteration": 3,
+  "focus": "convergence check for timeout root causes",
+  "findings": [
+    {
+      "id": "F-017",
+      "title": "No global request-timeout fields in AI settings for story/phone/world",
+      "category": "operability-gap",
+      "file": "types/ai.ts",
+      "line": 14,
+      "snippet": "GlobalAISettings has no timeout config; only memoryRequestTimeoutMs exists",
+      "confidence": 0.88,
+      "severity": "high"
+    },
+    {
+      "id": "F-018",
+      "title": "Timeout configuration gap prevents runtime mitigation of provider hangs",
+      "category": "mitigation-gap",
+      "file": "hooks/useAppSettings.ts",
+      "line": 67,
+      "snippet": "defaults include enableStreaming but no request timeout controls",
+      "confidence": 0.8,
+      "severity": "medium"
+    }
+  ],
+  "coverage": {
+    "files_explored": 3,
+    "areas_covered": [
+      "settings types",
+      "settings defaults"
+    ],
+    "areas_remaining": [
+      "migration strategy"
+    ]
+  },
+  "leads": [
+    {
+      "description": "define timeout hierarchy (global + per-service override)",
+      "suggested_search": "AIServices settings schema"
+    }
+  ]
+}

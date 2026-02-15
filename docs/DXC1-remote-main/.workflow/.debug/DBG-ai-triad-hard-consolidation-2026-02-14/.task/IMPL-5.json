@@ -1,0 +1,51 @@
+{
+  "id": "IMPL-5",
+  "title": "测试与文档同步 + 验证",
+  "status": "completed",
+  "meta": {
+    "type": "test",
+    "agent": "code-developer"
+  },
+  "context": {
+    "requirements": [
+      "更新 aiDispatch/aiRouting 旧语义断言",
+      "补齐 triad-only 回归测试",
+      "更新 README/DEVREADME 的架构描述并完成编译测试"
+    ],
+    "focus_paths": [
+      "tests/aiDispatch.test.ts",
+      "tests/aiRouting.test.ts",
+      "README.md",
+      "DEVREADME.md"
+    ],
+    "acceptance": [
+      "目标测试通过",
+      "npx tsc --noEmit 通过",
+      "文档描述与代码行为一致"
+    ],
+    "depends_on": [
+      "IMPL-4"
+    ]
+  },
+  "flow_control": {
+    "pre_analysis": [
+      "梳理失效测试断言",
+      "确定最小验证命令集"
+    ],
+    "implementation_approach": [
+      {
+        "step": "更新测试",
+        "action": "移除 unified/legacy 断言并补 triad 行为"
+      },
+      {
+        "step": "执行验证",
+        "action": "运行 tsc 与目标 vitest"
+      }
+    ]
+  },
+  "depends_on": [
+    "IMPL-4"
+  ],
+  "started_at": "2026-02-14T03:38:00.3288041+08:00",
+  "completed_at": "2026-02-14T03:44:48.3553986+08:00"
+}

@@ -1,0 +1,107 @@
+{
+  "session_id": "BS-填表记忆索引-dnd战斗-导航-2026-02-14",
+  "topic": "docs/ref 与 DXC 记忆/召回/DND/战斗系统对照导航",
+  "completed": "2026-02-14T22:45:00+08:00",
+  "total_rounds": 4,
+  "top_ideas": [
+    {
+      "title": "Manifest 驱动的说明书导航",
+      "description": "建立 ref 导航清单（参考文件、实现锚点、对照关系），统一生成与校验导航入口。",
+      "source_perspective": "systematic+pragmatic",
+      "score": 9.4,
+      "novelty": 4,
+      "feasibility": 5,
+      "key_strengths": [
+        "长期可维护",
+        "可自动校验死链与漂移",
+        "可复用到 UI Devtools"
+      ],
+      "main_challenges": [
+        "首次整理成本较高",
+        "需要明确字段对齐策略"
+      ],
+      "next_steps": [
+        "产出 manual-navigation.md 与 crosswalk",
+        "补 ref-manifest.json",
+        "补 drift test"
+      ]
+    },
+    {
+      "title": "四主链说明书（记忆/召回/DND/战斗）",
+      "description": "按系统主链组织阅读路径，做到“参考依据 -> 当前实现 -> 风险/演进点”一键定位。",
+      "source_perspective": "pragmatic",
+      "score": 9.1,
+      "novelty": 3,
+      "feasibility": 5,
+      "key_strengths": [
+        "立刻可用",
+        "降低后续优化前的认知成本",
+        "适合协作开发"
+      ],
+      "main_challenges": [
+        "需要持续更新"
+      ],
+      "next_steps": [
+        "将四主链拆成独立小节",
+        "为每节补常见故障定位"
+      ]
+    },
+    {
+      "title": "AM 编码链路可视化调试",
+      "description": "以 AM 编码为主键追踪摘要、大纲、召回、战斗结果，提升排障效率。",
+      "source_perspective": "creative",
+      "score": 8.2,
+      "novelty": 5,
+      "feasibility": 3,
+      "key_strengths": [
+        "洞察强",
+        "利于复杂战斗回放"
+      ],
+      "main_challenges": [
+        "实现复杂",
+        "需要性能控制"
+      ],
+      "next_steps": [
+        "先做文本版链路日志",
+        "后续迭代为可视化"
+      ]
+    }
+  ],
+  "parked_ideas": [
+    {
+      "title": "记忆召回雷达图",
+      "reason_parked": "可视化收益高但优先级低于基础导航",
+      "potential_future_trigger": "完成 manifest 与 drift test 后"
+    }
+  ],
+  "key_insights": [
+    "DXC 已具备 table-first 的运行时基础，说明书工作重点是导航和对照，而不是重写系统。",
+    "LOG_Summary/LOG_Outline 的 AM 配对是一切召回稳定性的核心锚点。",
+    "DND 模板与 DXC 已存在大面积同构（战斗、地图、骰池、日志），适合采用增量映射策略。"
+  ],
+  "recommendations": {
+    "primary": "采用 Manifest 驱动的说明书导航（方案 B），先完成文档闭环，再考虑 UI 内嵌导航。",
+    "alternatives": [
+      "短期仅使用 markdown 手工导航",
+      "直接做 UI 可视化导航"
+    ],
+    "not_recommended": [
+      "把 docs/ref 参考脚本直接作为 DXC 运行时依赖",
+      "在无对照清单前直接推进大规模战斗/记忆重构"
+    ]
+  },
+  "follow_up": [
+    {
+      "type": "implementation",
+      "summary": "新增 docs/ref/navigation-manifest.json 与生成脚本"
+    },
+    {
+      "type": "validation",
+      "summary": "补 tests/ref/navigation-drift.test.ts 校验模板与注册表对齐"
+    },
+    {
+      "type": "analysis",
+      "summary": "补 DND 缺口看板，按表域分级推进"
+    }
+  ]
+}

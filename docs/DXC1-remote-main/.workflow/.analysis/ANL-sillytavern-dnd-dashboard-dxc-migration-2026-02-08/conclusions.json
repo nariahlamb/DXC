@@ -1,0 +1,65 @@
+{
+  "session_id": "ANL-sillytavern-dnd-dashboard-dxc-migration-2026-02-08",
+  "topic": "SillyTavern DND 仪表盘机制与 DXC 对照迁移",
+  "completed": "2026-02-08T16:20:00+08:00",
+  "total_rounds": 2,
+  "summary": "DXC 已具备战斗地图、探索结构图、骰池消费与判定事件链路，可高比例吸收 SillyTavern 的地图/战斗/骰池流程；真正的非无损点集中在属性主模型（DND6 vs DanMachi5）与存储主干（chatSheets vs GameState）。",
+  "key_conclusions": [
+    {
+      "point": "战斗地图与先攻机制可无损复用",
+      "evidence": "DXC 已实现 upsert_battle_map_rows/set_map_visuals/set_initiative，并有 TacticalGrid + BattleTimeline UI",
+      "confidence": "high"
+    },
+    {
+      "point": "骰池可实现等价迁移",
+      "evidence": "DXC 有 DicePool + consume_dice_rows，只缺 auto-refill/预生成策略",
+      "confidence": "high"
+    },
+    {
+      "point": "6维属性不属于无损迁移",
+      "evidence": "DXC 主 schema、判定提示词、角色成长围绕五维展开",
+      "confidence": "high"
+    }
+  ],
+  "recommendations": [
+    {
+      "action": "实现 DicePool auto-refill（前端/逻辑层均可）",
+      "rationale": "改动小、可立即获得酒馆同级体验",
+      "priority": "high"
+    },
+    {
+      "action": "实现 battle/exploration map 生成编排（structure -> visuals）",
+      "rationale": "复用现有 upsert 接口，提升地图沉浸与战术可读",
+      "priority": "high"
+    },
+    {
+      "action": "增加 chatSheets 导入适配器",
+      "rationale": "可直接消费酒馆模板资产，不替换 DXC 主存储",
+      "priority": "medium"
+    },
+    {
+      "action": "引入可选 dndProfile 扩展字段而非替换主属性",
+      "rationale": "满足 DND 用户诉求且不破坏现有系统",
+      "priority": "low"
+    }
+  ],
+  "open_questions": [
+    "是否要求 DND5E 严格公式进入默认判定路径？",
+    "是否要求模板字段命名完全与酒馆一致？",
+    "6维扩展是否参与数值结算？"
+  ],
+  "follow_up_suggestions": [
+    {
+      "type": "task",
+      "summary": "实现 dice_pool_auto_refill 与最小回归测试"
+    },
+    {
+      "type": "task",
+      "summary": "实现 map_generation_orchestrator（exploration + combat）"
+    },
+    {
+      "type": "issue",
+      "summary": "设计 dndProfile 兼容层，不侵入现有角色五维系统"
+    }
+  ]
+}

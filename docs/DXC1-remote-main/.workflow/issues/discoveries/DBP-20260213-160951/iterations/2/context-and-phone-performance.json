@@ -1,0 +1,54 @@
+{
+  "dimension": "context-and-phone-performance",
+  "iteration": 2,
+  "focus": "prompt assembly and module payload size",
+  "findings": [
+    {
+      "id": "F-014",
+      "title": "assembleFullPrompt concatenates many modules each turn with no hard budget",
+      "category": "prompt-bloat",
+      "file": "utils/aiPrompt.ts",
+      "line": 280,
+      "snippet": "orderedTypes.forEach(appendModules)",
+      "confidence": 0.85,
+      "severity": "high"
+    },
+    {
+      "id": "F-015",
+      "title": "Map, world, inventory contexts stringify large structures in pretty mode",
+      "category": "serialization-overhead",
+      "file": "utils/aiContext.ts",
+      "line": 168,
+      "snippet": "JSON.stringify(..., null, 2) in map/world/inventory paths",
+      "confidence": 0.9,
+      "severity": "high"
+    },
+    {
+      "id": "F-016",
+      "title": "Phone generation calls are widespread and mostly uncancellable",
+      "category": "unbounded-requests",
+      "file": "hooks/gameLogic/useGameLogicCore.ts",
+      "line": 7787,
+      "snippet": "generatePhoneResponse called in chat/post/reply/forum flows",
+      "confidence": 0.89,
+      "severity": "high"
+    }
+  ],
+  "coverage": {
+    "files_explored": 5,
+    "areas_covered": [
+      "prompt assembly",
+      "context modules",
+      "phone call fan-out"
+    ],
+    "areas_remaining": [
+      "module-level truncation policy"
+    ]
+  },
+  "leads": [
+    {
+      "description": "verify settings schema can tune timeout and module limits",
+      "suggested_search": "types/ai.ts AppSettings"
+    }
+  ]
+}

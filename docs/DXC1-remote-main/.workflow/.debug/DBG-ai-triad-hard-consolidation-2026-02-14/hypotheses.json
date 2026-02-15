@@ -1,0 +1,92 @@
+{
+  "iteration": 1,
+  "timestamp": "2026-02-14T03:11:10.8374958+08:00",
+  "bug": "3 AI 模式硬合并，删除旧入口而非隐藏/关闭",
+  "hypotheses": [
+    {
+      "id": "H1",
+      "description": "类型层仍允许 unified/override 语义，导致旧模式在编译与运行时持续可达。",
+      "testable_condition": "检查 aiConfig 类型与默认值是否仍包含 unified/useServiceOverrides/serviceOverridesEnabled/storyWorkloadMode(combined)。",
+      "logging_point": [
+        "types/ai.ts:4",
+        "types/ai.ts:15",
+        "types/ai.ts:31",
+        "types/ai.ts:43",
+        "types/ai.ts:44"
+      ],
+      "evidence_criteria": {
+        "confirm": "上述字段仍存在并被运行时读取。",
+        "reject": "类型已收敛为仅 story/state/map 三服务结构。"
+      },
+      "likelihood": 0.95,
+      "status": "confirmed-by-static-analysis"
+    },
+    {
+      "id": "H2",
+      "description": "服务路由函数存在 unified 与 legacy memory 回退，导致旧入口仍生效。",
+      "testable_condition": "resolveServiceConfig 在 separate 下是否仍 return aiConfig.unified 或 state->memory 回退。",
+      "logging_point": [
+        "utils/aiDispatch.ts:83",
+        "utils/aiDispatch.ts:99",
+        "utils/aiDispatch.ts:102",
+        "utils/aiDispatch.ts:120"
+      ],
+      "evidence_criteria": {
+        "confirm": "配置缺省时触发 unified 或 legacy-memory-key 路由。",
+        "reject": "任何服务缺省均不会回到 unified/legacy 端点。"
+      },
+      "likelihood": 0.98,
+      "status": "confirmed-by-static-analysis"
+    },
+    {
+      "id": "H3",
+      "description": "主流程保留 legacy path 执行器 + state fallback 补丁，使旧写入语义继续存活。",
+      "testable_condition": "命令执行路径是否在未匹配扩展 action 时仍执行 updateStateByPath，且 state 服务结果会二次 fallback 修复。",
+      "logging_point": [
+        "hooks/gameLogic/useGameLogicCore.ts:3739",
+        "hooks/gameLogic/useGameLogicCore.ts:4756",
+        "hooks/gameLogic/useGameLogicCore.ts:5939"
+      ],
+      "evidence_criteria": {
+        "confirm": "存在 legacy-path 分支与 applyStateServiceFallbacks。",
+        "reject": "所有状态写入均仅来自 3AI 命令协议，无 legacy path 补丁。"
+      },
+      "likelihood": 0.93,
+      "status": "confirmed-by-static-analysis"
+    },
+    {
+      "id": "H4",
+      "description": "测试套件仍锁定 unified/legacy 行为，阻止彻底删除旧入口。",
+      "testable_condition": "单测是否继续断言 unified 模式与 legacy memory fallback。",
+      "logging_point": [
+        "tests/aiDispatch.test.ts:4",
+        "tests/aiDispatch.test.ts:67",
+        "tests/aiRouting.test.ts:41"
+      ],
+      "evidence_criteria": {
+        "confirm": "存在明确断言旧语义的测试用例。",
+        "reject": "测试已全部迁移为 triad-only 语义。"
+      },
+      "likelihood": 0.9,
+      "status": "confirmed-by-static-analysis"
+    },
+    {
+      "id": "H5",
+      "description": "存在历史调试硬编码残留，可能误导后续调试与诊断路径。",
+      "testable_condition": "检查 useGameLogicCore 是否硬编码旧 DEBUG session/log path。",
+      "logging_point": [
+        "hooks/gameLogic/useGameLogicCore.ts:6619"
+      ],
+      "evidence_criteria": {
+        "confirm": "DEBUG_SESSION_ID/DEBUG_LOG_PATH 固定为旧缺陷会话。",
+        "reject": "调试会话 ID 与路径全部动态生成或已移除。"
+      },
+      "likelihood": 0.72,
+      "status": "confirmed-by-static-analysis"
+    }
+  ],
+  "notes": [
+    "当前尚未执行运行时复现，本轮以静态证据完成 Explore。",
+    "若进入 Analyze/Fix，建议先从 H2/H3 入手，它们直接决定旧模式是否还能跑通。"
+  ]
+}

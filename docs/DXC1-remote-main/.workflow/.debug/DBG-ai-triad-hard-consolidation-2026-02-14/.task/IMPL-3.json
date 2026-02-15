@@ -1,0 +1,48 @@
+{
+  "id": "IMPL-3",
+  "title": "主流程删除 legacy 执行与 fallback 入口",
+  "status": "completed",
+  "meta": {
+    "type": "feature",
+    "agent": "code-developer"
+  },
+  "context": {
+    "requirements": [
+      "移除 legacy path 执行入口",
+      "移除 applyStateServiceFallbacks 自动补丁入口",
+      "删除历史硬编码 debug 会话路径"
+    ],
+    "focus_paths": [
+      "hooks/gameLogic/useGameLogicCore.ts"
+    ],
+    "acceptance": [
+      "主流程不再通过 path 写入兜底",
+      "state 服务结果不再被 fallback 自动修补",
+      "无固定 DEBUG_SESSION_ID/DEBUG_LOG_PATH"
+    ],
+    "depends_on": [
+      "IMPL-2"
+    ]
+  },
+  "flow_control": {
+    "pre_analysis": [
+      "定位 legacy handler 与 fallback 调用点",
+      "确认相关日志与防护逻辑"
+    ],
+    "implementation_approach": [
+      {
+        "step": "删除 legacy 执行分支",
+        "action": "未匹配扩展 action 时不再进入 updateStateByPath"
+      },
+      {
+        "step": "删除 fallback 应用",
+        "action": "state/memory 结果仅信任服务输出+command guard"
+      }
+    ]
+  },
+  "depends_on": [
+    "IMPL-2"
+  ],
+  "started_at": "2026-02-14T03:31:04.1630799+08:00",
+  "completed_at": "2026-02-14T03:33:56.4989980+08:00"
+}

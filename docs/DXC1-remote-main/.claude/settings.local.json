@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__ace-tool__enhance_prompt",
+      "mcp__ace-tool__search_context",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "mcp__serena__list_dir",
+      "Bash(ver)",
+      "Bash(npx @fission-ai/openspec:*)",
+      "Bash(ls:*)",
+      "Bash(\"C:/Users/mariah'lamb/.claude/bin/codeagent-wrapper.exe\":*)",
+      "Bash(printf:*)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "sequential-thinking",
+    "task-master-ai",
+    "context7",
+    "Playwright",
+    "ace-tool",
+    "code-editor",
+    "mcp-deepwiki",
+    "fetch",
+    "open-websearch",
+    "serena",
+    "spec-workflow",
+    "codex",
+    "gemini",
+    "exa",
+    "memory"
+  ]
+}

@@ -1,0 +1,1 @@
+DXC 是一个 TypeScript + React + Vite 的地错/DND 风格叙事与表格驱动游戏项目。核心是通过 AI 返回结构化 tavern_commands 写入 TavernDB 风格表，并驱动战斗、地图、社交、手机等系统。主要入口在 App.tsx/index.tsx，业务逻辑集中在 hooks/useGameLogic.ts 与 hooks/gameLogic/*，提示词与规则在 prompts/*，表结构与映射在 utils/taverndb/* 与 types/taverndb*。

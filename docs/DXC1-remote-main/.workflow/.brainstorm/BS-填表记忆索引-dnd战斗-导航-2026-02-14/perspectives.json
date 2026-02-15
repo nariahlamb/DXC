@@ -1,0 +1,205 @@
+{
+  "session_id": "BS-填表记忆索引-dnd战斗-导航-2026-02-14",
+  "timestamp": "2026-02-14T22:38:00+08:00",
+  "topic": "基于 docs/ref 与当前 DXC 的记忆系统、索引召回系统、DND 系统、战斗系统做对照，并输出可执行的说明书式导航资料",
+  "source_files": {
+    "reference": [
+      "docs/ref/SillyTavern脚本模板-总索引.md",
+      "docs/ref/sillytavern数据库脚本-分解说明.md",
+      "docs/ref/DND仪表盘配套模板-分解说明.md",
+      "docs/ref/数据库默认索引召回预设-分解说明.md",
+      "docs/ref/战斗推进v1-1-分解说明.md",
+      "docs/ref/DND仪表盘配套模板.json",
+      "docs/ref/数据库默认索引召回预设.json",
+      "docs/ref/战斗推进v1-1.json"
+    ],
+    "implementation": [
+      "DEVREADME.md",
+      "docs/architecture/table-first-ssot.md",
+      "hooks/gameLogic/useGameLogicCore.ts",
+      "hooks/gameLogic/commands/allHandlers.ts",
+      "hooks/gameLogic/microservice/commandGuard.ts",
+      "utils/aiContext.ts",
+      "utils/memory/amIndex.ts",
+      "utils/memory/memoryIndexProjection.ts",
+      "utils/memory/memoryRetriever.ts",
+      "utils/memory/tavernTableRetriever.ts",
+      "utils/taverndb/sheetRegistry.ts",
+      "utils/taverndb/tableProjection.ts",
+      "utils/taverndb/turnTransaction.ts",
+      "types/taverndb.ts",
+      "tests/memory/pairRollback.test.ts"
+    ]
+  },
+  "creative": {
+    "ideas": [
+      {
+        "title": "泛 DND 说明书导航卡片",
+        "description": "在表格 UI 中把 sheet 字段与说明书章节双向绑定，做到“点字段即跳说明”。",
+        "novelty": 4,
+        "impact": 5,
+        "feasibility": 4
+      },
+      {
+        "title": "记忆索引热力图",
+        "description": "把 AM 命中频次按时间与来源可视化，支持从命中点回跳到 LOG_Summary/LOG_Outline 行。",
+        "novelty": 5,
+        "impact": 4,
+        "feasibility": 3
+      },
+      {
+        "title": "跨系统记忆链路仪表",
+        "description": "同一 AM 在填表、召回、战斗推进中的轨迹可追溯，支持链路调试。",
+        "novelty": 4,
+        "impact": 5,
+        "feasibility": 3
+      },
+      {
+        "title": "战斗回放 + 填表调试",
+        "description": "展示每轮骰池消费、战斗命令、AM 召回，支持模拟重算。",
+        "novelty": 4,
+        "impact": 5,
+        "feasibility": 3
+      }
+    ],
+    "insights": [
+      "参考体系可直接作为“语义契约层”，不应直接当运行时依赖。",
+      "最具价值的创新点是把 AM 编码从“结果”升级为“可导航主键”。"
+    ],
+    "challenges": [
+      "可视化功能容易膨胀，需要先做文档导航最小闭环。",
+      "说明书映射若无自动校验，长期必然漂移。"
+    ]
+  },
+  "pragmatic": {
+    "approaches": [
+      {
+        "title": "Archive/MemoryModal 增加参考导航入口",
+        "effort": 2,
+        "risk": 1,
+        "reuse": 5,
+        "quick_win": "无需改核心逻辑即可上线导航入口",
+        "dependencies": [
+          "components/game/modals/ArchivePanelModal.tsx",
+          "components/game/modals/MemoryModal.tsx"
+        ]
+      },
+      {
+        "title": "Sheet 到文档映射卡片",
+        "effort": 3,
+        "risk": 2,
+        "reuse": 5,
+        "quick_win": "通过 sheetId 快速定位说明书章节",
+        "dependencies": [
+          "utils/taverndb/sheetRegistry.ts",
+          "hooks/gameLogic/commands/allHandlers.ts"
+        ]
+      },
+      {
+        "title": "导航清单 manifest 化",
+        "effort": 4,
+        "risk": 2,
+        "reuse": 5,
+        "quick_win": "先用于文档聚合，后续复用到 Devtools",
+        "dependencies": [
+          "docs/ref/*.md",
+          "DEVREADME.md",
+          "docs/architecture/table-first-ssot.md"
+        ]
+      },
+      {
+        "title": "模板漂移测试",
+        "effort": 4,
+        "risk": 2,
+        "reuse": 5,
+        "quick_win": "提前发现 ref 模板与实现映射不一致",
+        "dependencies": [
+          "docs/ref/DND仪表盘配套模板.json",
+          "utils/taverndb/sheetRegistry.ts"
+        ]
+      }
+    ],
+    "blockers": [
+      "参考文件使用长中文文件名与版本号，后续重命名概率高。",
+      "当前映射信息分散在文档、类型、handler 和测试中。"
+    ],
+    "recommendations": [
+      "先做 Docs + Manifest，再做 UI 内嵌导航。",
+      "把记忆/召回参数的默认值来源统一记录到导航页。"
+    ]
+  },
+  "systematic": {
+    "decomposition": [
+      "T0 参考源与实现源边界冻结",
+      "T1 导航信息架构（index/contracts/presets/crosswalk/anchors）",
+      "T2 四条主链对照（记忆、召回、DND、战斗）",
+      "T3 一致性保障（manifest + 生成 + 测试）"
+    ],
+    "architectures": [
+      {
+        "name": "A Docs-Only",
+        "pros": ["上线快"],
+        "cons": ["易漂移", "难自动校验"]
+      },
+      {
+        "name": "B Manifest 驱动",
+        "pros": ["可维护", "可测试", "可复用到 UI"],
+        "cons": ["初次梳理成本高"]
+      },
+      {
+        "name": "C In-App Devtools",
+        "pros": ["研发使用最顺滑"],
+        "cons": ["引入 UI 变更风险", "依赖 B 的结构化数据"]
+      }
+    ],
+    "dependencies": [
+      "docs/ref 模板/预设 -> types/taverndb.ts + sheetRegistry + handlers",
+      "LOG_Summary/LOG_Outline -> amIndex + memoryIndexProjection + memoryRetriever",
+      "战斗预设 -> combatHandlers + CombatPanel + diceEngine"
+    ],
+    "risk_matrix": [
+      {
+        "risk": "字段语义漂移",
+        "probability": "中高",
+        "impact": "高",
+        "mitigation": "crosswalk + drift tests"
+      },
+      {
+        "risk": "死链",
+        "probability": "中",
+        "impact": "中",
+        "mitigation": "manifest 校验"
+      },
+      {
+        "risk": "误把参考脚本当运行时依赖",
+        "probability": "中低",
+        "impact": "高",
+        "mitigation": "在导航中显式标注“参考源”"
+      }
+    ],
+    "recommendation": {
+      "primary": "方案 B（Manifest 驱动）",
+      "reason": "最符合长期维护与跨系统导航诉求，并可平滑升级到方案 C"
+    }
+  },
+  "synthesis": {
+    "convergent_themes": [
+      "必须以 table-first 与 triad-only 为运行时基线。",
+      "说明书导航应以 sheetId、action、AM 编码三类锚点组织。",
+      "需要机器可读清单，避免手工文档老化。"
+    ],
+    "conflicting_views": [
+      {
+        "topic": "是否先做可视化",
+        "creative": "先上热力图提升洞察",
+        "pragmatic": "先落地文本导航与 crosswalk",
+        "systematic": "按 B 架构分阶段推进"
+      }
+    ],
+    "unique_contributions": [
+      "Creative: AM 作为导航主键",
+      "Pragmatic: UI 入口 + drift test 两端夹击",
+      "Systematic: B 架构分阶段实施"
+    ]
+  }
+}

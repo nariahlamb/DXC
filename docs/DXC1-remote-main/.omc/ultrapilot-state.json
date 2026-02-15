@@ -1,0 +1,55 @@
+{
+  "active": true,
+  "mode": "ultrapilot",
+  "phase": "parallel_execution",
+  "workers": [
+    {
+      "id": "w1",
+      "status": "spawned",
+      "files": [
+        "components/game/LeftPanel.tsx",
+        "components/game/TopNav.tsx",
+        "components/game/BottomBanner.tsx"
+      ],
+      "task": "Localize Core HUD (LeftPanel, TopNav, BottomBanner) - Replace 'FAMILIA', 'STATUS', 'Time', 'Location' labels"
+    },
+    {
+      "id": "w2",
+      "status": "spawned",
+      "files": [
+        "components/game/InventoryItemCard.tsx",
+        "utils/itemUtils.ts",
+        "types/items.ts"
+      ],
+      "task": "Localize Item System - Convert 'Tier' to 'Quality Rank' (Legendary/Epic), translate Rarity labels"
+    },
+    {
+      "id": "w3",
+      "status": "spawned",
+      "files": [
+        "components/mobile/**"
+      ],
+      "task": "Localize Mobile UI - Translate navigation tabs, buttons, empty states"
+    },
+    {
+      "id": "w4",
+      "status": "spawned",
+      "files": [
+        "components/game/modals/**",
+        "components/ui/**"
+      ],
+      "task": "Localize Modals & Base UI - Settings, Save/Load, Confirmations"
+    },
+    {
+      "id": "w5",
+      "status": "spawned",
+      "files": [
+        "components/game/center/GameInput.tsx",
+        "components/GameInterface.tsx"
+      ],
+      "task": "Localize Core Interaction - Input placeholders, button tooltips, loading states"
+    }
+  ],
+  "shared_files": ["package.json", "tsconfig.json"],
+  "startTime": "2026-02-06T04:15:00.000Z"
+}

@@ -1,0 +1,81 @@
+{
+  "id": "QUE-20260214-133152",
+  "status": "completed",
+  "created_at": "2026-02-14T13:31:52Z",
+  "updated_at": "2026-02-14T13:31:52Z",
+  "solutions": [
+    {
+      "item_id": "S-1",
+      "issue_id": "ISS-20260214-210500",
+      "solution_id": "SOL-ISS-20260214-210500-r7k2",
+      "status": "completed",
+      "execution_order": 1,
+      "execution_group": "P1",
+      "depends_on": [],
+      "semantic_priority": 0.6,
+      "files_touched": [
+        ".workflow/project-guidelines.json",
+        ".workflow/project-tech.json",
+        "C:/Users/mariah'lamb/AppData/Roaming/npm/node_modules/claude-code-workflow/ccw/src/core/routes/issue-routes.ts",
+        "C:/Users/mariah'lamb/AppData/Roaming/npm/node_modules/claude-code-workflow/ccw/src/templates/dashboard-js/views/issue-manager.js",
+        "C:/Users/mariah'lamb/AppData/Roaming/npm/node_modules/claude-code-workflow/ccw/src/templates/dashboard-css/32-issue-manager.css",
+        "C:/Users/mariah'lamb/AppData/Roaming/npm/node_modules/claude-code-workflow/ccw/src/commands/issue.ts",
+        ".workflow/scripts/validate-issue-state.mjs",
+        ".workflow/issues/issues.jsonl",
+        ".workflow/issues/issue-history.jsonl",
+        ".workflow/issues/queues/index.json"
+      ],
+      "task_count": 5,
+      "started_at": "2026-02-14T13:40:38.578Z",
+      "completed_at": "2026-02-14T13:59:30.402Z",
+      "result": {
+        "files_modified": [
+          ".workflow/project-guidelines.json",
+          ".workflow/project-tech.json",
+          ".workflow/scripts/validate-issue-state.mjs",
+          "scripts/issue-state-api-smoke.mjs",
+          "tests/issue-routes.state-validation.test.ts",
+          "tests/issue-manager.state-form.test.ts",
+          "tests/issue-cli-state-validation.test.ts",
+          "C:/Users/mariah'lamb/AppData/Roaming/npm/node_modules/claude-code-workflow/ccw/src/core/routes/issue-routes.ts",
+          "C:/Users/mariah'lamb/AppData/Roaming/npm/node_modules/claude-code-workflow/ccw/src/templates/dashboard-js/views/issue-manager.js",
+          "C:/Users/mariah'lamb/AppData/Roaming/npm/node_modules/claude-code-workflow/ccw/src/templates/dashboard-css/32-issue-manager.css",
+          "C:/Users/mariah'lamb/AppData/Roaming/npm/node_modules/claude-code-workflow/ccw/src/commands/issue.ts"
+        ],
+        "tests_passed": true,
+        "commit": {
+          "hash": "b09869c",
+          "type": "feat",
+          "tasks": [
+            "T1",
+            "T2",
+            "T3",
+            "T4",
+            "T5"
+          ]
+        },
+        "summary": "完成 issue state/status 的配置基线、API/CLI 校验、Dashboard 填表体验优化与数据兼容校验脚本。"
+      }
+    }
+  ],
+  "conflicts": [],
+  "execution_groups": [
+    {
+      "id": "P1",
+      "type": "parallel",
+      "solutions": [
+        "S-1"
+      ],
+      "solution_count": 1
+    }
+  ],
+  "_metadata": {
+    "version": "2.0",
+    "total_tasks": 1,
+    "pending_count": 0,
+    "executing_count": 0,
+    "completed_count": 1,
+    "failed_count": 0,
+    "updated_at": "2026-02-14T13:59:30.406Z"
+  }
+}

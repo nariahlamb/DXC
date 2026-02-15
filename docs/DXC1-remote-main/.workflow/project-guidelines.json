@@ -1,0 +1,101 @@
+{
+  "issue_state_policy": {
+    "github_pull_state": [
+      "open",
+      "closed",
+      "all"
+    ],
+    "issue_status": [
+      "registered",
+      "planning",
+      "planned",
+      "queued",
+      "executing",
+      "completed",
+      "failed",
+      "paused"
+    ],
+    "alias_map": {
+      "todo": "registered",
+      "ready": "planned",
+      "in-progress": "executing",
+      "in_progress": "executing",
+      "doing": "executing",
+      "done": "completed",
+      "error": "failed",
+      "hold": "paused"
+    },
+    "transition_rules": {
+      "registered": [
+        "planning",
+        "failed"
+      ],
+      "planning": [
+        "planned",
+        "paused",
+        "failed"
+      ],
+      "planned": [
+        "queued",
+        "paused",
+        "failed"
+      ],
+      "queued": [
+        "executing",
+        "paused",
+        "failed"
+      ],
+      "executing": [
+        "completed",
+        "failed",
+        "paused"
+      ],
+      "completed": [
+        "paused"
+      ],
+      "failed": [
+        "planning",
+        "queued",
+        "paused"
+      ],
+      "paused": [
+        "planning",
+        "queued",
+        "executing"
+      ]
+    },
+    "error_templates": {
+      "invalid_github_pull_state": {
+        "error_code": "INVALID_GITHUB_PULL_STATE",
+        "message": "state 非法，请使用 allowed_values 中的值。"
+      },
+      "invalid_issue_status": {
+        "error_code": "INVALID_ISSUE_STATUS",
+        "message": "status 非法，请使用 allowed_values 中的值。"
+      },
+      "invalid_status_transition": {
+        "error_code": "INVALID_STATUS_TRANSITION",
+        "message": "status 流转非法，请检查当前状态与目标状态是否允许。"
+      },
+      "extension_conflict": {
+        "error_code": "STATE_EXTENSION_CONFLICT",
+        "message": "扩展状态与现有枚举或别名冲突。"
+      }
+    },
+    "extension_spec": {
+      "entrypoint": "issue_state_policy",
+      "minimum_fields": [
+        "name",
+        "aliases",
+        "allowed_from",
+        "allowed_to",
+        "description"
+      ],
+      "rules": [
+        "新增状态必须声明别名数组（可为空）。",
+        "新增状态必须补充 transition_rules 的入边和出边。",
+        "新增状态不得覆盖内置状态名。"
+      ]
+    }
+  }
+}

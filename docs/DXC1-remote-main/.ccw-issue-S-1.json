@@ -1,0 +1,317 @@
+{
+  "queue_id": "QUE-20260214183959",
+  "item_id": "S-1",
+  "issue_id": "ISS-20260214-001",
+  "solution_id": "SOL-ISS-20260214-001-k9v2",
+  "status": "pending",
+  "solution": {
+    "id": "SOL-ISS-20260214-001-k9v2",
+    "approach": "先建立当前工程与 D:/PortableApps/DXC1-main 的链路对照（AI 输出→logs 组装→sender 归一→段落切分→LogEntry 渲染分类），再以最小改动修复两个高风险断点：1) 文本分段策略在长句/转义换行场景下对 NPC 台词切分过度；2) sender 分类边界导致 NPC 对话被错误归类为叙事/系统样式。通过新增可回归测试锁定旧版行为基线，并在提交前执行差异验证，避免再次被记忆模式相关改造回归。历史失败反馈未发现 execute failure 记录，本方案仍加入防回归门禁。",
+    "tasks": [
+      {
+        "id": "T1",
+        "title": "建立 NPC 对话链路与旧版对照基线",
+        "scope": "hooks/gameLogic/useGameLogicCore.ts, components/game/center/LogEntry.tsx, utils/logTextFormat.ts, D:/PortableApps/DXC1-main/components/game/center/LogEntry.tsx",
+        "action": "Analyze",
+        "description": "定位并固化当前版本与旧版在对话分段和渲染分选上的行为差异，产出可执行检查点作为后续修复验收基准。",
+        "modification_points": [
+          {
+            "file": "hooks/gameLogic/useGameLogicCore.ts",
+            "target": "logsForService/newLogs 构建区（约 7400-7535）",
+            "change": "标注 sender 归一与 logs 透传路径的对照检查点"
+          },
+          {
+            "file": "components/game/center/LogEntry.tsx",
+            "target": "isNarrator/isSystem/isPlayer 分类与 renderDecoratedText",
+            "change": "标注 NPC 样式分选与段落渲染边界"
+          },
+          {
+            "file": "utils/logTextFormat.ts",
+            "target": "splitLogTextIntoParagraphs/sanitizeLogText",
+            "change": "标注分段阈值与换行展开策略对 NPC 台词的影响"
+          },
+          {
+            "file": "D:/PortableApps/DXC1-main/components/game/center/LogEntry.tsx",
+            "target": "旧版 renderDecoratedText 与 sender 分类",
+            "change": "提取旧版正常行为基准（逐行 split，空行保留策略）"
+          }
+        ],
+        "implementation": [
+          "梳理 AIResponse.logs/narrative 到最终 LogEntry 的完整调用链，记录每一层对 sender/text 的改写点。",
+          "建立 6 个对照样例（单段 NPC 台词、含 \n 台词、长句、判定行、混合旁白+NPC、系统修复提示）并在新旧工程逐项比对输出结构。",
+          "将差异映射为可修复项清单：分段策略偏差、sender 归类偏差、样式落点偏差。"
+        ],
+        "test": {
+          "unit": [
+            "生成固定输入样例，验证 sender/text 到渲染节点类型映射一致性"
+          ],
+          "commands": [
+            "npm test -- tests/ui/centerPanelActionOptions.test.tsx"
+          ],
+          "coverage_target": 0.75
+        },
+        "acceptance": {
+          "criteria": [
+            "完成 1 份对照矩阵，覆盖至少 6 个 NPC 对话样例并标注当前/旧版差异",
+            "每个差异都可定位到唯一 modification_point（不少于 3 处）",
+            "输出修复范围限定在对话链路相关文件（不触发无关模块修改）"
+          ],
+          "verification": [
+            "检查对照矩阵条目数量与样例内容",
+            "检查差异条目是否均映射到具体文件与函数",
+            "审阅变更文件列表仅包含任务声明范围"
+          ]
+        },
+        "commit": {
+          "type": "chore",
+          "scope": "dialog-baseline",
+          "message_template": "chore(dialog-baseline): capture npc segmentation/render diff checkpoints",
+          "breaking": false
+        },
+        "depends_on": [],
+        "priority": 1
+      },
+      {
+        "id": "T2",
+        "title": "修复 NPC 文本分段策略与旧版兼容行为",
+        "scope": "utils/logTextFormat.ts, components/game/center/LogEntry.tsx",
+        "action": "Update",
+        "description": "在保持 sanitize 安全处理的前提下，修正 NPC 对话段落切分策略，避免因记忆模式输出形态变化导致过度分段或错误合并。",
+        "modification_points": [
+          {
+            "file": "utils/logTextFormat.ts",
+            "target": "splitLogTextIntoParagraphs",
+            "change": "引入与旧版兼容的优先切分顺序，并为 NPC 台词场景增加保守分段策略"
+          },
+          {
+            "file": "components/game/center/LogEntry.tsx",
+            "target": "renderDecoratedText",
+            "change": "按段落输出时保留判定行高亮并避免吞并有效空行语义"
+          }
+        ],
+        "implementation": [
+          "调整 split 优先级：先保留显式换行语义，再进行强标点/软标点分段，最后才硬切分，避免 NPC 台词被打碎。",
+          "为长句切分设置可验证上限（单段最大长度控制）并保证短句不会被 mergeShortSegments 错误粘连。",
+          "在 LogEntry 渲染层保持分段结果一一渲染，确保判定标签和普通台词样式稳定。"
+        ],
+        "test": {
+          "unit": [
+            "新增 logTextFormat 用例：NPC 台词含转义换行时应输出 2-4 段可读段落",
+            "新增 LogEntry 渲染用例：判定行仍使用高亮盒子且 NPC 台词不丢段"
+          ],
+          "commands": [
+            "npm test -- tests/utils/logTextFormat.test.ts tests/ui/centerPanelActionOptions.test.tsx"
+          ],
+          "coverage_target": 0.8
+        },
+        "acceptance": {
+          "criteria": [
+            "6 个基准样例中，NPC 台词段落数与旧版差异不超过 ±1 段且无空文本段",
+            "含 \"【判定】\" 的行 100% 命中判定样式分支",
+            "单条 NPC 日志分段后每段长度 <= 160 字符（超长文本允许硬切分）"
+          ],
+          "verification": [
+            "运行新增单测并核对段落数组长度断言",
+            "通过 React 测试断言判定节点 class 存在",
+            "对分段输出执行长度断言统计"
+          ]
+        },
+        "commit": {
+          "type": "fix",
+          "scope": "npc-dialog-segmentation",
+          "message_template": "fix(npc-dialog-segmentation): restore stable paragraph splitting after memory mode changes",
+          "breaking": false
+        },
+        "depends_on": [
+          "T1"
+        ],
+        "priority": 1
+      },
+      {
+        "id": "T3",
+        "title": "修复 sender 分选与 NPC 渲染归类边界",
+        "scope": "hooks/gameLogic/useGameLogicCore.ts, components/game/center/LogEntry.tsx",
+        "action": "Implement",
+        "description": "统一 sender 归一规则，避免 NPC 日志在新链路中被误判为 narrator/system，从而落入错误渲染样式。",
+        "modification_points": [
+          {
+            "file": "hooks/gameLogic/useGameLogicCore.ts",
+            "target": "newLogs push 阶段 sender 归一逻辑（约 7511-7522）",
+            "change": "补充 sender canonicalization，确保 NPC 名称不被 narrative/system 别名覆盖"
+          },
+          {
+            "file": "components/game/center/LogEntry.tsx",
+            "target": "isNarrator/isSystem/isPlayer 判定分支",
+            "change": "收紧 narrator/system 判定集合，避免与 NPC 实名冲突"
+          }
+        ],
+        "implementation": [
+          "在日志写入层建立 sender 归一函数：仅对白名单别名做映射，默认保留原始 NPC sender。",
+          "在渲染层分类判定中增加保护：存在 NPC 实体匹配时优先走 NPC 分支。",
+          "对 player/system/narrator 判定引入互斥次序，防止同一 sender 同时命中多个类别。"
+        ],
+        "test": {
+          "unit": [
+            "新增 sender 分类测试：narrative/旁白/system/player/NPC姓名 各自落到唯一分支",
+            "新增集成测试：confidants 含 NPC 时对应日志渲染 NPC bubble"
+          ],
+          "commands": [
+            "npm test -- tests/ui/centerPanelActionOptions.test.tsx tests/ui/memoryModalDevtools.test.tsx"
+          ],
+          "coverage_target": 0.78
+        },
+        "acceptance": {
+          "criteria": [
+            "sender 分类测试至少 8 条断言全部通过",
+            "NPC sender 在渲染输出中 100% 使用 NpcNode 样式容器",
+            "旁白/system 样式不回归（对应分支断言保持通过）"
+          ],
+          "verification": [
+            "查看单测报告断言通过数",
+            "DOM 查询确认 NPC 样式节点存在且唯一",
+            "回归运行既有日志面板测试确保无破坏"
+          ]
+        },
+        "commit": {
+          "type": "fix",
+          "scope": "npc-render-routing",
+          "message_template": "fix(npc-render-routing): prevent npc logs from misclassification in render pipeline",
+          "breaking": false
+        },
+        "depends_on": [
+          "T1"
+        ],
+        "priority": 1
+      },
+      {
+        "id": "T4",
+        "title": "补齐记忆模式回归测试与旧版对照快照",
+        "scope": "tests/utils/logTextFormat.test.ts, tests/ui/centerPanelActionOptions.test.tsx, tests/memory/logPairingFlow.test.tsx",
+        "action": "Test",
+        "description": "增加面向记忆模式改造影响面的测试，确保后续变更不会再次破坏 NPC 对话分段与渲染。",
+        "modification_points": [
+          {
+            "file": "tests/utils/logTextFormat.test.ts",
+            "target": "分段函数测试组",
+            "change": "添加 NPC 分段对照样例（含 escaped newline/长句/判定行）"
+          },
+          {
+            "file": "tests/ui/centerPanelActionOptions.test.tsx",
+            "target": "CenterPanel + LogEntry 渲染测试",
+            "change": "添加 sender 分类与段落渲染断言"
+          },
+          {
+            "file": "tests/memory/logPairingFlow.test.tsx",
+            "target": "记忆链路回归测试",
+            "change": "加入 memory mode 输出形态下的 NPC 日志渲染回归检查"
+          }
+        ],
+        "implementation": [
+          "把 T1 形成的 6 个样例固化为测试夹具，建立 current vs expected（基于旧版行为）断言。",
+          "为每个样例至少设置 2 个断言（段落数量 + 渲染节点类型），总断言不少于 12 条。",
+          "将测试纳入现有 memory/log/ui 套件，确保 CI 路径可直接执行。"
+        ],
+        "test": {
+          "unit": [
+            "logTextFormat baseline parity tests",
+            "LogEntry sender routing regression tests",
+            "memory flow npc render regression test"
+          ],
+          "commands": [
+            "npm test -- tests/utils/logTextFormat.test.ts tests/ui/centerPanelActionOptions.test.tsx tests/memory/logPairingFlow.test.tsx"
+          ],
+          "coverage_target": 0.82
+        },
+        "acceptance": {
+          "criteria": [
+            "新增/更新测试文件不少于 3 个",
+            "新增断言总数 >= 12 且全部通过",
+            "同一批测试在本仓与旧版对照输出差异项降至 0 个高优先级问题"
+          ],
+          "verification": [
+            "统计测试文件与断言数量",
+            "执行命令并确认 0 fail",
+            "复核差异报告中高优先级项清零"
+          ]
+        },
+        "commit": {
+          "type": "test",
+          "scope": "npc-dialog-regression",
+          "message_template": "test(npc-dialog-regression): lock segmentation and render behavior against legacy baseline",
+          "breaking": false
+        },
+        "depends_on": [
+          "T2",
+          "T3"
+        ],
+        "priority": 2
+      },
+      {
+        "id": "T5",
+        "title": "收敛变更范围并完成交付提交",
+        "scope": "hooks/gameLogic/useGameLogicCore.ts, components/game/center/LogEntry.tsx, utils/logTextFormat.ts, tests/*",
+        "action": "Commit",
+        "description": "执行最终回归、性能与风险检查，输出可审计提交并确保 issue 生命周期进入 planned/可执行状态。",
+        "modification_points": [
+          {
+            "file": "hooks/gameLogic/useGameLogicCore.ts",
+            "target": "sender/log 处理变更区",
+            "change": "复核仅包含分类修复相关 diff"
+          },
+          {
+            "file": "components/game/center/LogEntry.tsx",
+            "target": "渲染分支与段落输出变更区",
+            "change": "复核仅包含 NPC 分选与段落渲染修复"
+          },
+          {
+            "file": "utils/logTextFormat.ts",
+            "target": "分段算法变更区",
+            "change": "复核阈值/逻辑调整与测试一致"
+          }
+        ],
+        "implementation": [
+          "执行全量目标测试并进行 smoke 验证，确认 NPC 对话在关键场景渲染正常。",
+          "对比 D:/PortableApps/DXC1-main 的检查点结论，确认不存在新的分段/样式倒退。",
+          "按 conventional commit 输出最终提交信息，并在 issue 关联说明中附上验证结果摘要。"
+        ],
+        "test": {
+          "unit": [
+            "全量回归命令通过"
+          ],
+          "commands": [
+            "npm test -- tests/utils/logTextFormat.test.ts tests/ui/centerPanelActionOptions.test.tsx tests/memory/logPairingFlow.test.tsx",
+            "npm run build"
+          ],
+          "coverage_target": 0.8
+        },
+        "acceptance": {
+          "criteria": [
+            "目标回归命令全部通过（0 fail, 0 error）",
+            "与 D:/PortableApps/DXC1-main 对照检查点全部通过（至少 6/6）",
+            "最终 diff 文件数 <= 6 且仅包含本 issue 范围"
+          ],
+          "verification": [
+            "保存测试与构建结果日志",
+            "复核对照检查点结果表",
+            "检查 git diff 文件列表与行数"
+          ]
+        },
+        "commit": {
+          "type": "fix",
+          "scope": "npc-dialog-render",
+          "message_template": "fix(npc-dialog-render): align memory-mode dialogue segmentation and npc rendering with legacy behavior",
+          "breaking": false
+        },
+        "depends_on": [
+          "T4"
+        ],
+        "priority": 3
+      }
+    ],
+    "exploration_context": {}
+  },
+  "execution_hints": {
+    "task_count": 5,
+    "estimated_minutes": 150
+  }
+}

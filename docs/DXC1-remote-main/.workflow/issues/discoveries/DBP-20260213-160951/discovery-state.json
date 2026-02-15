@@ -1,0 +1,95 @@
+{
+  "discovery_id": "DBP-20260213-160951",
+  "type": "prompt-driven",
+  "prompt": "我需要issue所有对话生成相关内容 当前生成卡死严重",
+  "scope": "**/*",
+  "depth": "standard",
+  "max_iterations": 5,
+  "intent_type": "audit",
+  "phase": "complete",
+  "created_at": "2026-02-13T16:09:51Z",
+  "updated_at": "2026-02-13T16:13:40Z",
+  "intent_analysis": {
+    "type": "audit",
+    "primary_question": "Why does dialogue generation freeze and where are the stall points?",
+    "sub_questions": [
+      "Which request paths can wait indefinitely?",
+      "Which synchronous operations can block the UI thread?",
+      "Which locks/state flags stay occupied while waiting?"
+    ]
+  },
+  "dimensions": [
+    {
+      "name": "dialog-main-flow",
+      "description": "Main dialogue request lifecycle and release conditions",
+      "search_targets": [
+        "hooks/gameLogic/**",
+        "components/game/center/**"
+      ],
+      "focus_areas": [
+        "request lifecycle",
+        "processing state",
+        "abort and cleanup"
+      ]
+    },
+    {
+      "name": "ai-transport-streaming",
+      "description": "Transport, streaming, parser and cancellation behavior",
+      "search_targets": [
+        "utils/aiDispatch.ts",
+        "utils/aiGenerate.ts",
+        "utils/aiJson.ts",
+        "utils/aiThinking.ts"
+      ],
+      "focus_areas": [
+        "timeout wiring",
+        "stream loops",
+        "parse overhead"
+      ]
+    },
+    {
+      "name": "context-and-phone-performance",
+      "description": "Prompt/context serialization and phone generation lock risk",
+      "search_targets": [
+        "utils/aiPrompt.ts",
+        "utils/aiContext.ts",
+        "hooks/gameLogic/useGameLogicCore.ts"
+      ],
+      "focus_areas": [
+        "context size",
+        "JSON stringify hotspots",
+        "phone in-flight locks"
+      ]
+    }
+  ],
+  "iterations": [
+    {
+      "number": 1,
+      "findings_count": 9,
+      "new_discoveries": 9,
+      "confidence": 0.63
+    },
+    {
+      "number": 2,
+      "findings_count": 16,
+      "new_discoveries": 7,
+      "confidence": 0.8
+    },
+    {
+      "number": 3,
+      "findings_count": 23,
+      "new_discoveries": 7,
+      "confidence": 0.9
+    }
+  ],
+  "results": {
+    "total_iterations": 3,
+    "total_findings": 23,
+    "issues_generated": 12,
+    "comparison_match_rate": null
+  },
+  "termination_conditions": [
+    "Convergence confidence reached 0.90",
+    "No new root-cause category emerged in iteration 3"
+  ]
+}
