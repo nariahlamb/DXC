@@ -2801,7 +2801,20 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                     const current = toNumberOrNull(row[field]) ?? 0;
                     row[field] = Math.max(0, Math.floor(action === 'add' ? current + incoming : incoming));
                 } else if (field === '已装备') {
-                    row.已装备 = action === 'delete' ? false : Boolean(value);
+                    if (action === 'delete') {
+                        row.已装备 = false;
+                    } else if (typeof value === 'boolean') {
+                        row.已装备 = value;
+                    } else if (typeof value === 'number') {
+                        row.已装备 = value > 0;
+                    } else if (typeof value === 'string') {
+                        const normalizedEquipped = value.trim().toLowerCase();
+                        if (['1', 'true', 'yes', 'y', '是', '开', 'on', 'equipped'].includes(normalizedEquipped)) row.已装备 = true;
+                        else if (['0', 'false', 'no', 'n', '否', '关', 'off', 'unequipped'].includes(normalizedEquipped)) row.已装备 = false;
+                        else row.已装备 = Boolean(value);
+                    } else {
+                        row.已装备 = Boolean(value);
+                    }
                 } else if (field === '品质') {
                     const qualityRaw = String(value ?? '').trim();
                     const quality = qualityRaw ? normalizeQualityLabel(qualityRaw) : undefined;

@@ -40,10 +40,9 @@ const normalizeSheetPayloads = (value: unknown): Array<{ sheetId: string; rows: 
 };
 
 const resolveExpectedVersion = (cmd: TavernCommand): number | undefined => {
-  const rowVersion = Number((cmd as any)?.expectedRowVersion);
+  // 仅透传 row version。sheet version 属于事务层并发控制，不应映射为事件的 expected_version。
+  const rowVersion = Number((cmd as any)?.expectedRowVersion ?? (cmd as any)?.expected_row_version);
   if (Number.isFinite(rowVersion)) return Math.max(0, Math.floor(rowVersion));
-  const sheetVersion = Number((cmd as any)?.expectedSheetVersion);
-  if (Number.isFinite(sheetVersion)) return Math.max(0, Math.floor(sheetVersion));
   return undefined;
 };
 

@@ -65,7 +65,13 @@ export const reconcileEquipmentNameByInventory = (
     if (!name) return;
 
     const matched = findBestInventoryMatch(safeInventory, { name });
-    if (!matched) return;
+    if (!matched) {
+      if (nextEquip[slot] !== '') {
+        nextEquip[slot] = '';
+        changed = true;
+      }
+      return;
+    }
 
     if (nextEquip[slot] !== matched.名称) {
       nextEquip[slot] = matched.名称;
@@ -81,8 +87,17 @@ export const buildEquippedKeySet = (equipment: Record<string, unknown> | undefin
   const keys = new Set<string>();
 
   Object.values(slots).forEach((raw) => {
-    if (typeof raw !== 'string') return;
-    const text = raw.trim();
+    if (typeof raw === 'string') {
+      const text = raw.trim();
+      if (!text) return;
+      const key = normalizeItemNameKey(text);
+      if (!key) return;
+      keys.add(key);
+      return;
+    }
+    if (!raw || typeof raw !== 'object') return;
+    const record = raw as Record<string, unknown>;
+    const text = String(record.名称 ?? record.name ?? record.id ?? '').trim();
     if (!text) return;
     const key = normalizeItemNameKey(text);
     if (!key) return;
@@ -104,6 +119,18 @@ export const isInventoryItemEquipped = (
   return false;
 };
 
+const parseEquippedFlag = (value: unknown): boolean | null => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value > 0;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) return null;
+    if (['1', 'true', 'yes', 'y', '是', '开', 'on', 'equipped'].includes(normalized)) return true;
+    if (['0', 'false', 'no', 'n', '否', '关', 'off', 'unequipped'].includes(normalized)) return false;
+  }
+  return null;
+};
+
 export const syncInventoryEquippedByEquipment = (
   inventory: InventoryItem[],
   equipment: Record<string, unknown> | undefined
@@ -117,7 +144,8 @@ export const syncInventoryEquippedByEquipment = (
   let changed = false;
   const nextInventory = safeInventory.map((item) => {
     const expectedEquipped = isInventoryItemEquipped(item, equippedKeys);
-    const currentEquipped = Boolean(item?.已装备);
+    const parsed = parseEquippedFlag((item as any)?.已装备);
+    const currentEquipped = parsed === null ? false : parsed;
     if (currentEquipped === expectedEquipped) return item;
     changed = true;
     return {

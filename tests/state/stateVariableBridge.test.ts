@@ -57,4 +57,35 @@ describe('state variable bridge', () => {
     expect(events.every((event) => event.path.startsWith('sheet.'))).toBe(true);
     expect(events.some((event) => event.path.includes('LOG_Summary'))).toBe(false);
   });
+
+  it('only maps expectedRowVersion to expected_version', () => {
+    const commands: TavernCommand[] = [
+      {
+        action: 'upsert_sheet_rows',
+        expectedSheetVersion: 9,
+        value: {
+          sheetId: 'SYS_GlobalState',
+          rows: [{ _global_id: 'GLOBAL_STATE', 当前场景: '公会大厅' }]
+        }
+      },
+      {
+        action: 'upsert_sheet_rows',
+        expectedRowVersion: 3,
+        value: {
+          sheetId: 'ITEM_Inventory',
+          rows: [{ 物品ID: 'itm_2001', 物品名称: '治疗药' }]
+        }
+      }
+    ];
+
+    const events = buildStateVariableEventsFromCommands(commands, {
+      turnId: '34',
+      source: 'runtime:test',
+      includeSheets: ['SYS_GlobalState', 'ITEM_Inventory']
+    });
+
+    expect(events).toHaveLength(2);
+    expect(events[0]?.expected_version).toBeUndefined();
+    expect(events[1]?.expected_version).toBe(3);
+  });
 });

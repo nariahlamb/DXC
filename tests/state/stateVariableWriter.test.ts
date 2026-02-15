@@ -103,6 +103,36 @@ describe('state variable writer', () => {
     expect((commands[0] as any)?.value?.rows?.[0]?.稀有度).toBe('神话');
   });
 
+  it('aliases global-state fields to canonical sheet columns', () => {
+    const state = createNewGameState('Tester', '男', 'Human') as any;
+    state.当前地点 = '旧城区';
+    state.世界坐标 = { x: 11, y: 22 };
+
+    const locationCommand = buildWriterCommandsFromEvent(buildEvent({
+      event_id: 'evt_location_alias',
+      domain: 'global_state',
+      entity_id: 'GLOBAL_STATE',
+      path: 'gameState.当前地点',
+      op: 'set',
+      value: '公会大厅'
+    }), state);
+    const coordCommand = buildWriterCommandsFromEvent(buildEvent({
+      event_id: 'evt_coord_alias',
+      domain: 'global_state',
+      entity_id: 'GLOBAL_STATE',
+      path: 'gameState.世界坐标.x',
+      op: 'set',
+      value: 42
+    }), state);
+
+    const locationRow = (locationCommand[0] as any)?.value?.rows?.[0] || {};
+    const coordRow = (coordCommand[0] as any)?.value?.rows?.[0] || {};
+
+    expect(locationRow.当前场景).toBe('公会大厅');
+    expect(locationRow.当前地点).toBeUndefined();
+    expect(coordRow.世界坐标X).toBe(42);
+    expect(coordRow.x).toBeUndefined();
+  });
   it('deduplicates by idempotency key in consume flow', () => {
     const state = createNewGameState('Tester', '男', 'Human') as any;
     const events = [

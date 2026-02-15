@@ -130,15 +130,50 @@ const writeWriterRuntimeMetrics = (state: GameState, metrics: WriterRuntimeMetri
 const resolveFieldFromPath = (path: string): string => {
   const normalized = String(path || '').replace(/^gameState\./, '').replace(/\[(\d+)\]/g, '.$1');
   const parts = normalized.split('.').filter(Boolean);
+  if (parts.length === 0) return '';
   if (parts[0] === '角色' && parts.length >= 2) return parts[1];
   if (parts[0] === '背包' && parts.length >= 3) return parts[2];
-  return parts[parts.length - 1] || '';
+  if (parts[0] === '世界坐标' && parts.length >= 2) {
+    if (parts[1] === 'x') return '世界坐标X';
+    if (parts[1] === 'y') return '世界坐标Y';
+  }
+  const tail = parts[parts.length - 1] || '';
+  if (tail === '当前地点') return '当前场景';
+  if (tail === '天气') return '天气状况';
+  return tail;
 };
 
 const normalizeNumber = (value: unknown): number | null => {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+};
+
+const normalizeGlobalStatePayload = (payload: Record<string, unknown>): Record<string, unknown> => {
+  const next: Record<string, unknown> = { ...payload };
+  if (Object.prototype.hasOwnProperty.call(next, '当前地点') && !Object.prototype.hasOwnProperty.call(next, '当前场景')) {
+    next.当前场景 = next.当前地点;
+  }
+  if (Object.prototype.hasOwnProperty.call(next, '天气') && !Object.prototype.hasOwnProperty.call(next, '天气状况')) {
+    next.天气状况 = next.天气;
+  }
+  const worldCoord = next.世界坐标;
+  if (worldCoord && typeof worldCoord === 'object' && !Array.isArray(worldCoord)) {
+    const x = normalizeNumber((worldCoord as any).x ?? (worldCoord as any).X ?? (worldCoord as any).世界坐标X);
+    const y = normalizeNumber((worldCoord as any).y ?? (worldCoord as any).Y ?? (worldCoord as any).世界坐标Y);
+    if (x !== null && !Object.prototype.hasOwnProperty.call(next, '世界坐标X')) next.世界坐标X = Math.round(x);
+    if (y !== null && !Object.prototype.hasOwnProperty.call(next, '世界坐标Y')) next.世界坐标Y = Math.round(y);
+  }
+  delete (next as any).当前地点;
+  delete (next as any).天气;
+  delete (next as any).世界坐标;
+  return next;
+};
+
+const getGlobalNumber = (state: GameState, field: string): number | null => {
+  if (field === '世界坐标X') return normalizeNumber((state as any)?.世界坐标?.x);
+  if (field === '世界坐标Y') return normalizeNumber((state as any)?.世界坐标?.y);
+  return normalizeNumber((state as any)?.[field]);
 };
 
 const getCharacterNumber = (state: GameState, field: string): number | null => {
@@ -246,6 +281,8 @@ export const buildWriterCommandsFromEvent = (event: StateVariableEvent, stateSna
         ? event.value as Record<string, unknown>
         : null;
       if (!payload) return [];
+      const normalizedPayload = normalizeGlobalStatePayload(payload);
+      if (Object.keys(normalizedPayload).length === 0) return [];
       return [{
         action: 'upsert_sheet_rows',
         value: {
@@ -253,7 +290,7 @@ export const buildWriterCommandsFromEvent = (event: StateVariableEvent, stateSna
           keyField: '_global_id',
           rows: [{
             _global_id: 'GLOBAL_STATE',
-            ...payload
+            ...normalizedPayload
           }]
         },
         source: 'ms:state-writer'
@@ -261,11 +298,25 @@ export const buildWriterCommandsFromEvent = (event: StateVariableEvent, stateSna
     }
     if (!field) return [];
     const row: Record<string, unknown> = { _global_id: 'GLOBAL_STATE' };
-    if (event.op === 'delete') row[field] = null;
+    if (field === '世界坐标') {
+      if (event.op === 'delete') {
+        row.世界坐标X = null;
+        row.世界坐标Y = null;
+      } else {
+        const coord = (event.value && typeof event.value === 'object' && !Array.isArray(event.value))
+          ? event.value as Record<string, unknown>
+          : {};
+        const x = normalizeNumber((coord as any).x ?? (coord as any).X ?? (coord as any).世界坐标X);
+        const y = normalizeNumber((coord as any).y ?? (coord as any).Y ?? (coord as any).世界坐标Y);
+        if (x === null && y === null) return [];
+        if (x !== null) row.世界坐标X = Math.round(x);
+        if (y !== null) row.世界坐标Y = Math.round(y);
+      }
+    } else if (event.op === 'delete') row[field] = null;
     else if (event.op === 'add') {
       const delta = normalizeNumber(event.value);
       if (delta === null) return [];
-      const current = normalizeNumber((stateSnapshot as any)?.[field]) ?? 0;
+      const current = getGlobalNumber(stateSnapshot, field) ?? 0;
       row[field] = current + delta;
     } else {
       row[field] = event.value;
