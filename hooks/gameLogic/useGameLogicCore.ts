@@ -4188,7 +4188,10 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         });
         const preservedCommands = commands.filter((cmd) => !commandTouchesCutoverSheet(cmd, cutoverSheetSet));
         return {
-            stateSnapshot: writerConverted.newState,
+            // 重要：cutover 重写阶段使用 shadow consume 生成命令，但不能把 writerConverted.newState
+            // 当作事务基线，否则一旦事务回滚，__stateVarWriter.idempotencyKeys 等元数据也会被“回滚后保留”，
+            // 导致后续同批次重试被误判 duplicate_idempotency。
+            stateSnapshot,
             commands: [...preservedCommands, ...writerConverted.commands, ...writerConverted.auditCommands]
         };
     };
