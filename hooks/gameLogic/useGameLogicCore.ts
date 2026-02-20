@@ -46,6 +46,8 @@ import { extractNpcPresenceEvidenceFromStateServiceInput, guardNpcPresenceComman
 import { evaluateCrossTurnSoftWarning } from '../../utils/state/crossTurnSoftWarning';
 import { isPlayerReference, replaceUserPlaceholders, replaceUserPlaceholdersDeep, resolvePlayerName } from '../../utils/userPlaceholder';
 import { normalizeStoryResponseLogs } from '../../utils/logSegmentation';
+import { applyNpcPresenceConvergence } from '../../utils/social/npcPresenceConvergence';
+import { isValidContactIdentity } from '../../utils/social/contactPresence';
 import {
     handleSetEncounterRows,
     handleUpsertBattleMapRows,
@@ -268,6 +270,32 @@ const normalizeLocationName = (value: unknown): string => {
         .replace(/[\s·•_\-()（）[\]【】,，.。:：]/g, '');
 };
 
+const countUnindexedMemoryRows = (
+    rows: unknown[] | undefined,
+    sheet: 'summary' | 'outline'
+): number => {
+    if (!Array.isArray(rows) || rows.length === 0) return 0;
+    return rows.reduce<number>((count, row) => {
+        if (!row || typeof row !== 'object' || Array.isArray(row)) return count;
+        const record = row as Record<string, unknown>;
+        if (normalizeAmIndex(record.编码索引)) return count;
+        const body = sheet === 'summary'
+            ? normalizeMemoryTextByPolicy(record.纪要 ?? record.摘要 ?? record.summary ?? record.text ?? record.content)
+            : normalizeMemoryTextByPolicy(record.大纲 ?? record.outline ?? record.标题 ?? record.summary ?? record.text ?? record.content);
+        if (!body) return count;
+        return count + 1;
+    }, 0);
+};
+
+const collectUnindexedMemoryCounts = (
+    state: Pick<GameState, '日志摘要' | '日志大纲'>
+): { summary: number; outline: number } => {
+    return {
+        summary: countUnindexedMemoryRows(state.日志摘要 as unknown[] | undefined, 'summary'),
+        outline: countUnindexedMemoryRows(state.日志大纲 as unknown[] | undefined, 'outline')
+    };
+};
+
 const TASK_RANKS: Task['评级'][] = ['E', 'D', 'C', 'B', 'A', 'S', 'SS', 'SSS'];
 
 const normalizeTaskStatus = (value: unknown): Task['状态'] => {
@@ -307,14 +335,37 @@ const normalizeTaskText = (value: unknown): string => {
     return text;
 };
 
+const TASK_PLACEHOLDER_ID_RE = /^QUEST[_-]?\d+$/i;
+const TASK_WEAK_TITLE_RE = /^(?:quest[_-]?\d+|任务\d+|未命名任务)$/i;
+
+const isPlaceholderTaskId = (value: unknown): boolean => {
+    const id = String(value || '').trim();
+    return !!id && TASK_PLACEHOLDER_ID_RE.test(id);
+};
+
+const isWeakTaskTitle = (title: unknown, relatedId?: unknown): boolean => {
+    const rawTitle = String(title || '').trim();
+    if (!rawTitle) return true;
+    if (TASK_WEAK_TITLE_RE.test(rawTitle)) return true;
+    const normalizedTitle = normalizeTaskText(rawTitle);
+    if (!normalizedTitle) return true;
+    const normalizedId = normalizeTaskText(relatedId);
+    return !!normalizedId && normalizedTitle === normalizedId;
+};
+
 const isTaskLikelyDuplicate = (left: Partial<Task> | null | undefined, right: Partial<Task> | null | undefined): boolean => {
     if (!left || !right) return false;
     const leftId = String(left.id || '').trim();
     const rightId = String(right.id || '').trim();
     if (leftId && rightId && leftId === rightId) return true;
 
-    const leftTitle = normalizeTaskText(left.标题);
-    const rightTitle = normalizeTaskText(right.标题);
+    const leftTitleRaw = String(left.标题 || '').trim();
+    const rightTitleRaw = String(right.标题 || '').trim();
+    const leftWeakTitle = isWeakTaskTitle(leftTitleRaw, leftId);
+    const rightWeakTitle = isWeakTaskTitle(rightTitleRaw, rightId);
+
+    const leftTitle = leftWeakTitle ? '' : normalizeTaskText(leftTitleRaw);
+    const rightTitle = rightWeakTitle ? '' : normalizeTaskText(rightTitleRaw);
     if (leftTitle && rightTitle) {
         if (leftTitle === rightTitle) return true;
         if (Math.min(leftTitle.length, rightTitle.length) >= 4 && (leftTitle.includes(rightTitle) || rightTitle.includes(leftTitle))) {
@@ -336,6 +387,25 @@ const isTaskLikelyDuplicate = (left: Partial<Task> | null | undefined, right: Pa
     }
     if (rightTitle && leftDesc && Math.min(rightTitle.length, leftDesc.length) >= 4 && (rightTitle.includes(leftDesc) || leftDesc.includes(rightTitle))) {
         return true;
+    }
+
+    const oneSidePlaceholderId = (isPlaceholderTaskId(leftId) && !!rightId) || (isPlaceholderTaskId(rightId) && !!leftId);
+    if (oneSidePlaceholderId && leftDesc && rightDesc) {
+        if (leftDesc === rightDesc) return true;
+        if (Math.min(leftDesc.length, rightDesc.length) >= 6 && (leftDesc.includes(rightDesc) || rightDesc.includes(leftDesc))) {
+            return true;
+        }
+    }
+
+    const leftLog = normalizeTaskText(Array.isArray((left as any).日志)
+        ? ((left as any).日志 as any[]).map((entry) => String((entry as any)?.内容 || '')).join(' ')
+        : '');
+    const rightLog = normalizeTaskText(Array.isArray((right as any).日志)
+        ? ((right as any).日志 as any[]).map((entry) => String((entry as any)?.内容 || '')).join(' ')
+        : '');
+    if (oneSidePlaceholderId) {
+        if (leftLog && rightDesc && (leftLog.includes(rightDesc) || rightDesc.includes(leftLog))) return true;
+        if (rightLog && leftDesc && (rightLog.includes(leftDesc) || leftDesc.includes(rightLog))) return true;
     }
 
     return false;
@@ -370,13 +440,15 @@ const getTaskStatusPriority = (status: Task['状态']) => {
 };
 
 const normalizeTaskRecord = (task: Partial<Task>, nowTime: string): Task => {
+    const id = String(task.id || '').trim();
     const title = String(task.标题 || '').trim();
     const desc = String(task.描述 || '').trim();
-    const safeTitle = title || (desc.length > 28 ? `${desc.slice(0, 28)}...` : desc) || '未命名任务';
+    const strongTitle = isWeakTaskTitle(title, id) ? '' : title;
+    const safeTitle = strongTitle || (desc.length > 28 ? `${desc.slice(0, 28)}...` : desc) || '未命名任务';
     const safeDesc = desc || safeTitle;
     const safeStatus = normalizeTaskStatus(task.状态);
     return {
-        id: String(task.id || '').trim() || generateLegacyId(),
+        id: id || generateLegacyId(),
         标题: safeTitle,
         描述: safeDesc,
         状态: safeStatus,
@@ -395,12 +467,26 @@ const mergeTaskRecord = (baseTask: Task, incomingTask: Partial<Task>, nowTime: s
     const nextStatus = normalizeTaskStatus(normalizedIncoming.状态);
     const status = getTaskStatusPriority(nextStatus) > getTaskStatusPriority(baseStatus) ? nextStatus : baseStatus;
 
+    const baseId = String(baseTask.id || '').trim();
+    const incomingId = String(normalizedIncoming.id || '').trim();
+    const preferBaseId = !!baseId && !isPlaceholderTaskId(baseId);
+    const preferIncomingId = !!incomingId && !isPlaceholderTaskId(incomingId);
+    const resolvedId = preferBaseId
+        ? baseId
+        : (preferIncomingId ? incomingId : (baseId || incomingId || generateLegacyId()));
+
+    const baseTitleRaw = String(baseTask.标题 || '').trim();
+    const incomingTitleRaw = String(normalizedIncoming.标题 || '').trim();
+    const baseTitle = isWeakTaskTitle(baseTitleRaw, baseId) ? '' : baseTitleRaw;
+    const incomingTitle = isWeakTaskTitle(incomingTitleRaw, incomingId) ? '' : incomingTitleRaw;
+    const resolvedTitle = baseTitle || incomingTitle || baseTitleRaw || incomingTitleRaw || '未命名任务';
+
     return {
         ...baseTask,
         ...normalizedIncoming,
-        id: String(baseTask.id || normalizedIncoming.id || '').trim() || generateLegacyId(),
-        标题: String(baseTask.标题 || normalizedIncoming.标题 || '').trim() || '未命名任务',
-        描述: String(normalizedIncoming.描述 || baseTask.描述 || '').trim() || String(baseTask.标题 || normalizedIncoming.标题 || '任务').trim(),
+        id: resolvedId,
+        标题: resolvedTitle,
+        描述: String(normalizedIncoming.描述 || baseTask.描述 || '').trim() || String(resolvedTitle || '任务').trim(),
         状态: status,
         奖励: String(normalizedIncoming.奖励 || baseTask.奖励 || '').trim() || '待定',
         评级: normalizeTaskRank(normalizedIncoming.评级, normalizeTaskRank(baseTask.评级, 'E')),
@@ -1314,6 +1400,11 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                 } else if (lastKey === '社交' || rawPath.includes('社交') && !rawPath.includes('.')) {
                     // A-XXX FIX: Default 是否在场 to true for new NPCs via push so they appear in "周围的人"
                     const npcData = normalizedValue && typeof normalizedValue === 'object' ? normalizedValue : {};
+                    const incomingName = String((npcData as any).姓名 ?? (npcData as any).name ?? '').trim();
+                    const incomingId = String((npcData as any).id ?? (npcData as any).NPC_ID ?? (npcData as any).npc_id ?? incomingName).trim();
+                    if (!isValidContactIdentity({ id: incomingId, 姓名: incomingName })) {
+                        return { success: false, error: `Invalid social contact payload: ${incomingName || incomingId || 'empty identity'}` };
+                    }
                     const newNpc = {
                         记忆: [],
                         好感度: 0,
@@ -1324,7 +1415,9 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                         特别关注: false,
                         是否在场: true,
                         当前状态: '在场',
-                        ...npcData
+                        ...npcData,
+                        id: incomingId || (npcData as any).id,
+                        姓名: incomingName || incomingId || (npcData as any).姓名
                     };
                     current[lastKey].push(newNpc);
                 } else {
@@ -2249,7 +2342,7 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
             const npcName = String(row.npc_name ?? row.NPC ?? row.npc ?? row.姓名 ?? '').trim();
             const currentAction = String(row.current_action ?? row.当前行动 ?? row.action ?? '').trim();
             if (!npcName || !currentAction) return null;
-            const trackingId = String(row.tracking_id ?? row.id ?? '').trim() || `${npcName}_${fallbackIndex + 1}`;
+            const trackingId = String(row.tracking_id ?? row.id ?? '').trim() || npcName;
             const location = String(row.location ?? row.位置 ?? '').trim();
             const progress = String(row.progress ?? row.进度 ?? '').trim();
             const eta = String(row.eta ?? row.预计完成 ?? '').trim();
@@ -2884,9 +2977,11 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                 const quests = Array.isArray((stateSnapshot as any)?.任务) ? (stateSnapshot as any).任务 : [];
                 const targetQuest = quests[questIndex];
                 if (!targetQuest) return null;
+                const baseQuestId = String((targetQuest as any)?.id ?? `QUEST_${questIndex + 1}`).trim();
+                const baseQuestTitle = String((targetQuest as any)?.标题 ?? '').trim();
                 const baseRow: Record<string, unknown> = {
-                    任务ID: String((targetQuest as any)?.id ?? `QUEST_${questIndex + 1}`).trim(),
-                    任务名称: String((targetQuest as any)?.标题 ?? '').trim() || `任务${questIndex + 1}`,
+                    任务ID: baseQuestId,
+                    任务名称: baseQuestTitle || undefined,
                     目标描述: String((targetQuest as any)?.描述 ?? '').trim() || undefined,
                     状态: String((targetQuest as any)?.状态 ?? 'active').trim() || 'active',
                     奖励: String((targetQuest as any)?.奖励 ?? '').trim() || undefined,
@@ -2997,7 +3092,9 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                     .replace(/^affinity$/i, '好感度')
                     .replace(/^favorability$/i, '好感度')
                     .replace(/^isPresent$/i, '是否在场')
-                    .replace(/^status$/i, '当前状态')
+                    .replace(/^currentStatus$/i, '当前状态')
+                    .replace(/^current_state$/i, '当前状态')
+                    .replace(/^status$/i, '关系状态')
                     .replace(/^relationshipStatus$/i, '关系状态')
                     .replace(/^relation$/i, '与主角关系')
                     .replace(/^locationDetail$/i, '位置详情')
@@ -3018,7 +3115,12 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                     if (action === 'delete') return null;
                     row.是否在场 = Boolean(value);
                 } else if (field === '当前状态') {
-                    row.当前状态 = String(value ?? '').trim() || undefined;
+                    const statusText = String(value ?? '').trim();
+                    row.当前状态 = ['在场', '离场', '死亡', '失踪'].includes(statusText) ? statusText : undefined;
+                    if (!row.当前状态) {
+                        row.关系状态 = statusText || undefined;
+                        row.与主角关系 = statusText || undefined;
+                    }
                 } else if (field === '关系状态') {
                     row.关系状态 = String(value ?? '').trim() || undefined;
                     row.与主角关系 = String(value ?? '').trim() || undefined;
@@ -3059,12 +3161,26 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                         .map((item, index) => normalizeWorldTrackingRow(item, index))
                         .filter((row): row is Record<string, unknown> => !!row);
                     if (rows.length === 0) return null;
+
+                    const latestByNpc = new Map<string, Record<string, unknown>>();
+                    rows.forEach((row) => {
+                        const npcName = String((row as any).npc_name || '').trim();
+                        if (!npcName) return;
+                        const key = npcName.toLowerCase();
+                        latestByNpc.set(key, {
+                            ...row,
+                            tracking_id: String((row as any).tracking_id || '').trim() || npcName
+                        });
+                    });
+
+                    const dedupedRows = Array.from(latestByNpc.values());
+                    if (dedupedRows.length === 0) return null;
                     return {
                         action: 'upsert_sheet_rows',
                         value: {
                             sheetId: 'WORLD_NpcTracking',
                             keyField: 'tracking_id',
-                            rows
+                            rows: dedupedRows
                         }
                     } as TavernCommand;
                 }
@@ -3625,11 +3741,14 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
             commandBatch.forEach(cmd => {
                 try {
                     if ((cmd as any) && typeof (cmd as any) === 'object' && !Array.isArray(cmd)) {
-                        const commandAlias = (cmd as any).action ?? (cmd as any).type ?? (cmd as any).command ?? (cmd as any).name ?? (cmd as any).mode;
-                        if (!commandAlias && typeof (cmd as any).cmd === 'string') {
-                            (cmd as any).action = (cmd as any).cmd;
-                        } else if (!(cmd as any).action && typeof commandAlias === 'string' && commandAlias.trim()) {
-                            (cmd as any).action = commandAlias;
+                        const genericActionAliases = new Set(['table_op']);
+                        const primaryAction = String((cmd as any).action ?? (cmd as any).type ?? '').trim();
+                        const fallbackAction = String((cmd as any).command ?? (cmd as any).name ?? (cmd as any).mode ?? (cmd as any).cmd ?? '').trim();
+                        const shouldUseFallbackAction = (!primaryAction || genericActionAliases.has(primaryAction.toLowerCase())) && !!fallbackAction;
+                        if (shouldUseFallbackAction) {
+                            (cmd as any).action = fallbackAction;
+                        } else if (!(cmd as any).action && primaryAction) {
+                            (cmd as any).action = primaryAction;
                         }
                         if ((cmd as any).value === undefined && (cmd as any).args !== undefined) {
                             (cmd as any).value = (cmd as any).args;
@@ -3642,15 +3761,7 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                     if (inlineFunctionCommand) {
                         cmd = inlineFunctionCommand as any;
                     }
-                    let normalizedAction = String(
-                        (cmd as any)?.action
-                        ?? (cmd as any)?.type
-                        ?? (cmd as any)?.command
-                        ?? (cmd as any)?.name
-                        ?? (cmd as any)?.mode
-                        ?? (cmd as any)?.cmd
-                        ?? ''
-                    ).trim().toLowerCase();
+                    let normalizedAction = resolveNormalizedCommandAction(cmd as any);
                     let normalizedKeyRaw = (cmd as any)?.key ?? (cmd as any)?.path;
                     let normalizedKey = typeof normalizedKeyRaw === 'string' ? normalizedKeyRaw.trim() : normalizedKeyRaw;
                     const normalizedValue = normalizeCommandPayload(normalizedAction, cmd as any);
@@ -3701,15 +3812,7 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                             String((effectiveRewrittenCommand as any).action || '').trim().toLowerCase(),
                             effectiveRewrittenCommand
                         );
-                        normalizedAction = String(
-                            (cmd as any)?.action
-                            ?? (cmd as any)?.type
-                            ?? (cmd as any)?.command
-                            ?? (cmd as any)?.name
-                            ?? (cmd as any)?.mode
-                            ?? (cmd as any)?.cmd
-                            ?? ''
-                        ).trim().toLowerCase();
+                        normalizedAction = resolveNormalizedCommandAction(cmd as any);
                         normalizedKeyRaw = (cmd as any)?.key ?? (cmd as any)?.path;
                         normalizedKey = typeof normalizedKeyRaw === 'string' ? normalizedKeyRaw.trim() : normalizedKeyRaw;
                     } else if (tryCompatRewriteForMalformedSheetCommand) {
@@ -4590,8 +4693,16 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         }
     };
     
+    const resolveNormalizedCommandAction = (cmd: any): string => {
+        const primary = String(cmd?.action ?? cmd?.type ?? '').trim().toLowerCase();
+        const fallback = String(cmd?.command ?? cmd?.name ?? cmd?.mode ?? cmd?.cmd ?? '').trim().toLowerCase();
+        if (!primary) return fallback;
+        if (primary === 'table_op' && fallback) return fallback;
+        return primary;
+    };
+
     const getCommandActionAndKey = (cmd: any): { action: string; key: string } => ({
-        action: String(cmd?.action ?? cmd?.type ?? cmd?.command ?? cmd?.name ?? cmd?.mode ?? cmd?.cmd ?? '').trim().toLowerCase(),
+        action: resolveNormalizedCommandAction(cmd),
         key: String(cmd?.key ?? cmd?.path ?? '').trim()
     });
 
@@ -4610,7 +4721,7 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
     };
 
     const inferTargetSheetsFromCommand = (cmd: TavernCommand): TavernDBSheetId[] => {
-        const action = String((cmd as any)?.action ?? (cmd as any)?.type ?? (cmd as any)?.command ?? (cmd as any)?.name ?? (cmd as any)?.cmd ?? '').trim().toLowerCase();
+        const action = resolveNormalizedCommandAction(cmd as any);
         const value = (cmd as any)?.value ?? (cmd as any)?.args ?? (cmd as any)?.arguments;
         const parseSheetPayload = (raw: unknown): unknown => {
             if (typeof raw !== 'string') return raw;
@@ -5103,11 +5214,7 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         if (!response || typeof response !== 'object') return commands;
 
         const existingActions = new Set(
-            commands.map((cmd: any) =>
-                String(cmd?.action ?? cmd?.type ?? cmd?.command ?? cmd?.name ?? cmd?.mode ?? '')
-                    .trim()
-                    .toLowerCase()
-            )
+            commands.map((cmd: any) => resolveNormalizedCommandAction(cmd))
         );
 
         const combatCandidates = [
@@ -5210,9 +5317,12 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         const currentTurn = Math.max(0, Math.floor(Number(stateSnapshot?.回合数 || 0)));
         if (currentTurn <= 0) return false;
         const nextTurnRaw = Number(stateSnapshot?.世界?.下次更新回合);
-        if (!Number.isFinite(nextTurnRaw)) return false;
-        const nextTurn = Math.max(0, Math.floor(nextTurnRaw));
-        return currentTurn >= nextTurn;
+        if (Number.isFinite(nextTurnRaw)) {
+            const nextTurn = Math.max(0, Math.floor(nextTurnRaw));
+            return currentTurn >= nextTurn;
+        }
+        // 容错：当 nextTurn 缺失/异常时，按 interval 兜底，避免世界状态长期停更。
+        return currentTurn % interval === 0;
     };
     const isForumCadenceDueForStateFill = (stateSnapshot?: GameState, systemSettings?: SystemSettings) => {
         const interval = resolveForumCadenceInterval(systemSettings);
@@ -5247,6 +5357,42 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
             if (FORUM_INTERVAL_CONTROLLED_STATE_SHEETS.has(sheetId)) return forumDue;
             return true;
         });
+    };
+    const collectStateRequiredFieldIssues = (stateSnapshot?: GameState, systemSettings?: SystemSettings): string[] => {
+        if (!stateSnapshot) return ['gameState'];
+        const issues: string[] = [];
+        const currentTurn = Number(stateSnapshot.回合数);
+        if (!Number.isFinite(currentTurn) || currentTurn < 0) {
+            issues.push('gameState.回合数');
+        }
+
+        const worldInterval = resolveWorldCadenceInterval(systemSettings);
+        if (worldInterval > 0) {
+            const nextTurn = Number((stateSnapshot as any)?.世界?.下次更新回合);
+            if (!Number.isFinite(nextTurn) || nextTurn < 0) {
+                issues.push('gameState.世界.下次更新回合');
+            }
+        }
+
+        if (!Array.isArray((stateSnapshot as any)?.手机?.公共帖子?.帖子)) {
+            issues.push('gameState.手机.公共帖子.帖子');
+        }
+        const phoneDialog = (stateSnapshot as any)?.手机?.对话;
+        if (!phoneDialog || !Array.isArray(phoneDialog.私聊) || !Array.isArray(phoneDialog.群聊) || !Array.isArray(phoneDialog.公共频道)) {
+            issues.push('gameState.手机.对话');
+        }
+        if (!Array.isArray((stateSnapshot as any)?.任务)) {
+            issues.push('gameState.任务');
+        }
+        if (!Array.isArray((stateSnapshot as any)?.背包)) {
+            issues.push('gameState.背包');
+        }
+        const familiaFunds = Number((stateSnapshot as any)?.眷族?.资金);
+        if (!Number.isFinite(familiaFunds)) {
+            issues.push('gameState.眷族.资金');
+        }
+
+        return Array.from(new Set(issues));
     };
     const buildStateSheetGuide = (requiredSheets: StateTargetSheet[]) => {
         return requiredSheets.map((sheetId) => {
@@ -5546,7 +5692,7 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
     const filterMemoryCommandsBySheet = (commands: TavernCommand[], sheet: MemoryTargetSheet): TavernCommand[] => {
         if (!Array.isArray(commands) || commands.length === 0) return [];
         return commands.filter((cmd: any) => {
-            const action = String(cmd?.action ?? cmd?.type ?? cmd?.command ?? cmd?.name ?? '').trim().toLowerCase();
+            const action = resolveNormalizedCommandAction(cmd);
             const sheetId = resolveSheetIdFromCommand(cmd as TavernCommand);
             if (sheet === 'LOG_Summary') {
                 if (action === 'append_log_summary') return true;
@@ -5565,7 +5711,7 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
     const filterStateCommandsBySheet = (commands: TavernCommand[], sheet: StateTargetSheet): TavernCommand[] => {
         if (!Array.isArray(commands) || commands.length === 0) return [];
         return commands.filter((cmd: any) => {
-            const action = String(cmd?.action ?? cmd?.type ?? cmd?.command ?? cmd?.name ?? '').trim().toLowerCase();
+            const action = resolveNormalizedCommandAction(cmd);
             const sheetId = resolveSheetIdFromCommand(cmd as TavernCommand);
             if (sheet === 'NPC_Registry') {
                 if (action === 'upsert_npc') return true;
@@ -5586,7 +5732,7 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
     const filterStateCommandsBySheetSet = (commands: TavernCommand[], allowedSheets: Set<StateTargetSheet>): TavernCommand[] => {
         if (!Array.isArray(commands) || commands.length === 0) return [];
         return commands.filter((cmd: any) => {
-            const action = String(cmd?.action ?? cmd?.type ?? cmd?.command ?? cmd?.name ?? '').trim().toLowerCase();
+            const action = resolveNormalizedCommandAction(cmd);
             const sheetId = resolveSheetIdFromCommand(cmd as TavernCommand) as StateTargetSheet;
             if (action === 'upsert_npc') return allowedSheets.has('NPC_Registry');
             if (action === 'upsert_inventory') return allowedSheets.has('ITEM_Inventory');
@@ -6144,6 +6290,125 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
         };
     };
 
+    const rewriteStateLegacyCommandsBeforeGuard = (
+        commands: TavernCommand[],
+        stateSnapshot: GameState
+    ): { commands: TavernCommand[]; rewrittenCount: number } => {
+        if (!Array.isArray(commands) || commands.length === 0) {
+            return { commands: Array.isArray(commands) ? commands : [], rewrittenCount: 0 };
+        }
+        const normalizeLegacySocialPath = (raw: unknown): string => {
+            const key = String(raw ?? '').trim();
+            if (!key) return '';
+            let normalized = key.startsWith('gameState.') ? key : `gameState.${key}`;
+            normalized = normalized.replace(/^gameState\.social(?=\.|\[|$)/i, 'gameState.社交');
+            normalized = normalized.replace(/^gameState\.confidants(?=\.|\[|$)/i, 'gameState.社交');
+            return normalized;
+        };
+        const toNumberOrNull = (value: unknown): number | null => {
+            if (typeof value === 'number' && Number.isFinite(value)) return value;
+            if (typeof value === 'string') {
+                const parsed = Number(value);
+                if (Number.isFinite(parsed)) return parsed;
+            }
+            return null;
+        };
+        let rewrittenCount = 0;
+        const rewrittenCommands = commands.map((rawCommand) => {
+            if (!rawCommand || typeof rawCommand !== 'object' || Array.isArray(rawCommand)) return rawCommand;
+            const commandAny = rawCommand as any;
+            let action = String(
+                commandAny?.action
+                ?? commandAny?.type
+                ?? commandAny?.command
+                ?? commandAny?.name
+                ?? commandAny?.mode
+                ?? commandAny?.cmd
+                ?? ''
+            ).trim().toLowerCase();
+            const normalizedKey = String(commandAny?.key ?? commandAny?.path ?? '').trim();
+            if (!action || !normalizedKey) return rawCommand;
+            const payload = commandAny?.value !== undefined
+                ? commandAny.value
+                : (commandAny?.args !== undefined ? commandAny.args : commandAny?.arguments);
+            if (action === 'upsert_sheet_rows') {
+                const sheetId = Array.isArray(payload)
+                    ? String((payload.find((item) => !!item && typeof item === 'object' && !Array.isArray(item)) as any)?.sheetId || '').trim()
+                    : String((payload as any)?.sheetId || '').trim();
+                if (sheetId) return rawCommand;
+                action = 'set';
+            }
+            if (!LEGACY_PATH_ACTIONS.has(action)) return rawCommand;
+            const canonicalKey = normalizeLegacySocialPath(normalizedKey);
+            if (!/^gameState\.社交(\.|\[|$)/.test(canonicalKey)) return rawCommand;
+
+            if (canonicalKey === 'gameState.社交' && (action === 'set' || action === 'push')) {
+                const rows = Array.isArray(payload) ? payload : [payload];
+                const normalizedRows = rows.filter((item) => !!item && typeof item === 'object' && !Array.isArray(item));
+                if (normalizedRows.length === 0) return rawCommand;
+                rewrittenCount += 1;
+                return { action: 'upsert_npc', value: normalizedRows } as TavernCommand;
+            }
+
+            const socialMatch = canonicalKey.match(/^gameState\.社交(?:\[(\d+)\]|\.(\d+))(?:\.(.+))?$/);
+            if (!socialMatch) return rawCommand;
+            const socialIndex = Number(socialMatch[1] ?? socialMatch[2]);
+            const rawField = String(socialMatch[3] || '').trim();
+            const social = Array.isArray(stateSnapshot?.社交) ? stateSnapshot.社交 : [];
+            const targetNpc = social[socialIndex];
+            if (!targetNpc) return rawCommand;
+            if (!rawField && action === 'set' && payload && typeof payload === 'object' && !Array.isArray(payload)) {
+                rewrittenCount += 1;
+                return { action: 'upsert_npc', value: [{ ...payload, id: (payload as any).id || targetNpc.id || targetNpc.姓名 }] } as TavernCommand;
+            }
+            if (!rawField) return rawCommand;
+            const field = rawField
+                .replace(/^affinity$/i, '好感度')
+                .replace(/^favorability$/i, '好感度')
+                .replace(/^isPresent$/i, '是否在场')
+                .replace(/^currentStatus$/i, '当前状态')
+                .replace(/^current_state$/i, '当前状态')
+                .replace(/^status$/i, '关系状态')
+                .replace(/^relationshipStatus$/i, '关系状态')
+                .replace(/^relation$/i, '与主角关系')
+                .replace(/^locationDetail$/i, '位置详情')
+                .replace(/^location$/i, '所在位置');
+            const row: Record<string, unknown> = {
+                id: targetNpc.id || targetNpc.姓名 || `npc_${socialIndex + 1}`
+            };
+            if (field === '好感度') {
+                const incoming = toNumberOrNull(payload);
+                if (incoming === null) return rawCommand;
+                const base = toNumberOrNull((targetNpc as any).好感度) ?? 0;
+                row.好感度 = action === 'add' ? base + incoming : incoming;
+            } else if (field === '是否在场') {
+                if (action === 'delete') return rawCommand;
+                row.是否在场 = Boolean(payload);
+            } else if (field === '当前状态') {
+                const statusText = String(payload ?? '').trim();
+                row.当前状态 = ['在场', '离场', '死亡', '失踪'].includes(statusText) ? statusText : undefined;
+                if (!row.当前状态) {
+                    row.关系状态 = statusText || undefined;
+                    row.与主角关系 = statusText || undefined;
+                }
+            } else if (field === '关系状态') {
+                row.关系状态 = String(payload ?? '').trim() || undefined;
+                row.与主角关系 = String(payload ?? '').trim() || undefined;
+            } else if (field === '与主角关系') {
+                row.与主角关系 = String(payload ?? '').trim() || undefined;
+            } else if (field === '位置详情' || field === '所在位置') {
+                const text = String(payload ?? '').trim();
+                row.所在位置 = text || undefined;
+                row.位置详情 = text || undefined;
+            } else {
+                return rawCommand;
+            }
+            rewrittenCount += 1;
+            return { action: 'upsert_npc', value: [row] } as TavernCommand;
+        });
+        return { commands: rewrittenCommands, rewrittenCount };
+    };
+
     const enqueueMicroserviceTask = (
         serviceKey: string,
         input: string,
@@ -6203,15 +6468,31 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                     return;
                 }
 
+                const preGuardCommands = serviceKey === 'state'
+                    ? rewriteStateLegacyCommandsBeforeGuard(result.tavern_commands as TavernCommand[], stateSnapshot)
+                    : { commands: result.tavern_commands as TavernCommand[], rewrittenCount: 0 };
+                if (preGuardCommands.rewrittenCount > 0) {
+                    pushDebugToast('MS', `${serviceKey} legacy-rewrite=${preGuardCommands.rewrittenCount}`);
+                    if (shouldDebugMicroservice()) {
+                        console.warn('[DXC][MS LEGACY REWRITE]', serviceKey, {
+                            rewrittenCount: preGuardCommands.rewrittenCount
+                        });
+                    }
+                }
+
                 // Security: Filter commands based on service role to prevent state clobbering
                 const stateCadenceSettings = stateSnapshot?.系统设置 || settings.系统设置;
+                const stateWorldCadenceInterval = resolveWorldCadenceInterval(stateCadenceSettings);
+                const stateForumCadenceInterval = resolveForumCadenceInterval(stateCadenceSettings);
                 const stateWorldCadenceDue = isWorldCadenceDueForStateFill(stateSnapshot, stateCadenceSettings);
                 const stateForumCadenceDue = isForumCadenceDueForStateFill(stateSnapshot, stateCadenceSettings);
                 const guardResult = filterCommandsForServiceWithDiagnostics({
                     serviceKey,
-                    commands: result.tavern_commands as TavernCommand[],
+                    commands: preGuardCommands.commands,
                     stateWorldCadenceDue,
                     stateForumCadenceDue,
+                    stateWorldCadenceManualMode: stateWorldCadenceInterval <= 0,
+                    stateForumCadenceManualMode: stateForumCadenceInterval <= 0,
                     legacyPathActions: LEGACY_PATH_ACTIONS,
                     resolveSheetIdFromCommand,
                     worldIntervalControlledSheets: WORLD_INTERVAL_CONTROLLED_STATE_SHEETS as unknown as Set<string>,
@@ -6221,7 +6502,7 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                         : false,
                     allowlist: settings.stateVarWriter?.governance?.domainScope?.allowlist
                 });
-                const validCommands = guardResult.commands;
+                let validCommands = guardResult.commands;
                 const guardRejected = guardResult.rejected;
                 if (guardRejected.length > 0 && shouldDebugMicroservice()) {
                     console.warn('[DXC][MS GUARD]', serviceKey, {
@@ -6260,17 +6541,34 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                             if (turn !== null) outlineTurns.add(turn);
                         }
                     });
-                    if (summaryTurns.size > 0 || outlineTurns.size > 0) {
-                        const pairedTurns = new Set<number>();
-                        expectedTurns.forEach((turn) => {
-                            if (summaryTurns.has(turn) && outlineTurns.has(turn)) {
-                                pairedTurns.add(turn);
-                            }
-                        });
-                        const missingJobs = taskMemoryJobs.filter((job) => !pairedTurns.has(Math.max(1, Math.floor(Number(job?.turnIndex || 0)))));
-                        if (missingJobs.length > 0) {
-                            retryMemoryFillJobs(missingJobs, `partial-pair(expected=${expectedTurns.size},paired=${pairedTurns.size})`);
+                    const pairedTurns = new Set<number>();
+                    expectedTurns.forEach((turn) => {
+                        if (summaryTurns.has(turn) && outlineTurns.has(turn)) {
+                            pairedTurns.add(turn);
                         }
+                    });
+                    const missingJobs = taskMemoryJobs.filter((job) => !pairedTurns.has(Math.max(1, Math.floor(Number(job?.turnIndex || 0)))));
+                    if (missingJobs.length > 0) {
+                        retryMemoryFillJobs(missingJobs, `partial-pair(expected=${expectedTurns.size},paired=${pairedTurns.size})`);
+                    }
+                    if (pairedTurns.size === 0) {
+                        pushDebugToast('MS', 'memory filtered (no paired turns)');
+                        return;
+                    }
+                    validCommands = validCommands.filter((cmd) => {
+                        if (filterMemoryCommandsBySheet([cmd], 'LOG_Summary').length > 0) {
+                            const turn = normalizeMemoryTurn(cmd, 'LOG_Summary');
+                            return turn !== null && pairedTurns.has(turn);
+                        }
+                        if (filterMemoryCommandsBySheet([cmd], 'LOG_Outline').length > 0) {
+                            const turn = normalizeMemoryTurn(cmd, 'LOG_Outline');
+                            return turn !== null && pairedTurns.has(turn);
+                        }
+                        return false;
+                    });
+                    if (validCommands.length === 0) {
+                        pushDebugToast('MS', 'memory filtered (paired-empty)');
+                        return;
                     }
                 }
                 let sanitizedCommands = validCommands as TavernCommand[];
@@ -6318,13 +6616,34 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                         const beforeMissingSummary = new Set(beforePairingIssues.missingSummary);
                         const introducedMissingOutline = afterPairingIssues.missingOutline.filter((index) => !beforeMissingOutline.has(index));
                         const introducedMissingSummary = afterPairingIssues.missingSummary.filter((index) => !beforeMissingSummary.has(index));
-                        if (introducedMissingOutline.length > 0 || introducedMissingSummary.length > 0) {
+                        const beforeUnindexedCounts = collectUnindexedMemoryCounts({
+                            日志摘要: prev.日志摘要 as any,
+                            日志大纲: prev.日志大纲 as any
+                        });
+                        const afterUnindexedCounts = collectUnindexedMemoryCounts({
+                            日志摘要: next.日志摘要 as any,
+                            日志大纲: next.日志大纲 as any
+                        });
+                        const introducedUnindexedSummary = Math.max(0, afterUnindexedCounts.summary - beforeUnindexedCounts.summary);
+                        const introducedUnindexedOutline = Math.max(0, afterUnindexedCounts.outline - beforeUnindexedCounts.outline);
+                        if (
+                            introducedMissingOutline.length > 0
+                            || introducedMissingSummary.length > 0
+                            || introducedUnindexedSummary > 0
+                            || introducedUnindexedOutline > 0
+                        ) {
                             memoryPairRejected = true;
                             appliedFallbacks = [...appliedFallbacks, 'memory-pair-rollback'];
+                            const rollbackDetail = [
+                                introducedMissingOutline.length > 0 ? `missingOutline=${introducedMissingOutline.length}` : '',
+                                introducedMissingSummary.length > 0 ? `missingSummary=${introducedMissingSummary.length}` : '',
+                                introducedUnindexedSummary > 0 ? `unindexedSummary=${introducedUnindexedSummary}` : '',
+                                introducedUnindexedOutline > 0 ? `unindexedOutline=${introducedUnindexedOutline}` : ''
+                            ].filter(Boolean).join(',');
                             const guardLog: LogEntry = {
                                 id: generateLegacyId(),
                                 sender: '系统',
-                                text: `记忆填表已回滚：检测到未配对 AM（missingOutline=${introducedMissingOutline.length}, missingSummary=${introducedMissingSummary.length}）。`,
+                                text: `记忆填表已回滚：检测到日志配对校验失败（${rollbackDetail || 'unknown'}）。`,
                                 timestamp: Date.now(),
                                 type: 'system'
                             };
@@ -6344,19 +6663,29 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                     if (!memoryPairRejected && processed.logs.length > 0) {
                         next.日志 = [...(next.日志 || []), ...processed.logs];
                     }
-                    const scopeRejected = Array.isArray(guardRejected)
-                        ? guardRejected.filter((item: any) => item?.reason === 'sheet_not_allowed' || item?.reason === 'field_not_allowed')
+                    const visibleRejectedReasons = new Set([
+                        'sheet_not_allowed',
+                        'field_not_allowed',
+                        'legacy_path_blocked',
+                        'cadence_not_due'
+                    ]);
+                    const visibleRejected = Array.isArray(guardRejected)
+                        ? guardRejected.filter((item: any) => visibleRejectedReasons.has(String(item?.reason || '')))
                         : [];
-                    if (scopeRejected.length > 0) {
+                    if (visibleRejected.length > 0) {
                         const byReason: Record<string, number> = {};
                         const topHints: string[] = [];
-                        scopeRejected.forEach((item: any) => {
+                        visibleRejected.forEach((item: any) => {
                             const reason = String(item?.reason || 'unknown');
                             byReason[reason] = (byReason[reason] || 0) + 1;
                             const sheetId = String(item?.sheetId || '').trim();
                             const field = String(item?.field || '').trim();
-                            if (topHints.length < 3 && (sheetId || field)) {
-                                topHints.push([sheetId, field].filter(Boolean).join('.'));
+                            const action = String(item?.action || '').trim().toLowerCase();
+                            if (topHints.length < 3) {
+                                const hint = [sheetId, field || (action ? `action:${action}` : '')]
+                                    .filter(Boolean)
+                                    .join('.');
+                                if (hint) topHints.push(hint);
                             }
                         });
                         const reasonSummary = Object.entries(byReason)
@@ -6368,7 +6697,7 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                             {
                                 id: generateLegacyId(),
                                 sender: '系统',
-                                text: `[MS_GUARD_001] 已过滤越域写入：${reasonSummary}${hintSummary}`,
+                                text: `[MS_GUARD_001] 指令已拦截：${reasonSummary}${hintSummary}`,
                                 timestamp: Date.now(),
                                 type: 'system'
                             } as any
@@ -6403,6 +6732,23 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                             ? writerMetrics.skipByReason as Record<string, unknown>
                             : {};
                         const writerSkipped = Math.max(0, Math.floor(Number(writerMetrics.skippedCount || 0)));
+                        const missingRequiredFields = collectStateRequiredFieldIssues(
+                            next,
+                            (next as any)?.系统设置 || settings.系统设置
+                        );
+                        if (missingRequiredFields.length > 0) {
+                            const sample = missingRequiredFields.slice(0, 4).join(' | ');
+                            next.日志 = [
+                                ...(next.日志 || []),
+                                {
+                                    id: generateLegacyId(),
+                                    sender: '系统',
+                                    text: `[MS_REQUIRED_001] missing_required_field=${missingRequiredFields.length}${sample ? ` sample=${sample}` : ''}`,
+                                    timestamp: Date.now(),
+                                    type: 'system'
+                                } as any
+                            ];
+                        }
                         const rejectedByReason = Array.isArray(guardRejected)
                             ? guardRejected.reduce((acc: Record<string, number>, item: any) => {
                                 const reason = String(item?.reason || 'unknown');
@@ -6410,6 +6756,9 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                                 return acc;
                             }, {})
                             : {};
+                        if (missingRequiredFields.length > 0) {
+                            rejectedByReason.missing_required_field = (rejectedByReason.missing_required_field || 0) + missingRequiredFields.length;
+                        }
                         const existingDiagnostics = ((next as any)?.__stateVarDiagnostics && typeof (next as any).__stateVarDiagnostics === 'object')
                             ? (next as any).__stateVarDiagnostics
                             : {};
@@ -6429,7 +6778,8 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                                 guardRejected: rejectedByReason,
                                 fallback: String((result as any)?.fallbackOutcome?.reasonClass || 'not-evaluated'),
                                 fallbackApplied: Boolean((result as any)?.fallbackOutcome?.applied),
-                                fallbackDelta: (result as any)?.fallbackOutcome?.delta
+                                fallbackDelta: (result as any)?.fallbackOutcome?.delta,
+                                missingRequiredFields: missingRequiredFields.slice(0, 16)
                             }
                         };
                     }
@@ -8112,6 +8462,16 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                 const beforeMissingSummary = new Set(beforePairingIssues.missingSummary);
                 const introducedMissingOutline = afterPairingIssues.missingOutline.filter((index) => !beforeMissingOutline.has(index));
                 const introducedMissingSummary = afterPairingIssues.missingSummary.filter((index) => !beforeMissingSummary.has(index));
+                const beforeUnindexedCounts = collectUnindexedMemoryCounts({
+                    日志摘要: stateWithUserLog.日志摘要 as any,
+                    日志大纲: stateWithUserLog.日志大纲 as any
+                });
+                const afterUnindexedCounts = collectUnindexedMemoryCounts({
+                    日志摘要: newState.日志摘要 as any,
+                    日志大纲: newState.日志大纲 as any
+                });
+                const introducedUnindexedSummary = Math.max(0, afterUnindexedCounts.summary - beforeUnindexedCounts.summary);
+                const introducedUnindexedOutline = Math.max(0, afterUnindexedCounts.outline - beforeUnindexedCounts.outline);
 
                 const beforeInvariantSet = new Set(
                     validateStateInvariants(stateWithUserLog).map((issue) => `${issue.code}:${issue.path}:${issue.message}`)
@@ -8123,6 +8483,8 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                 if (
                     introducedMissingOutline.length > 0
                     || introducedMissingSummary.length > 0
+                    || introducedUnindexedSummary > 0
+                    || introducedUnindexedOutline > 0
                     || introducedInvariantIssues.length > 0
                 ) {
                     const rollbackDetail = [
@@ -8131,6 +8493,12 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                             : '',
                         introducedMissingSummary.length > 0
                             ? `missingSummary=${introducedMissingSummary.length}`
+                            : '',
+                        introducedUnindexedSummary > 0
+                            ? `unindexedSummary=${introducedUnindexedSummary}`
+                            : '',
+                        introducedUnindexedOutline > 0
+                            ? `unindexedOutline=${introducedUnindexedOutline}`
                             : '',
                         introducedInvariantIssues.length > 0
                             ? `invariants=${introducedInvariantIssues.length}`
@@ -8168,6 +8536,14 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                     logsForService
                 );
             }
+
+            newState = applyNpcPresenceConvergence({
+                prevState: stateWithUserLog,
+                nextState: newState,
+                currentTurn: Math.max(1, Math.floor(Number(stateWithUserLog.回合数 || 1))),
+                logs: logsForService,
+                interactionNpcIndices
+            });
 
             let ipEnrichmentApplied = false;
             let ipEnrichmentProfileId = '';
@@ -9183,7 +9559,7 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
                         const locationHint = requestedMapLocationName || resolvePreferredMapLocationName(prev);
                         commands = commands.map((cmd) => normalizeExplorationMapCommand(cmd as TavernCommand, locationHint));
                         const hasUpsertMap = commands.some((cmd: any) => {
-                            const action = cmd?.action ?? cmd?.type ?? cmd?.command ?? cmd?.name ?? cmd?.mode;
+                            const action = resolveNormalizedCommandAction(cmd);
                             return action === 'upsert_exploration_map';
                         });
                         if (!hasUpsertMap) {
@@ -9301,8 +9677,13 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
 
     const handleSilentWorldUpdate = async (targetLocationName?: unknown) => {
         const explicitLocationName = typeof targetLocationName === 'string' ? targetLocationName : '';
+        const isExplicitMapRequest = !!explicitLocationName;
         const locationName = explicitLocationName || resolvePreferredMapLocationName(gameState);
-        const updateReason = `请求生成详细的战术地图数据(Tactical Map SVG Layout)，并返回 upsert_exploration_map 写入 ${locationName} 的 MapStructureJSON`;
+
+        const updateReason = isExplicitMapRequest
+            ? `请求生成详细的战术地图数据(Tactical Map SVG Layout)，并返回 upsert_exploration_map 写入 ${locationName} 的 MapStructureJSON`
+            : `世界情报定期刷新：更新头条新闻、街头传闻、NPC动态、派阀格局等世界状态信息`;
+
         appendDebugLog({
             hid: 'H1',
             loc: 'hooks/useGameLogic.ts:handleSilentWorldUpdate',
@@ -9310,10 +9691,15 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
             data: {
                 reason: updateReason,
                 currentTurn: gameState.回合数,
-                nextTurn: gameState.世界?.下次更新回合
+                nextTurn: gameState.世界?.下次更新回合,
+                isExplicitMapRequest
             }
         });
-        await handleWorldInfoUpdate(updateReason, gameState, { mapTargetLocationName: locationName });
+        await handleWorldInfoUpdate(
+            updateReason,
+            gameState,
+            isExplicitMapRequest ? { mapTargetLocationName: locationName } : undefined
+        );
     };
 
     useEffect(() => {
@@ -9549,6 +9935,13 @@ export const useGameLogic = (initialState?: GameState, onExitCb?: () => void) =>
             newState = syncInventorySheetWithState(newState);
         }
         newState = reconcileEquipmentWithInventory(newState);
+        newState = applyNpcPresenceConvergence({
+            prevState: state,
+            nextState: newState,
+            currentTurn: Math.max(1, Math.floor(Number(state.回合数 || 1))),
+            logs: logsForResponse.map((log) => ({ sender: String(log?.sender || ''), text: String(log?.text || '') })),
+            interactionNpcIndices: []
+        });
         const aiLogGameTime = newState.游戏时间;
 
         newState.处理中 = false;

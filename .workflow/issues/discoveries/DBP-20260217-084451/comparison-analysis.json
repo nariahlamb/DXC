@@ -1,0 +1,101 @@
+{
+  "summary": {
+    "overall_match_rate": 0.52,
+    "total_discrepancies": 7,
+    "critical_mismatches": [
+      "field-coverage",
+      "schema-shape"
+    ]
+  },
+  "matrix": {
+    "dimension_b": "frontend-display-binding",
+    "dimension_a": "state-api-write-pipeline",
+    "comparison_points": [
+      {
+        "aspect": "field-coverage",
+        "b_check": "UI 读取字段集合",
+        "a_check": "state 输入/写入可覆盖字段"
+      },
+      {
+        "aspect": "trigger-gating",
+        "b_check": "用户可见更新时机",
+        "a_check": "服务触发与命令守卫条件"
+      },
+      {
+        "aspect": "schema-shape",
+        "b_check": "组件期望结构",
+        "a_check": "输入结构与表结构"
+      },
+      {
+        "aspect": "fallback-behavior",
+        "b_check": "UI 占位与默认值",
+        "a_check": "被拒/缺失时的状态回退"
+      }
+    ]
+  },
+  "results": [
+    {
+      "aspect": "field-coverage",
+      "match_rate": 0.43,
+      "dimension_b_count": 46,
+      "dimension_a_count": 24,
+      "discrepancies": [
+        {
+          "type": "missing_in_state_input",
+          "field": "gameState.剧情.主线/引导/时间轴细项",
+          "impact": "剧情视图与仪表盘目标缺失"
+        },
+        {
+          "type": "missing_in_state_input",
+          "field": "gameState.社交.特别关注/记忆",
+          "impact": "NPC 动态与最近互动弱化"
+        },
+        {
+          "type": "weak_coverage",
+          "field": "gameState.日常仪表盘",
+          "impact": "长期依赖 fallback"
+        }
+      ]
+    },
+    {
+      "aspect": "trigger-gating",
+      "match_rate": 0.5,
+      "dimension_b_count": 6,
+      "dimension_a_count": 6,
+      "discrepancies": [
+        {
+          "type": "state_service_gate",
+          "detail": "仅 ACTION + state apiKey 才运行 state fill"
+        },
+        {
+          "type": "cadence_gate",
+          "detail": "world/forum 未到回合直接拒绝"
+        }
+      ]
+    },
+    {
+      "aspect": "schema-shape",
+      "match_rate": 0.44,
+      "dimension_b_count": 9,
+      "dimension_a_count": 9,
+      "discrepancies": [
+        {
+          "type": "flatten_vs_nested",
+          "detail": "STORY_ALLOWED_KEYS 与 StoryState 嵌套结构不一致"
+        }
+      ]
+    },
+    {
+      "aspect": "fallback-behavior",
+      "match_rate": 0.7,
+      "dimension_b_count": 7,
+      "dimension_a_count": 7,
+      "discrepancies": [
+        {
+          "type": "silent_fallback",
+          "detail": "UI 显示 Unknown/暂无，但未显式暴露写入失败"
+        }
+      ]
+    }
+  ]
+}

@@ -236,10 +236,138 @@ const resolveInventoryRowId = (event: StateVariableEvent, state: GameState): str
   return direct || null;
 };
 
+type GenericDomainWriterConfig = {
+  sheetId: string;
+  keyField: string;
+  defaultEntityId: string;
+  rowIdAliases: string[];
+};
+
+const GENERIC_DOMAIN_WRITER_CONFIG: Record<string, GenericDomainWriterConfig> = {
+  quest: { sheetId: 'QUEST_Active', keyField: '任务ID', defaultEntityId: 'QUEST_DEFAULT', rowIdAliases: ['任务ID', 'task_id', 'id'] },
+  quest_objectives: { sheetId: 'QUEST_Objectives', keyField: 'objective_id', defaultEntityId: 'OBJ_DEFAULT', rowIdAliases: ['objective_id', 'id'] },
+  quest_progress_log: { sheetId: 'QUEST_ProgressLog', keyField: 'progress_id', defaultEntityId: 'PROGRESS_DEFAULT', rowIdAliases: ['progress_id', 'id'] },
+  story: { sheetId: 'STORY_Mainline', keyField: 'mainline_id', defaultEntityId: 'mainline_core', rowIdAliases: ['mainline_id', 'id'] },
+  story_mainline: { sheetId: 'STORY_Mainline', keyField: 'mainline_id', defaultEntityId: 'mainline_core', rowIdAliases: ['mainline_id', 'id'] },
+  story_triggers: { sheetId: 'STORY_Triggers', keyField: 'trigger_id', defaultEntityId: 'trigger_default', rowIdAliases: ['trigger_id', 'id'] },
+  story_milestones: { sheetId: 'STORY_Milestones', keyField: 'milestone_id', defaultEntityId: 'milestone_default', rowIdAliases: ['milestone_id', 'id'] },
+  contract_registry: { sheetId: 'CONTRACT_Registry', keyField: 'contract_id', defaultEntityId: 'contract_default', rowIdAliases: ['contract_id', 'id'] },
+  character_attributes: { sheetId: 'CHARACTER_Attributes', keyField: 'CHAR_ID', defaultEntityId: 'PLAYER', rowIdAliases: ['CHAR_ID', 'char_id', 'id'] },
+  phone: { sheetId: 'PHONE_Threads', keyField: 'thread_id', defaultEntityId: 'thread_default', rowIdAliases: ['thread_id', 'id'] },
+  phone_device: { sheetId: 'PHONE_Device', keyField: 'device_id', defaultEntityId: 'device_main', rowIdAliases: ['device_id', 'id'] },
+  phone_contacts: { sheetId: 'PHONE_Contacts', keyField: 'contact_id', defaultEntityId: 'contact_default', rowIdAliases: ['contact_id', 'id'] },
+  phone_threads: { sheetId: 'PHONE_Threads', keyField: 'thread_id', defaultEntityId: 'thread_default', rowIdAliases: ['thread_id', 'id'] },
+  phone_messages: { sheetId: 'PHONE_Messages', keyField: 'message_id', defaultEntityId: 'message_default', rowIdAliases: ['message_id', 'id'] },
+  phone_pending: { sheetId: 'PHONE_Pending', keyField: 'pending_id', defaultEntityId: 'pending_default', rowIdAliases: ['pending_id', 'id'] },
+  phone_moments: { sheetId: 'PHONE_Moments', keyField: 'moment_id', defaultEntityId: 'moment_default', rowIdAliases: ['moment_id', 'id'] },
+  forum: { sheetId: 'FORUM_Posts', keyField: 'post_id', defaultEntityId: 'post_default', rowIdAliases: ['post_id', 'id'] },
+  forum_boards: { sheetId: 'FORUM_Boards', keyField: 'board_id', defaultEntityId: 'board_default', rowIdAliases: ['board_id', 'id'] },
+  forum_posts: { sheetId: 'FORUM_Posts', keyField: 'post_id', defaultEntityId: 'post_default', rowIdAliases: ['post_id', 'id'] },
+  forum_replies: { sheetId: 'FORUM_Replies', keyField: 'reply_id', defaultEntityId: 'reply_default', rowIdAliases: ['reply_id', 'id'] },
+  world: { sheetId: 'WORLD_News', keyField: 'news_id', defaultEntityId: 'news_default', rowIdAliases: ['news_id', 'id'] },
+  world_news: { sheetId: 'WORLD_News', keyField: 'news_id', defaultEntityId: 'news_default', rowIdAliases: ['news_id', 'id'] },
+  world_rumors: { sheetId: 'WORLD_Rumors', keyField: 'rumor_id', defaultEntityId: 'rumor_default', rowIdAliases: ['rumor_id', 'id'] },
+  world_denatus: { sheetId: 'WORLD_Denatus', keyField: 'denatus_id', defaultEntityId: 'denatus_default', rowIdAliases: ['denatus_id', 'id'] },
+  world_wargame: { sheetId: 'WORLD_WarGame', keyField: 'war_game_id', defaultEntityId: 'wargame_default', rowIdAliases: ['war_game_id', 'id'] },
+  world_npc_tracking: { sheetId: 'WORLD_NpcTracking', keyField: 'tracking_id', defaultEntityId: 'tracking_default', rowIdAliases: ['tracking_id', 'id'] }
+};
+
+const resolveGenericRowId = (
+  event: StateVariableEvent,
+  config: GenericDomainWriterConfig,
+  row?: Record<string, unknown>
+): string => {
+  const fromRow = row
+    ? config.rowIdAliases
+      .map((alias) => String((row as any)?.[alias] ?? '').trim())
+      .find(Boolean)
+    : '';
+  if (fromRow) return fromRow;
+  const fromValue = config.rowIdAliases
+    .map((alias) => String((event.value as any)?.[alias] ?? '').trim())
+    .find(Boolean);
+  if (fromValue) return fromValue;
+  const fromEntity = String(event.entity_id || '').trim();
+  if (fromEntity) return fromEntity;
+  return config.defaultEntityId;
+};
+
+const normalizeGenericRows = (event: StateVariableEvent, field: string): Record<string, unknown>[] => {
+  if (event.op === 'upsert' || event.op === 'push') {
+    if (Array.isArray(event.value)) {
+      return event.value.filter((item): item is Record<string, unknown> => !!item && typeof item === 'object' && !Array.isArray(item));
+    }
+    if (event.value && typeof event.value === 'object' && !Array.isArray(event.value)) {
+      return [event.value as Record<string, unknown>];
+    }
+    return [];
+  }
+
+  if (event.op === 'set' || event.op === 'add') {
+    if (!field) return [];
+    return [{ [field]: event.value }];
+  }
+
+  if (event.op === 'delete' && field) {
+    return [{ [field]: null }];
+  }
+
+  return [];
+};
+
+const resolveGenericDeleteRowIds = (event: StateVariableEvent, config: GenericDomainWriterConfig): string[] => {
+  const fromArray = Array.isArray((event.value as any)?.rowIds)
+    ? ((event.value as any).rowIds as unknown[])
+      .map((item) => String(item ?? '').trim())
+      .filter(Boolean)
+    : [];
+  if (fromArray.length > 0) return Array.from(new Set(fromArray));
+
+  const fromValue = resolveGenericRowId(event, config);
+  return fromValue ? [fromValue] : [];
+};
+
+const buildGenericDomainCommandsFromEvent = (event: StateVariableEvent, field: string): TavernCommand[] => {
+  const config = GENERIC_DOMAIN_WRITER_CONFIG[event.domain];
+  if (!config) return [];
+
+  const isSheetScopedPath = String(event.path || '').startsWith('sheet.');
+  if (event.op === 'delete' && (isSheetScopedPath || !field)) {
+    const rowIds = resolveGenericDeleteRowIds(event, config);
+    if (rowIds.length === 0) return [];
+    return [{
+      action: 'delete_sheet_rows',
+      value: {
+        sheetId: config.sheetId,
+        keyField: config.keyField,
+        rowIds
+      },
+      source: 'ms:state-writer'
+    }];
+  }
+
+  const rows = normalizeGenericRows(event, field)
+    .map((row) => ({
+      [config.keyField]: resolveGenericRowId(event, config, row),
+      ...row
+    }));
+  if (rows.length === 0) return [];
+
+  return [{
+    action: 'upsert_sheet_rows',
+    value: {
+      sheetId: config.sheetId,
+      keyField: config.keyField,
+      rows
+    },
+    source: 'ms:state-writer'
+  }];
+};
+
 const resolveVersionTarget = (
   event: StateVariableEvent,
   state: GameState
-): { sheetId: 'SYS_GlobalState' | 'CHARACTER_Resources' | 'ITEM_Inventory'; rowId: string } | null => {
+): { sheetId: string; rowId: string } | null => {
   if (event.domain === 'global_state') {
     return { sheetId: 'SYS_GlobalState', rowId: 'GLOBAL_STATE' };
   }
@@ -249,6 +377,11 @@ const resolveVersionTarget = (
   if (event.domain === 'inventory') {
     const rowId = resolveInventoryRowId(event, state);
     return rowId ? { sheetId: 'ITEM_Inventory', rowId } : null;
+  }
+  const genericConfig = GENERIC_DOMAIN_WRITER_CONFIG[event.domain];
+  if (genericConfig) {
+    const rowId = resolveGenericRowId(event, genericConfig);
+    return rowId ? { sheetId: genericConfig.sheetId, rowId } : null;
   }
   return null;
 };
@@ -373,60 +506,62 @@ export const buildWriterCommandsFromEvent = (event: StateVariableEvent, stateSna
     }];
   }
 
-  if (event.domain !== 'inventory') return [];
+  if (event.domain === 'inventory') {
+    if (event.op === 'delete') {
+      const rowIds = resolveInventoryDeleteRowIds(event, stateSnapshot);
+      if (rowIds.length === 0) return [];
+      return [{
+        action: 'delete_sheet_rows',
+        value: {
+          sheetId: 'ITEM_Inventory',
+          rowIds,
+          keyField: '物品ID'
+        },
+        source: 'ms:state-writer'
+      }];
+    }
 
-  if (event.op === 'delete') {
-    const rowIds = resolveInventoryDeleteRowIds(event, stateSnapshot);
-    if (rowIds.length === 0) return [];
-    return [{
-      action: 'delete_sheet_rows',
-      value: {
-        sheetId: 'ITEM_Inventory',
-        rowIds,
-        keyField: '物品ID'
-      },
-      source: 'ms:state-writer'
-    }];
-  }
+    if (event.op === 'add') {
+      const payload = event.value as any;
+      const itemId = String(payload?.物品ID ?? payload?.id ?? payload?.item_id ?? '').trim();
+      const delta = normalizeNumber(payload?.delta ?? payload?.数量变更 ?? payload?.quantityDelta);
+      if (!itemId || delta === null) return [];
+      const bag = Array.isArray((stateSnapshot as any)?.背包) ? (stateSnapshot as any).背包 : [];
+      const currentItem = bag.find((item: any) => String(item?.物品ID ?? item?.id ?? '').trim() === itemId) || {};
+      const current = normalizeNumber(currentItem?.数量 ?? currentItem?.count) ?? 0;
+      return [{
+        action: 'upsert_sheet_rows',
+        value: {
+          sheetId: 'ITEM_Inventory',
+          keyField: '物品ID',
+          rows: [{
+            物品ID: itemId,
+            物品名称: String(currentItem?.物品名称 ?? currentItem?.名称 ?? itemId),
+            数量: current + delta
+          }]
+        },
+        source: 'ms:state-writer'
+      }];
+    }
 
-  if (event.op === 'add') {
-    const payload = event.value as any;
-    const itemId = String(payload?.物品ID ?? payload?.id ?? payload?.item_id ?? '').trim();
-    const delta = normalizeNumber(payload?.delta ?? payload?.数量变更 ?? payload?.quantityDelta);
-    if (!itemId || delta === null) return [];
-    const bag = Array.isArray((stateSnapshot as any)?.背包) ? (stateSnapshot as any).背包 : [];
-    const currentItem = bag.find((item: any) => String(item?.物品ID ?? item?.id ?? '').trim() === itemId) || {};
-    const current = normalizeNumber(currentItem?.数量 ?? currentItem?.count) ?? 0;
+    const list = Array.isArray(event.value) ? event.value : [event.value];
+    const rows = list
+      .filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
+      .map((item, index) => toInventoryRow(item, index))
+      .filter((item): item is Record<string, unknown> => !!item);
+    if (rows.length === 0) return [];
     return [{
       action: 'upsert_sheet_rows',
       value: {
         sheetId: 'ITEM_Inventory',
         keyField: '物品ID',
-        rows: [{
-          物品ID: itemId,
-          物品名称: String(currentItem?.物品名称 ?? currentItem?.名称 ?? itemId),
-          数量: current + delta
-        }]
+        rows
       },
       source: 'ms:state-writer'
     }];
   }
 
-  const list = Array.isArray(event.value) ? event.value : [event.value];
-  const rows = list
-    .filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
-    .map((item, index) => toInventoryRow(item, index))
-    .filter((item): item is Record<string, unknown> => !!item);
-  if (rows.length === 0) return [];
-  return [{
-    action: 'upsert_sheet_rows',
-    value: {
-      sheetId: 'ITEM_Inventory',
-      keyField: '物品ID',
-      rows
-    },
-    source: 'ms:state-writer'
-  }];
+  return buildGenericDomainCommandsFromEvent(event, field);
 };
 
 const buildAuditCommands = (events: StateVariableEvent[]): TavernCommand[] => {

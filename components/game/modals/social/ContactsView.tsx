@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ChevronRight, Heart, Users, UserPlus, Check } from 'lucide-react';
 import type { Confidant } from '../../../../types';
 import { getAvatarColor } from '../../../../utils/uiUtils';
-import { filterOutPlayerContacts, isContactNearby } from '../../../../utils/social/contactPresence';
+import { filterOutPlayerContacts, isContactNearby, resolveContactDisplayName } from '../../../../utils/social/contactPresence';
 
 type ContactTab = 'FOLLOWING' | 'NEARBY';
 
@@ -54,8 +54,10 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
   // Sort list: Followed -> Friends -> Affinity -> Name
   const sortedList = useMemo(() => {
     return [...list].sort((a, b) => {
+        const nameA = resolveContactDisplayName(a) || a.姓名 || '';
+        const nameB = resolveContactDisplayName(b) || b.姓名 || '';
         if (a.特别关注 !== b.特别关注) return (b.特别关注 ? 1 : 0) - (a.特别关注 ? 1 : 0);
-        if (friendSet.has(a.姓名) !== friendSet.has(b.姓名)) return (friendSet.has(b.姓名) ? 1 : 0) - (friendSet.has(a.姓名) ? 1 : 0);
+        if (friendSet.has(nameA) !== friendSet.has(nameB)) return (friendSet.has(nameB) ? 1 : 0) - (friendSet.has(nameA) ? 1 : 0);
         return (b.好感度 || 0) - (a.好感度 || 0);
     });
   }, [list, friendSet]);
@@ -100,22 +102,24 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
       <div className="flex-1 overflow-y-auto custom-scrollbar px-3 pb-3 pt-2">
         {sortedList.length > 0 ? (
           <div className="grid grid-cols-1 gap-2">
-            {sortedList.map((npc) => (
+            {sortedList.map((npc) => {
+              const displayName = resolveContactDisplayName(npc) || npc.姓名 || npc.id || '未知';
+              return (
               <div
-                key={npc.id}
+                key={npc.id || displayName}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-zinc-800/70 bg-zinc-900/40 hover:bg-zinc-900/70 transition-all group relative"
               >
                 <div 
                     onClick={() => onSelect(npc)}
-                    className={`w-10 h-10 flex items-center justify-center font-bold text-white text-sm shrink-0 rounded-full ring-2 ring-zinc-800 cursor-pointer hover:ring-white/20 transition-all ${getAvatarColor(npc.姓名)}`}
+                    className={`w-10 h-10 flex items-center justify-center font-bold text-white text-sm shrink-0 rounded-full ring-2 ring-zinc-800 cursor-pointer hover:ring-white/20 transition-all ${getAvatarColor(displayName)}`}
                 >
-                  {npc.姓名[0]}
+                  {displayName[0] || '?'}
                 </div>
                 
                 <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onSelect(npc)}>
                   <div className="flex items-center gap-2">
-                      <h4 className="font-bold text-zinc-200 text-sm truncate">{npc.姓名}</h4>
-                      {friendSet.has(npc.姓名) && (
+                      <h4 className="font-bold text-zinc-200 text-sm truncate">{displayName}</h4>
+                      {friendSet.has(displayName) && (
                         <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-900/30 text-emerald-400 border border-emerald-500/30 font-bold">
                           好友
                         </span>
@@ -158,7 +162,7 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
                     </button>
                 </div>
               </div>
-            ))}
+            );})}
           </div>
         ) : (
           <EmptyState text={activeTab === 'FOLLOWING' ? '暂无关注对象' : '周围没有在场人物'} />

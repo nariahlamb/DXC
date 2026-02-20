@@ -52,7 +52,8 @@ export const TAVERNDB_TEMPLATE_SHEET_IDS = [
   'QUEST_Objectives',
   'QUEST_ProgressLog',
   'EXPLORATION_Map_Data',
-  'COMBAT_Map_Visuals'
+  'COMBAT_Map_Visuals',
+  'FAMILIA_State'
 ] as const;
 
 export const CORE_TAVERNDB_SHEET_IDS = [

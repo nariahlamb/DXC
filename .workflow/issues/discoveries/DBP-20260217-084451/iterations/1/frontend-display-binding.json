@@ -1,0 +1,58 @@
+{
+  "dimension": "frontend-display-binding",
+  "findings": [
+    {
+      "confidence": 0.9,
+      "line": 145,
+      "evidence": [
+        "utils/state/stateServiceInput.ts:3 SOCIAL_ALLOWED_KEYS",
+        "components/game/modals/DailyDashboardModal.tsx:145 使用 c.特别关注"
+      ],
+      "id": "F-003",
+      "severity": "high",
+      "snippet": "UI 读取 社交.特别关注，但 state 输入仅包含 姓名/关系状态/好感度/是否在场 等",
+      "file": "components/game/modals/DailyDashboardModal.tsx",
+      "category": "field-coverage-gap",
+      "title": "社交输入白名单缺少 特别关注/记忆 等字段，仪表盘显示依赖字段可能长期为空"
+    },
+    {
+      "snippet": "safeStory 使用默认 Unknown，说明真实剧情字段缺失会被静默吞掉",
+      "severity": "high",
+      "category": "ui-fallback-overuse",
+      "title": "WorldView 依赖剧情嵌套字段，若剧情输入被扁平化将回退到 Unknown 占位",
+      "id": "F-012",
+      "file": "components/game/views/WorldView.tsx",
+      "line": 230,
+      "confidence": 0.86
+    },
+    {
+      "snippet": "time/location/weather/coords 直接来自 gameState 全局字段",
+      "severity": "medium",
+      "category": "display-staleness-risk",
+      "title": "TopNav/MobileTopNav 强依赖 全局状态字段，链路任一环节阻断即前端展示为空或旧值",
+      "id": "F-013",
+      "file": "components/GameInterface.tsx",
+      "line": 415,
+      "confidence": 0.82
+    }
+  ],
+  "focus": "前端关键面板读取字段与 state 输入覆盖度",
+  "coverage": {
+    "areas_covered": [
+      "主界面导航",
+      "日常仪表盘",
+      "剧情展示"
+    ],
+    "files_explored": 4,
+    "areas_remaining": [
+      "更多子模态字段映射"
+    ]
+  },
+  "iteration": 1,
+  "leads": [
+    {
+      "description": "检查日志摘要与日志大纲在 memory 未配置时的回退行为",
+      "suggested_search": "LOG_Summary / LOG_Outline memory_owned"
+    }
+  ]
+}

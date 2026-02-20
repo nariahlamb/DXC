@@ -485,8 +485,8 @@ export const assembleFullPrompt = (
     const hasStateWriter = !!String(settings.aiConfig?.services?.state?.apiKey || '').trim();
     if (hasStateWriter) {
         fullContent += narrativeOnlyStoryPrompt
-            ? `\n\n[运行时写入职责覆盖]\n- 当前回合启用“状态服务统一填表”模式。\n- 主叙事只负责 logs 与 action_options（如启用）。\n- 主叙事必须输出 "tavern_commands": []。`
-            : `\n\n[运行时写入职责覆盖]\n- 当前回合启用“状态服务统一填表”模式。\n- 主叙事只负责 logs 与 action_options（如启用）。\n- 主叙事必须输出 "tavern_commands": []，禁止输出任何业务写表命令。`;
+            ? `\n\n[运行时写入职责覆盖]\n- 当前回合启用“状态服务统一填表”模式。\n- 主叙事只负责 logs 与 action_options（如启用）。\n- 主叙事必须输出 "tavern_commands": []。\n- 剧情/任务/战斗/契约/手机/世界等业务表写入由 state 服务统一执行。`
+            : `\n\n[运行时写入职责覆盖]\n- 当前回合启用“状态服务统一填表”模式。\n- 主叙事只负责 logs 与 action_options（如启用）。\n- 主叙事必须输出 "tavern_commands": []，禁止输出任何业务写表命令。\n- 剧情/任务/战斗/契约/手机/世界等业务表写入由 state 服务统一执行。`;
     }
     const unresolvedPlaceholders: string[] = [];
     if (/<玩家>/.test(fullContent)) unresolvedPlaceholders.push('<玩家>');

@@ -1,0 +1,54 @@
+{
+  "dimension": "state-api-write-pipeline",
+  "findings": [
+    {
+      "snippet": "日常仪表盘 为可选字段，检索未见稳定写入路径",
+      "severity": "medium",
+      "category": "orphan-state-field",
+      "title": "日常仪表盘字段是可选扩展但缺少明确写入链路，当前主要依赖 UI fallback",
+      "id": "F-011",
+      "file": "types/gamestate.ts",
+      "line": 95,
+      "confidence": 0.72
+    },
+    {
+      "snippet": "MAX_STRING_LENGTH=160, maxDepth=2, maxArrayLength=16",
+      "severity": "medium",
+      "category": "payload-truncation",
+      "title": "state 输入 sanitize 限制字符串长度和层级深度，复杂状态会被截断",
+      "id": "F-017",
+      "file": "utils/state/stateServiceInput.ts",
+      "line": 80,
+      "confidence": 0.77
+    },
+    {
+      "snippet": "routeKey 非 story/memory/state/map 时默认 state",
+      "severity": "low",
+      "category": "routing-fallback-risk",
+      "title": "resolveServiceConfig 对未知 serviceKey 回落到 state 路由，存在误路由风险",
+      "id": "F-018",
+      "file": "utils/aiDispatch.ts",
+      "line": 85,
+      "confidence": 0.68
+    }
+  ],
+  "focus": "残余链路与数据压缩副作用",
+  "coverage": {
+    "areas_covered": [
+      "扩展字段写入链路",
+      "输入裁剪策略",
+      "服务路由兜底"
+    ],
+    "files_explored": 4,
+    "areas_remaining": [
+      "运行态 telemetry 与真实空字段比例"
+    ]
+  },
+  "iteration": 3,
+  "leads": [
+    {
+      "description": "建议为 日常仪表盘 引入显式 writer 或定时派生器",
+      "suggested_search": "DailyDashboardState write path"
+    }
+  ]
+}

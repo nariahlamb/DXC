@@ -266,17 +266,9 @@
 - \`gameState.眷族.设施状态\`: Object
 - \`gameState.眷族.仓库\`: Array<InventoryItem>
 
-## 14. 情报笔记 (gameState.笔记)
-- \`gameState.笔记\`: Array<NoteEntry>
-  - \`id\`: String (唯一ID "Note_...")
-  - \`标题\`: String
-  - \`内容\`: String
-  - \`标签\`: String[] (可选)
-  - \`时间戳\`: String (创建时间)
-  - \`更新时间\`: String (可选)
-  - \`重要\`: Boolean (可选)
 
-## 15. 扩展集合 (TavernDB风格 - 可选字段)
+## 14. 扩展集合 (TavernDB风格 - 可选字段)
+
 
 ### 15.1 遭遇 (gameState.遭遇)
 - \`gameState.遭遇\`: Array<EncounterRow>

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { MessageCircle, ScrollText, Heart, ChevronRight, Zap, Users, UserPlus } from 'lucide-react';
 import type { Confidant, ForumPost, ForumBoard } from '../../../../types';
 import { getAvatarColor } from '../../../../utils/uiUtils';
+import { resolveContactDisplayName } from '../../../../utils/social/contactPresence';
 
 type ChatType = 'private' | 'group' | 'public';
 
@@ -60,9 +61,42 @@ export const CommsHubView: React.FC<CommsHubViewProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<ContactTab>('FOLLOWING');
 
+  const getContactKey = (contact: Confidant): string => {
+    const id = String(contact?.id || '').trim().toLowerCase();
+    const name = String(resolveContactDisplayName(contact) || contact?.姓名 || '').trim().toLowerCase();
+    return id || name;
+  };
+
+  const normalizeContact = (contact: Confidant): Confidant => ({
+    ...contact,
+    姓名: resolveContactDisplayName(contact) || contact.姓名 || contact.id || '未知'
+  });
+
+  const normalizedFollowing = useMemo(() => {
+    const latestByKey = new Map<string, Confidant>();
+    following.forEach((contact) => {
+      const normalized = normalizeContact(contact);
+      const key = getContactKey(normalized);
+      if (!key) return;
+      latestByKey.set(key, normalized);
+    });
+    return Array.from(latestByKey.values());
+  }, [following]);
+
   // Filter nearby to exclude those already followed
-  const displayedNearby = nearby.filter(n => !following.some(f => f.id === n.id || f.姓名 === n.姓名));
-  const displayedList = activeTab === 'FOLLOWING' ? following : displayedNearby;
+  const displayedNearby = useMemo(() => {
+    const followedKeys = new Set(normalizedFollowing.map((contact) => getContactKey(contact)).filter(Boolean));
+    const latestByKey = new Map<string, Confidant>();
+    nearby.forEach((contact) => {
+      const normalized = normalizeContact(contact);
+      const key = getContactKey(normalized);
+      if (!key || followedKeys.has(key)) return;
+      latestByKey.set(key, normalized);
+    });
+    return Array.from(latestByKey.values());
+  }, [nearby, normalizedFollowing]);
+
+  const displayedList = activeTab === 'FOLLOWING' ? normalizedFollowing : displayedNearby;
 
   return (
     <div className="w-full h-full flex flex-col bg-transparent text-zinc-200">
@@ -100,9 +134,11 @@ export const CommsHubView: React.FC<CommsHubViewProps> = ({
                 </div>
             ) : (
                 <div className="grid grid-cols-1 gap-2">
-                {displayedList.map((c) => (
+                {displayedList.map((c) => {
+                    const displayName = resolveContactDisplayName(c) || c.姓名 || c.id || '未知';
+                    return (
                     <div
-                    key={c.id}
+                    key={getContactKey(c) || displayName}
                     className="group relative flex items-center gap-3 p-2.5 
                                 bg-zinc-900/30 border border-zinc-800/60 hover:bg-zinc-800/60 hover:border-zinc-700/50
                                 rounded-lg transition-all duration-200"
@@ -112,8 +148,8 @@ export const CommsHubView: React.FC<CommsHubViewProps> = ({
                         onClick={() => onSelectContact?.(c)}
                     >
                         <div className="relative shrink-0">
-                            <div className={`w-9 h-9 flex items-center justify-center font-bold text-white text-xs rounded-full ring-1 ring-zinc-700/50 ${getAvatarColor(c.姓名)}`}>
-                            {c.头像 ? <img src={c.头像} alt={c.姓名} className="w-full h-full object-cover rounded-full" /> : (c.姓名?.trim()?.[0] || '?')}
+                            <div className={`w-9 h-9 flex items-center justify-center font-bold text-white text-xs rounded-full ring-1 ring-zinc-700/50 ${getAvatarColor(displayName)}`}>
+                            {c.头像 ? <img src={c.头像} alt={displayName} className="w-full h-full object-cover rounded-full" /> : (displayName?.trim()?.[0] || '?')}
                             </div>
                             
                             {/* Affinity Badge */}
@@ -127,7 +163,7 @@ export const CommsHubView: React.FC<CommsHubViewProps> = ({
 
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                                <div className="text-sm font-bold text-zinc-200 truncate group-hover:text-white transition-colors">{c.姓名}</div>
+                                <div className="text-sm font-bold text-zinc-200 truncate group-hover:text-white transition-colors">{displayName}</div>
                                 {activeTab === 'FOLLOWING' && (
                                     <div className="flex items-center gap-1 bg-pink-500/10 px-1.5 py-0.5 rounded text-pink-300 text-[9px] font-bold border border-pink-500/20">
                                         <Heart size={8} fill="currentColor" />
@@ -164,7 +200,7 @@ export const CommsHubView: React.FC<CommsHubViewProps> = ({
                         </button>
                     </div>
                     </div>
-                ))}
+                );})}
                 </div>
             )}
           </div>

@@ -67,4 +67,50 @@ describe('contacts presence integration', () => {
     expect(screen.getByText('贝塔')).toBeInTheDocument();
     expect(screen.queryByText('德尔塔')).not.toBeInTheDocument();
   });
+
+  it('dedupes generated npc code and keeps focused contact unique', () => {
+    const contacts = [
+      createContact('NPC_Hestia', 'NPC_Hestia', { 特别关注: true, 当前状态: '离场' } as any),
+      createContact('NPC_Hestia', '赫斯缇雅', { 当前状态: '在场' } as any)
+    ];
+
+    const { result } = renderHook(() =>
+      usePhoneData({
+        contacts,
+        playerName: '玩家'
+      })
+    );
+
+    expect(result.current.specialContacts.map((c) => c.姓名)).toEqual(['赫斯缇雅']);
+    expect(result.current.nearbyContacts).toHaveLength(0);
+
+    render(
+      <ContactsView
+        contacts={contacts}
+        onSelect={vi.fn()}
+        onToggleAttention={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('赫斯缇雅')).toBeInTheDocument();
+    expect(screen.queryByText('NPC_Hestia')).not.toBeInTheDocument();
+  });
+
+  it('ignores narrative-noise contacts in grouped lists', () => {
+    const contacts = [
+      createContact('a', '阿尔法', { 是否在场: true }),
+      createContact('人群中传来刻意压低的窃窃私语', '人群中传来刻意压低的窃窃私语', { 是否在场: true } as any),
+      createContact('c', '伽马', { 特别关注: true, 当前状态: '离场' } as any)
+    ];
+
+    const { result } = renderHook(() =>
+      usePhoneData({
+        contacts,
+        playerName: '玩家'
+      })
+    );
+
+    expect(result.current.nearbyContacts.map((c) => c.姓名)).toEqual(['阿尔法']);
+    expect(result.current.validContacts.map((c) => c.姓名)).toEqual(['阿尔法', '伽马']);
+  });
 });

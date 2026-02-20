@@ -16,7 +16,7 @@ interface RightPanelProps {
     onOpenArchive?: () => void;
 
     onOpenSaveManager: () => void;
-    onOpenNotes: () => void;
+
     isHellMode?: boolean;
     hasPhone?: boolean;
     phoneProcessing?: boolean;
@@ -44,7 +44,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
     onOpenPhone,
     onOpenArchive,
     onOpenSaveManager,
-    onOpenNotes,
+
     isHellMode,
     hasPhone,
     phoneProcessing,
@@ -242,12 +242,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
                     active={activeModal === 'ARCHIVE_PANEL'}
                     onClick={() => onOpenArchive && onOpenArchive()}
                 />
-                <NavItem
-                    label="笔记"
-                    icon={<Icons.SysNote size={18}/>}
-                    active={activeModal === 'NOTES'}
-                    onClick={onOpenNotes}
-                />
+
             </div>
         </div>
 

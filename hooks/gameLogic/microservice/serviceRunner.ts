@@ -1,5 +1,6 @@
 import type { AppSettings, GameState, TavernCommand } from '../../../types';
 import { applyNarrativeEconomicFallback } from '../../../utils/state/econNarrativeFallback';
+import { applyNarrativeNpcFallback } from '../../../utils/state/npcNarrativeFallback';
 
 export type StateFallbackOutcome = {
   evaluated: boolean;
@@ -54,37 +55,35 @@ export const executeServiceRequest = async (params: ExecuteServiceRequestParams)
     const result = await runStateParallelBySheet(input, stateSnapshot);
     const baseCommands = Array.isArray(result.tavern_commands) ? result.tavern_commands : [];
     const governance = settings?.stateVarWriter?.governance;
-    const fallback = applyNarrativeEconomicFallback(input, baseCommands, {
+
+    const econFallback = applyNarrativeEconomicFallback(input, baseCommands, {
       strictAllowlist: governance?.domainScope?.strictAllowlist !== false,
       allowlist: governance?.domainScope?.allowlist
     });
-    const fallbackNote = `econ-fallback(${fallback.reasonClass}${typeof fallback.delta === 'number' ? `,delta=${fallback.delta}` : ''})`;
-    if (!fallback.applied) {
-      return {
-        ...result,
-        tavern_commands: baseCommands,
-        repairNote: result.repairNote ? `${result.repairNote} | ${fallbackNote}` : fallbackNote,
-        fallbackOutcome: {
-          evaluated: true,
-          applied: false,
-          reasonClass: fallback.reasonClass,
-          delta: fallback.delta,
-          marker: fallback.marker
-        }
-      };
-    }
+    const econFallbackNote = `econ-fallback(${econFallback.reasonClass}${typeof econFallback.delta === 'number' ? `,delta=${econFallback.delta}` : ''})`;
+
+    const npcFallback = applyNarrativeNpcFallback(input, econFallback.commands, stateSnapshot, {
+      strictAllowlist: governance?.domainScope?.strictAllowlist !== false,
+      allowlist: governance?.domainScope?.allowlist
+    });
+    const npcFallbackNote = `npc-fallback(${npcFallback.reasonClass})`;
+
+    const fallbackNoteParts = [
+      result.repairNote,
+      econFallback.marker || econFallbackNote,
+      npcFallback.marker || npcFallbackNote
+    ].filter(Boolean);
+
     return {
       ...result,
-      tavern_commands: fallback.commands,
-      repairNote: result.repairNote
-        ? `${result.repairNote} | ${fallback.marker || fallbackNote}`
-        : (fallback.marker || fallbackNote),
+      tavern_commands: npcFallback.commands,
+      repairNote: fallbackNoteParts.join(' | '),
       fallbackOutcome: {
         evaluated: true,
-        applied: true,
-        reasonClass: fallback.reasonClass,
-        delta: fallback.delta,
-        marker: fallback.marker
+        applied: Boolean(econFallback.applied || npcFallback.applied),
+        reasonClass: `econ:${econFallback.reasonClass};npc:${npcFallback.reasonClass}`,
+        delta: econFallback.delta,
+        marker: [econFallback.marker, npcFallback.marker].filter(Boolean).join(' | ') || undefined
       }
     };
   }

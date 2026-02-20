@@ -36,6 +36,7 @@ export interface Confidant {
   // 动态数据
   坐标?: GeoPoint; 
   位置详情?: string; // locationDetail
+  最后出现回合?: number; // lastSeenTurn for nearby convergence
   
   // 记忆系统
   记忆: InteractionMemory[];

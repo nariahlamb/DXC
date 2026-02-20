@@ -1,0 +1,32 @@
+{
+  "dimension": "frontend-display-binding",
+  "findings": [
+    {
+      "snippet": "COMBAT_ALLOWED_KEYS 仅基础字段，复杂扩展依赖额外路径",
+      "severity": "medium",
+      "category": "combat-context-gap",
+      "title": "战斗输入白名单偏简化，复杂战斗态（判定事件/行动经济）可能无法被 state 服务充分感知",
+      "id": "F-016",
+      "file": "utils/state/stateServiceInput.ts",
+      "line": 49,
+      "confidence": 0.71
+    }
+  ],
+  "focus": "前端最终对比收敛与剩余风险",
+  "coverage": {
+    "areas_covered": [
+      "战斗 UI 与战斗输入字段"
+    ],
+    "files_explored": 2,
+    "areas_remaining": [
+      "判定事件细粒度展示校验"
+    ]
+  },
+  "iteration": 3,
+  "leads": [
+    {
+      "description": "补充战斗扩展字段输入和 UI 回归用例",
+      "suggested_search": "判定事件 / 行动经济"
+    }
+  ]
+}

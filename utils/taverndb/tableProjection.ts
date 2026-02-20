@@ -130,24 +130,32 @@ const summarizeNpcMemory = (npc: Confidant): string => {
 const buildNpcRows = (state: GameState): TavernDBTableRow[] => {
   const npcs = Array.isArray(state.社交) ? state.社交 : [];
   const playerName = state.角色?.姓名;
-  return npcs
+  
+  const map = new Map<string, TavernDBTableRow>();
+  npcs
     .filter((npc) => !isPlayerReference(npc?.id, playerName) && !isPlayerReference(npc?.姓名, playerName))
-    .map((npc, index) => ({
-    NPC_ID: npc.id || padId('NPC', index),
-    姓名: npc.姓名,
-    '种族/性别/年龄': [npc.种族, npc.性别, npc.年龄].filter((part) => part !== undefined && part !== '').join('/'),
-    '职业/身份': (npc as any).职业身份 || npc.身份 || '',
-    外貌描述: npc.外貌 || npc.简介 || '',
-    等级: npc.等级 ?? '',
-    HP: npc.生存数值 ? `${npc.生存数值.当前生命}/${npc.生存数值.最大生命}` : '',
-    AC: (npc as any).AC ?? (npc as any).护甲等级 ?? '',
-    主要技能: npc.已知能力 || '',
-    随身物品: Array.isArray(npc.背包) ? npc.背包.map((item) => item.名称).filter(Boolean).join(', ') : '',
-    当前状态: statusByPresence(npc),
-    所在位置: (npc as any).所在位置 || npc.位置详情 || state.当前地点 || '',
-    与主角关系: (npc as any).与主角关系 || npc.关系状态 || '',
-    关键经历: (npc as any).关键经历 || summarizeNpcMemory(npc)
-  }));
+    .forEach((npc, index) => {
+      const npcId = npc.id || padId('NPC', index);
+      // Let the later entry override previous one if duplicates exist
+      map.set(npcId, {
+        NPC_ID: npcId,
+        姓名: npc.姓名,
+        '种族/性别/年龄': [npc.种族, npc.性别, npc.年龄].filter((part) => part !== undefined && part !== '').join('/'),
+        '职业/身份': (npc as any).职业身份 || npc.身份 || '',
+        外貌描述: npc.外貌 || npc.简介 || '',
+        等级: npc.等级 ?? '',
+        HP: npc.生存数值 ? `${npc.生存数值.当前生命}/${npc.生存数值.最大生命}` : '',
+        AC: (npc as any).AC ?? (npc as any).护甲等级 ?? '',
+        主要技能: npc.已知能力 || '',
+        随身物品: Array.isArray(npc.背包) ? npc.背包.map((item) => item.名称).filter(Boolean).join(', ') : '',
+        当前状态: statusByPresence(npc),
+        所在位置: (npc as any).所在位置 || npc.位置详情 || state.当前地点 || '',
+        与主角关系: (npc as any).与主角关系 || npc.关系状态 || '',
+        关键经历: (npc as any).关键经历 || summarizeNpcMemory(npc)
+      });
+    });
+    
+  return Array.from(map.values());
 };
 
 const buildInventoryRows = (state: GameState): TavernDBTableRow[] => {
@@ -381,15 +389,39 @@ const buildOutlineRows = (state: GameState, limit: number): TavernDBTableRow[] =
 const buildWorldNpcTrackingRows = (state: GameState): TavernDBTableRow[] => {
   const rows = Array.isArray(state.世界?.NPC后台跟踪) ? state.世界!.NPC后台跟踪 : [];
   const playerName = state.角色?.姓名;
-  return rows.map((row, index) => ({
-    tracking_id: `${row?.NPC || 'NPC'}_${index + 1}`,
-    npc_name: row?.NPC || '',
-    current_action: row?.当前行动 || '',
-    location: row?.位置 || '',
-    progress: row?.进度 || '',
-    eta: row?.预计完成 || '',
-    updated_at: ''
-  })).filter((row) => !isPlayerReference(row.npc_name, playerName));
+  const social = Array.isArray(state.社交) ? state.社交 : [];
+  const nameById = new Map<string, string>();
+
+  social.forEach((npc) => {
+    const npcId = String((npc as any)?.id || '').trim();
+    const npcName = String((npc as any)?.姓名 || '').trim();
+    if (!npcId || !npcName) return;
+    nameById.set(npcId, npcName);
+    nameById.set(npcId.toLowerCase(), npcName);
+  });
+
+  // Deduplicate by NPC identity, keeping latest row.
+  const map = new Map<string, TavernDBTableRow>();
+  rows.forEach((row) => {
+    const rawNpcName = String(row?.NPC || (row as any)?.npc_name || '').trim();
+    if (!rawNpcName) return;
+
+    const resolvedNpcName = nameById.get(rawNpcName) || nameById.get(rawNpcName.toLowerCase()) || rawNpcName;
+    if (isPlayerReference(rawNpcName, playerName) || isPlayerReference(resolvedNpcName, playerName)) return;
+
+    const key = resolvedNpcName.toLowerCase();
+    map.set(key, {
+      tracking_id: String((row as any)?.tracking_id || '').trim() || resolvedNpcName,
+      npc_name: resolvedNpcName,
+      current_action: row?.当前行动 || '',
+      location: row?.位置 || '',
+      progress: row?.进度 || '',
+      eta: row?.预计完成 || '',
+      updated_at: ''
+    });
+  });
+
+  return Array.from(map.values());
 };
 
 const buildWorldNewsRows = (state: GameState): TavernDBTableRow[] => {
@@ -608,17 +640,44 @@ const buildNpcRelationshipEventRows = (state: GameState): TavernDBTableRow[] => 
 const buildNpcLocationTraceRows = (state: GameState): TavernDBTableRow[] => {
   const npcs = Array.isArray(state.社交) ? state.社交 : [];
   const playerName = state.角色?.姓名;
-  return npcs.map((npc: any, index) => ({
-    trace_id: `${npc?.id || padId('NPC', index)}_trace`,
-    npc_id: npc?.id || padId('NPC', index),
-    npc_name: npc?.姓名 || '',
-    timestamp: state.游戏时间 || '',
-    location: npc?.所在位置 || npc?.位置详情 || '',
-    x: typeof npc?.坐标?.x === 'number' ? npc.坐标.x : '',
-    y: typeof npc?.坐标?.y === 'number' ? npc.坐标.y : '',
-    present: npc?.是否在场 ? 'yes' : 'no',
-    detail: npc?.位置详情 || ''
-  })).filter((row) => !isPlayerReference(row.npc_id, playerName) && !isPlayerReference(row.npc_name, playerName));
+  const latestByNpc = new Map<string, { row: TavernDBTableRow; hasTrace: boolean }>();
+
+  npcs.forEach((npc: any, index) => {
+    const npcId = String(npc?.id || padId('NPC', index)).trim();
+    const npcName = String(npc?.姓名 || npcId).trim();
+    if (!npcId || !npcName) return;
+    if (isPlayerReference(npcId, playerName) || isPlayerReference(npcName, playerName)) return;
+
+    const traces = Array.isArray(npc?.位置轨迹) ? npc.位置轨迹 : [];
+    const latestTrace = traces.length > 0 ? traces[traces.length - 1] : null;
+    const hasTrace = !!latestTrace;
+    const traceId = String((latestTrace as any)?.trace_id || '').trim() || `${npcId}_trace`;
+    const location = String((latestTrace as any)?.location || npc?.所在位置 || npc?.位置详情 || '').trim();
+    const detail = String((latestTrace as any)?.detail || npc?.位置详情 || location).trim();
+    const presentRaw = typeof (latestTrace as any)?.present === 'boolean' ? (latestTrace as any).present : npc?.是否在场;
+
+    const key = npcName.toLowerCase();
+    const nextRow: TavernDBTableRow = {
+      trace_id: traceId,
+      npc_id: npcId,
+      npc_name: npcName,
+      timestamp: String((latestTrace as any)?.timestamp || state.游戏时间 || '').trim(),
+      location,
+      x: typeof (latestTrace as any)?.x === 'number' ? (latestTrace as any).x : (typeof npc?.坐标?.x === 'number' ? npc.坐标.x : ''),
+      y: typeof (latestTrace as any)?.y === 'number' ? (latestTrace as any).y : (typeof npc?.坐标?.y === 'number' ? npc.坐标.y : ''),
+      present: presentRaw ? 'yes' : 'no',
+      detail
+    };
+
+    const existing = latestByNpc.get(key);
+    if (existing && existing.hasTrace && !hasTrace) {
+      return;
+    }
+
+    latestByNpc.set(key, { row: nextRow, hasTrace });
+  });
+
+  return Array.from(latestByNpc.values()).map((entry) => entry.row);
 };
 
 const buildNpcInteractionLogRows = (state: GameState): TavernDBTableRow[] => {

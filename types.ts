@@ -9,4 +9,3 @@ export * from './types/combat';
 export * from './types/ai';
 export * from './types/extended';
 export * from './types/gamestate';
-export * from './types/notes';

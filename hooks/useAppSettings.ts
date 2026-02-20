@@ -225,8 +225,8 @@ const normalizeTriadAiConfig = (rawAiConfig: any, defaults: AppSettings['aiConfi
     const storyService = normalizeEndpoint(rawServices.story, legacyUnified, defaults.services.story);
     const mapService = normalizeEndpoint(rawServices.map, legacyUnified, defaults.services.map);
     const stateService = normalizeEndpoint(rawServices.state, legacyUnified, defaults.services.state);
-    const memoryFallback = rawServices.memory ?? legacyUnified ?? rawServices.state ?? rawServices.story ?? rawServices.map ?? null;
-    const memoryService = normalizeEndpoint(rawServices.memory, memoryFallback, stateService);
+    const memoryFallback = rawServices.memory ?? legacyUnified ?? null;
+    const memoryService = normalizeEndpoint(rawServices.memory, memoryFallback, defaults.services.memory);
 
     return {
         ...defaults,

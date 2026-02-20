@@ -566,7 +566,7 @@ export const createNewGameState = (
         },
         契约: [],
         眷族: { 名称: "无", 等级: "I", 主神: "None", 资金: 0, 声望: 50, 设施状态: {}, 仓库: [] },
-        笔记: [],
+
         记忆: { lastLogIndex: 0 },
         战斗: { 是否战斗中: false, 敌方: null, 战斗记录: [] },
         回合数: 1
@@ -583,9 +583,7 @@ export const mapRawDataToGameState = (raw: RawGameData): GameState => {
     if (data?.角色) {
         data.角色.最大负重 = computeMaxCarry(data.角色);
     }
-   if (!Array.isArray((data as any).笔记)) {
-       (data as any).笔记 = [];
-   }
+
    if (typeof (data.眷族 as any).声望 !== 'number') {
        const legacy = (data as any).世界?.眷族声望;
        if (typeof legacy === 'number') {

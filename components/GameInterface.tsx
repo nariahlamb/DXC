@@ -31,7 +31,7 @@ const TasksModal = lazy(() => import('./game/modals/TasksModal').then(m => ({ de
 const LootVaultModal = lazy(() => import('./game/modals/LootVaultModal').then(m => ({ default: m.LootVaultModal })));
 const PresentCharactersModal = lazy(() => import('./game/modals/PresentCharactersModal').then(m => ({ default: m.PresentCharactersModal })));
 const MapModal = lazy(() => import('./game/modals/MapModal').then(m => ({ default: m.MapModal })));
-const NotesModal = lazy(() => import('./game/modals/NotesModal').then(m => ({ default: m.NotesModal })));
+
 const DailyDashboardModal = lazy(() => import('./game/modals/DailyDashboardModal').then(m => ({ default: m.DailyDashboardModal })));
 
 import { useGameLogic } from '../hooks/useGameLogic';
@@ -58,7 +58,6 @@ type ActiveModal =
     | 'LOOT_VAULT'
     | 'PRESENT'
     | 'MAP'
-    | 'NOTES'
     | 'DAILY_DASHBOARD'
     | 'SAVE_MANAGER'
     | null;
@@ -502,7 +501,7 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
                             lootCount
                         }}
                         navigationPriority={navigationPriority}
-                        onOpenNotes={() => setActiveModal('NOTES')}
+
                     />
                 </div>
             </div>
@@ -592,7 +591,7 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
                             onOpenArchivePanel: openArchivePanel,
                             onOpenMap: () => setActiveModal('MAP'),
                             onOpenSaveManager: () => setActiveModal('SAVE_MANAGER'),
-                            onOpenNotes: () => setActiveModal('NOTES'),
+
                         }}
                         navigationPriority={navigationPriority}
                      />
@@ -708,12 +707,7 @@ export const GameInterface: React.FC<GameInterfaceProps> = ({ onExit, initialSta
             isMapUpdating={isMapUpdating}
         />
 
-        <NotesModal
-            isOpen={activeModal === 'NOTES'}
-            onClose={closeModal}
-            notes={gameState.笔记}
-            onUpdateNotes={(notes) => setGameState(prev => ({ ...prev, 笔记: notes }))}
-        />
+
 
         <DailyDashboardModal
             isOpen={activeModal === 'DAILY_DASHBOARD'}

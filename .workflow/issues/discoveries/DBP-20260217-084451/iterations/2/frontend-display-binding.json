@@ -1,0 +1,48 @@
+{
+  "dimension": "frontend-display-binding",
+  "findings": [
+    {
+      "snippet": "unreadNews 来源于 gameState.世界.头条新闻",
+      "severity": "medium",
+      "category": "stale-world-ui",
+      "title": "新闻与世界动态依赖 world 表更新；cadence 拒绝时 unreadNews 可能长期为 0",
+      "id": "F-014",
+      "file": "components/GameInterface.tsx",
+      "line": 497,
+      "confidence": 0.8
+    },
+    {
+      "confidence": 0.84,
+      "line": 194,
+      "evidence": [
+        "hooks/gameLogic/microservice/commandGuard.ts:125 LOG_Summary/LOG_Outline 归 memory_owned",
+        "hooks/gameLogic/microservice/commandGuard.ts:141 memory_owned sheet reject"
+      ],
+      "id": "F-015",
+      "severity": "high",
+      "snippet": "LogsPanel 仅在 summaries/outlines 存在时渲染",
+      "file": "components/game/CombatPanel.tsx",
+      "category": "service-boundary-gap",
+      "title": "日志摘要/日志大纲属于 memory-owned，memory 未配置时战斗日志面板可能长期空白"
+    }
+  ],
+  "focus": "世界/日志相关 UI 与服务边界的实际一致性",
+  "coverage": {
+    "areas_covered": [
+      "世界信息入口",
+      "战斗日志面板",
+      "服务边界"
+    ],
+    "files_explored": 3,
+    "areas_remaining": [
+      "论坛/手机模态显示一致性"
+    ]
+  },
+  "iteration": 2,
+  "leads": [
+    {
+      "description": "核查 memory service 配置丢失时的用户提示是否足够",
+      "suggested_search": "isServiceConfigured(memory)"
+    }
+  ]
+}

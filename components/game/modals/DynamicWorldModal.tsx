@@ -800,7 +800,19 @@ const WarGamePanel = ({ world }: { world: WorldState }) => {
     );
 };
 
-const TrackingPanel = ({ world }: { world: WorldState }) => (
+const TrackingPanel = ({ world }: { world: WorldState }) => {
+    const latestTracks = useMemo(() => {
+        const rows = Array.isArray(world.NPC后台跟踪) ? world.NPC后台跟踪 : [];
+        const latestByNpc = new Map<string, (typeof rows)[number]>();
+        rows.forEach((row) => {
+            const npcName = String(row?.NPC || '').trim();
+            if (!npcName) return;
+            latestByNpc.set(npcName.toLowerCase(), row);
+        });
+        return Array.from(latestByNpc.values());
+    }, [world.NPC后台跟踪]);
+
+    return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 h-full flex flex-col">
          <div className="pb-4 border-b border-cyan-500/20 shrink-0">
             <h3 className="text-2xl font-display uppercase tracking-widest text-accent-blue drop-shadow-sm">后台跟踪</h3>
@@ -808,8 +820,8 @@ const TrackingPanel = ({ world }: { world: WorldState }) => (
         </div>
         
         <div className="flex-1 space-y-3 overflow-y-auto custom-scrollbar pr-2 pb-4">
-             {(world.NPC后台跟踪 || []).length > 0 ? world.NPC后台跟踪.map((track, i) => (
-                 <div key={i} className="bg-surface-base/40 border border-white/5 p-4 flex items-center justify-between hover:border-cyan-500/30 transition-colors group rounded-lg">
+             {latestTracks.length > 0 ? latestTracks.map((track, i) => (
+                 <div key={`${track.NPC}_${i}`} className="bg-surface-base/40 border border-white/5 p-4 flex items-center justify-between hover:border-cyan-500/30 transition-colors group rounded-lg">
                      <div className="flex items-center gap-5">
                          <div className="relative">
                             <div className="w-2.5 h-2.5 rounded-full bg-accent-blue animate-pulse" />
@@ -833,7 +845,8 @@ const TrackingPanel = ({ world }: { world: WorldState }) => (
              )}
         </div>
     </div>
-);
+    );
+};
 
 const ArrowUpRight = ({ size = 24, className, ...props }: any) => (
     <svg 

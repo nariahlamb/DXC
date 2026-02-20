@@ -48,6 +48,55 @@ describe('state variable migration guard', () => {
     expect(migrated.stateVarWriter.governance.semanticScope.anchors).toContain('economy');
   });
 
+  it('blocks legacy business paths while keeping UI transient paths', () => {
+    const commands: TavernCommand[] = [
+      { action: 'set', key: 'gameState.任务.主线[0].状态', value: '进行中' } as any,
+      { action: 'set', key: 'gameState.处理中.状态', value: true } as any
+    ];
+
+    const result = filterCommandsForServiceWithDiagnostics(createGuardContext('state', commands));
+
+    expect(result.commands).toHaveLength(1);
+    expect((result.commands[0] as any)?.key).toBe('gameState.处理中.状态');
+    expect(result.rejected.some((item) => item.reason === 'legacy_path_blocked')).toBe(true);
+  });
+
+  it('accepts table_op alias when command carries concrete sheet action', () => {
+    const commands: TavernCommand[] = [
+      {
+        action: 'table_op',
+        command: 'upsert_sheet_rows',
+        value: { sheetId: 'SYS_GlobalState', rows: [{ _global_id: 'GLOBAL_STATE', 当前场景: '公会大厅' }] }
+      } as any
+    ];
+
+    const result = filterCommandsForServiceWithDiagnostics(createGuardContext('state', commands));
+
+    expect(result.commands).toHaveLength(1);
+    expect((result.commands[0] as any)?.value?.sheetId).toBe('SYS_GlobalState');
+    expect(result.rejected.some((item) => item.reason === 'not_supported_action')).toBe(false);
+  });
+
+  it('does not block explicit world/forum sheet writes when interval=0 manual mode is enabled', () => {
+    const commands: TavernCommand[] = [
+      { action: 'upsert_sheet_rows', value: { sheetId: 'WORLD_News', rows: [{ news_id: 'news_1', 标题: 'test' }] } } as any,
+      { action: 'upsert_sheet_rows', value: { sheetId: 'FORUM_Posts', rows: [{ post_id: 'post_1', 标题: 'post' }] } } as any
+    ];
+
+    const result = filterCommandsForServiceWithDiagnostics({
+      ...createGuardContext('state', commands),
+      stateWorldCadenceDue: false,
+      stateForumCadenceDue: false,
+      stateWorldCadenceManualMode: true,
+      stateForumCadenceManualMode: true,
+      worldIntervalControlledSheets: new Set<string>(['WORLD_News']),
+      forumIntervalControlledSheets: new Set<string>(['FORUM_Posts'])
+    });
+
+    expect(result.commands).toHaveLength(2);
+    expect(result.rejected.some((item) => item.reason === 'cadence_not_due')).toBe(false);
+  });
+
   it('shadow mode does not change current filtering behavior', () => {
     const commands: TavernCommand[] = [
       { action: 'append_log_outline', value: { 回合: 2, 大纲: 'outline' } },
@@ -119,13 +168,16 @@ describe('state variable migration guard', () => {
       } as any
     });
 
-    expect(result.commands).toHaveLength(1);
-    const npcRows = (result.commands[0] as any)?.value?.rows || [];
+    expect(result.commands).toHaveLength(2);
+    const npcCommand = result.commands.find((cmd: any) => String((cmd as any)?.value?.sheetId || '') === 'NPC_Registry') as any;
+    const questCommand = result.commands.find((cmd: any) => String((cmd as any)?.value?.sheetId || '') === 'QUEST_Active') as any;
+    const npcRows = npcCommand?.value?.rows || [];
     expect(npcRows).toHaveLength(1);
     expect(npcRows[0].NPC_ID).toBe('Char_Ais');
     expect(npcRows[0].越界字段).toBeUndefined();
+    expect((questCommand?.value?.rows || []).length).toBe(1);
     expect(result.rejected.some((item) => item.reason === 'field_not_allowed' && item.field === '越界字段')).toBe(true);
-    expect(result.rejected.some((item) => item.reason === 'sheet_not_allowed' && item.sheetId === 'QUEST_Active')).toBe(true);
+    expect(result.rejected.some((item) => item.reason === 'sheet_not_allowed' && item.sheetId === 'QUEST_Active')).toBe(false);
 
     const filteredOnly = filterCommandsForService({
       ...createGuardContext('state', commands),
@@ -136,7 +188,7 @@ describe('state variable migration guard', () => {
         }
       } as any
     });
-    expect(filteredOnly).toHaveLength(1);
+    expect(filteredOnly).toHaveLength(2);
   });
 
   it('keeps allowed sheet operations and rejects disallowed fields under strict allowlist', () => {

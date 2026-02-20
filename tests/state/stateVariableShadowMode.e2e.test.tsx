@@ -113,4 +113,115 @@ describe('state variable writer shadow mode e2e', () => {
       expect(result.current.gameState.游戏时间).toBe('第1日 07:35');
     });
   });
+
+  it('rewrites state legacy social commands before guard and applies npc updates', async () => {
+    (generateDungeonMasterResponse as any).mockResolvedValueOnce({
+      logs: [{ sender: '旁白', text: '你来到公会登记处。' }],
+      tavern_commands: [],
+      rawResponse: '{"ok":true}'
+    });
+    (generateServiceCommands as any).mockImplementation(async (serviceKey: string) => {
+      if (serviceKey === 'state') {
+        return {
+          tavern_commands: [
+            {
+              action: 'push',
+              key: 'gameState.社交',
+              value: {
+                id: 'char_eina',
+                姓名: '埃伊娜·祖尔',
+                status: '初识',
+                好感度: 18,
+                是否在场: true
+              }
+            }
+          ],
+          rawResponse: '{"tavern_commands":[]}'
+        };
+      }
+      return { tavern_commands: [], rawResponse: '{"tavern_commands":[]}' };
+    });
+
+    const state = createNewGameState('Tester', '男', 'Human') as any;
+    const { result } = renderHook(() => useGameLogic(state));
+    act(() => {
+      result.current.setSettings((prev: any) => ({
+        ...prev,
+        aiConfig: {
+          ...prev.aiConfig,
+          services: {
+            ...prev.aiConfig.services,
+            state: { ...prev.aiConfig.services.state, apiKey: 'state-key', modelId: 'state-model' }
+          }
+        }
+      }));
+    });
+
+    await act(async () => {
+      await result.current.handleAIInteraction('继续行动', 'ACTION', [], undefined, true);
+    });
+
+    await waitFor(() => {
+      const social = Array.isArray(result.current.gameState.社交) ? result.current.gameState.社交 : [];
+      const eina = social.find((item: any) => String(item?.姓名 || '').includes('埃伊娜'));
+      expect(eina).toBeTruthy();
+      expect(String(eina?.关系状态 || '')).toContain('初识');
+      const guardLogs = (result.current.gameState.日志 || [])
+        .filter((log: any) => String(log?.sender || '') === '系统')
+        .map((log: any) => String(log?.text || ''));
+      expect(guardLogs.some((text: string) => text.includes('legacy_path_blocked'))).toBe(false);
+    });
+  });
+
+  it('normalizes table_op commands and avoids missing action/key failures', async () => {
+    (generateDungeonMasterResponse as any).mockResolvedValueOnce({
+      logs: [{ sender: '旁白', text: '你检查系统状态。' }],
+      tavern_commands: [],
+      rawResponse: '{"ok":true}'
+    });
+    (generateServiceCommands as any).mockImplementation(async (serviceKey: string) => {
+      if (serviceKey === 'state') {
+        return {
+          tavern_commands: [
+            {
+              action: 'table_op',
+              type: 'table_op',
+              command: 'upsert_sheet_rows',
+              args: { sheetId: 'SYS_GlobalState', rows: [{ _global_id: 'GLOBAL_STATE', 当前场景: '测试场景' }] },
+              value: { sheetId: 'SYS_GlobalState', rows: [{ _global_id: 'GLOBAL_STATE', 当前场景: '测试场景' }] }
+            }
+          ],
+          rawResponse: '{"tavern_commands":[]}'
+        };
+      }
+      return { tavern_commands: [], rawResponse: '{"tavern_commands":[]}' };
+    });
+
+    const state = createNewGameState('Tester', '男', 'Human') as any;
+    const { result } = renderHook(() => useGameLogic(state));
+    act(() => {
+      result.current.setSettings((prev: any) => ({
+        ...prev,
+        aiConfig: {
+          ...prev.aiConfig,
+          services: {
+            ...prev.aiConfig.services,
+            state: { ...prev.aiConfig.services.state, apiKey: 'state-key', modelId: 'state-model' }
+          }
+        }
+      }));
+    });
+
+    await act(async () => {
+      await result.current.handleAIInteraction('继续行动', 'ACTION', [], undefined, true);
+    });
+
+    await waitFor(() => {
+      expect(result.current.gameState.当前地点).toBe('测试场景');
+      const systemLogs = (result.current.gameState.日志 || [])
+        .filter((log: any) => String(log?.sender || '') === '系统')
+        .map((log: any) => String(log?.text || ''));
+      expect(systemLogs.some((text: string) => text.includes('缺少 action/key'))).toBe(false);
+    });
+  });
 });

@@ -24,7 +24,7 @@ interface MobileMenuOverlayProps {
         onOpenArchivePanel: (tab?: 'WORLD' | 'STORY' | 'MEMORY') => void;
         onOpenMap: () => void;
         onOpenSaveManager: () => void;
-        onOpenNotes: () => void;
+
     };
 }
 
@@ -192,18 +192,10 @@ export const MobileMenuOverlay: React.FC<MobileMenuOverlayProps> = ({
                             {/* <GridItem icon={Icons.User}      label="角色面板" color="text-blue-400"    onClick={() => actions.onOpenCharacterPanel('STATUS')} /> */}
                             <GridItem icon={Icons.Quest}     label="任务"   color="text-emerald-400" onClick={actions.onOpenTasks} badge={summary?.activeTasks} />
                             <GridItem icon={Icons.SysPhone}  label="终端"   color="text-pink-400"    onClick={() => actions.onOpenPhone('COMM')} disabled={!hasPhone} badge={summary?.unreadMessages} />
+                            <GridItem icon={Icons.Map}       label="地图"   color="text-indigo-400"  onClick={actions.onOpenMap} badge={summary?.unreadNews} />
                             <GridItem icon={Icons.Book}      label="档案"   color="text-yellow-400"  onClick={() => actions.onOpenArchivePanel('WORLD')} />
                             <GridItem icon={Icons.SysSave}   label="存档"   color="text-cyan-400"    onClick={actions.onOpenSaveManager} />
                             <GridItem icon={Icons.Settings}  label="设置"   color="text-slate-400"   onClick={actions.onOpenSettings} />
-                        </div>
-                    </div>
-
-                    {/* ===== Secondary List ===== */}
-                    <div className="mb-4">
-                        <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-2 px-1">附加功能</h3>
-                        <div className="bg-[#0e1217] rounded-2xl overflow-hidden border border-white/5">
-                            <ListItem icon={Icons.Map}       label="地图中心"   subLabel="查看地图与地理信息"         onClick={actions.onOpenMap} badge={summary?.unreadNews} />
-                            <ListItem icon={Icons.SysNote}   label="笔记"       subLabel="自由记录冒险心得"         onClick={actions.onOpenNotes} />
                         </div>
                     </div>
 

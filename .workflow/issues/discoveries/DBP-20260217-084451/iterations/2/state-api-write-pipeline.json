@@ -1,0 +1,85 @@
+{
+  "dimension": "state-api-write-pipeline",
+  "findings": [
+    {
+      "snippet": "hasStateService + LEGACY_PATH_ACTIONS + tableManaged => return/drop",
+      "severity": "high",
+      "category": "legacy-write-block",
+      "title": "开启 state 服务后会阻断旧式路径写入，若模型仍输出 legacy path 将出现业务字段不更新",
+      "id": "F-005",
+      "file": "hooks/gameLogic/useGameLogicCore.ts",
+      "line": 146,
+      "confidence": 0.87
+    },
+    {
+      "snippet": "stateWorldCadenceDue / stateForumCadenceDue 不满足则 reject",
+      "severity": "high",
+      "category": "cadence-suppression",
+      "title": "世界/论坛相关命令会被 cadence_not_due 拒绝，导致对应前端区域在多回合内不刷新",
+      "id": "F-006",
+      "file": "hooks/gameLogic/microservice/commandGuard.ts",
+      "line": 131,
+      "confidence": 0.86
+    },
+    {
+      "snippet": "nextTurn 非数值直接返回 false",
+      "severity": "medium",
+      "category": "schedule-fragility",
+      "title": "世界更新判定依赖 下次更新回合，异常值会使 world 更新长期不触发",
+      "id": "F-007",
+      "file": "hooks/gameLogic/useGameLogicCore.ts",
+      "line": 412,
+      "confidence": 0.78
+    },
+    {
+      "snippet": "buildWriterCommandsFromEvent 仅处理三个 domain 分支",
+      "severity": "high",
+      "category": "domain-coverage-gap",
+      "title": "stateVariableWriter 域覆盖仅 global_state/character_resources/inventory，其他域事件会 no_command",
+      "id": "F-008",
+      "file": "hooks/gameLogic/microservice/stateVariableWriter.ts",
+      "line": 276,
+      "confidence": 0.82
+    },
+    {
+      "snippet": "DEFAULT_STATE_VAR_WRITER_SETTINGS.enabled = false",
+      "severity": "medium",
+      "category": "default-disabled",
+      "title": "stateVarWriter 默认关闭，修复后若未显式启用会造成“有链路无应用”的错觉",
+      "id": "F-009",
+      "file": "hooks/useAppSettings.ts",
+      "line": 72,
+      "confidence": 0.75
+    },
+    {
+      "snippet": "memoryService = rawServices.memory || rawServices.state || ...",
+      "severity": "medium",
+      "category": "config-coupling",
+      "title": "settings 中 memoryService 默认回退到 stateService，单独 state 配置会隐式改变 memory 行为",
+      "id": "F-010",
+      "file": "hooks/gameLogic/settings.ts",
+      "line": 41,
+      "confidence": 0.74
+    }
+  ],
+  "focus": "命令守卫、治理与节流对 state 写入覆盖的影响",
+  "coverage": {
+    "areas_covered": [
+      "command guard 拒绝策略",
+      "cadence 触发",
+      "writer 域覆盖",
+      "默认治理开关"
+    ],
+    "files_explored": 6,
+    "areas_remaining": [
+      "线上配置快照与实际 rejected 命令分布"
+    ]
+  },
+  "iteration": 2,
+  "leads": [
+    {
+      "description": "建议把 guardRejected 统计上屏，便于定位“看起来没更新”",
+      "suggested_search": "filterCommandsForServiceWithDiagnostics guardRejected"
+    }
+  ]
+}

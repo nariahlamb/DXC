@@ -1,0 +1,109 @@
+{
+  "max_iterations": 5,
+  "comparison_matrix": {
+    "dimension_b": "frontend-display-binding",
+    "dimension_a": "state-api-write-pipeline",
+    "comparison_points": [
+      {
+        "aspect": "field-coverage",
+        "b_check": "UI 读取字段集合",
+        "a_check": "state 输入/写入可覆盖字段"
+      },
+      {
+        "aspect": "trigger-gating",
+        "b_check": "用户可见更新时机",
+        "a_check": "服务触发与命令守卫条件"
+      },
+      {
+        "aspect": "schema-shape",
+        "b_check": "组件期望结构",
+        "a_check": "输入结构与表结构"
+      },
+      {
+        "aspect": "fallback-behavior",
+        "b_check": "UI 占位与默认值",
+        "a_check": "被拒/缺失时的状态回退"
+      }
+    ]
+  },
+  "termination_conditions": [
+    "第3轮新增发现数显著下降且关键链路已覆盖",
+    "comparison 关键维度已完成字段/触发/结构/回退四项对齐分析"
+  ],
+  "prompt": "检查当前项目的单独api配置的state变量更新和前端显示的所有内容，因为项目被破坏过一次 做了一次修复，现在state变量很多内容不填，帮我找出所有可能的问题列出清单md",
+  "created_at": "2026-02-17T08:44:51Z",
+  "intent_type": "comparison",
+  "dimensions": [
+    {
+      "description": "从 API 配置、state 输入、命令守卫到表写入的状态更新链路",
+      "name": "state-api-write-pipeline",
+      "focus_areas": [
+        "api config gating",
+        "state payload schema",
+        "command guard rejects",
+        "writer domain coverage"
+      ],
+      "search_targets": [
+        "hooks/gameLogic/**",
+        "utils/state/**",
+        "utils/aiDispatch.ts",
+        "hooks/useAppSettings.ts"
+      ]
+    },
+    {
+      "description": "前端界面读取字段与状态写入覆盖度对齐",
+      "name": "frontend-display-binding",
+      "focus_areas": [
+        "HUD core fields",
+        "dashboard/social/story panels",
+        "log/news rendering dependency"
+      ],
+      "search_targets": [
+        "components/GameInterface.tsx",
+        "components/game/modals/**",
+        "components/game/views/**"
+      ]
+    }
+  ],
+  "intent_analysis": {
+    "type": "comparison",
+    "sub_questions": [
+      "state 服务输入结构是否与实际状态结构匹配",
+      "命令守卫和节流是否导致业务字段不更新",
+      "前端展示字段是否存在无写入来源或弱覆盖字段"
+    ],
+    "primary_question": "单独 API 配置下，state 变量更新链路是否覆盖前端展示所需字段"
+  },
+  "results": {
+    "issues_generated": 11,
+    "total_findings": 18,
+    "total_iterations": 3,
+    "comparison_match_rate": 0.52
+  },
+  "iterations": [
+    {
+      "new_discoveries": 6,
+      "findings_count": 6,
+      "confidence": 0.66,
+      "number": 1
+    },
+    {
+      "new_discoveries": 8,
+      "findings_count": 14,
+      "confidence": 0.81,
+      "number": 2
+    },
+    {
+      "new_discoveries": 4,
+      "findings_count": 18,
+      "confidence": 0.9,
+      "number": 3
+    }
+  ],
+  "type": "prompt-driven",
+  "scope": "**/*",
+  "phase": "complete",
+  "depth": "standard",
+  "updated_at": "2026-02-17T08:44:51Z",
+  "discovery_id": "DBP-20260217-084451"
+}

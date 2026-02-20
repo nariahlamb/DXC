@@ -1,0 +1,260 @@
+components/game/CombatPanel.tsx(294,48): error TS2339: Property 'hp' does not exist on type 'unknown'.
+components/game/CombatPanel.tsx(295,51): error TS2339: Property 'maxHp' does not exist on type 'unknown'.
+components/game/CombatPanel.tsx(299,40): error TS2339: Property 'name' does not exist on type 'unknown'.
+components/game/CombatPanel.tsx(305,47): error TS2339: Property 'description' does not exist on type 'unknown'.
+components/game/CombatPanel.tsx(399,37): error TS2339: Property 'UNIT_ID' does not exist on type 'unknown'.
+components/game/map/hooks/useMapInteraction.ts(92,20): error TS2339: Property 'clientX' does not exist on type 'unknown'.
+components/game/map/hooks/useMapInteraction.ts(92,32): error TS2339: Property 'clientX' does not exist on type 'unknown'.
+components/game/map/hooks/useMapInteraction.ts(93,20): error TS2339: Property 'clientY' does not exist on type 'unknown'.
+components/game/map/hooks/useMapInteraction.ts(93,32): error TS2339: Property 'clientY' does not exist on type 'unknown'.
+components/game/map/hooks/useMapInteraction.ts(95,30): error TS2339: Property 'clientX' does not exist on type 'unknown'.
+components/game/map/hooks/useMapInteraction.ts(95,42): error TS2339: Property 'clientX' does not exist on type 'unknown'.
+components/game/map/hooks/useMapInteraction.ts(95,62): error TS2339: Property 'clientY' does not exist on type 'unknown'.
+components/game/map/hooks/useMapInteraction.ts(95,74): error TS2339: Property 'clientY' does not exist on type 'unknown'.
+components/game/map/hooks/useMapInteraction.ts(111,20): error TS2339: Property 'clientX' does not exist on type 'unknown'.
+components/game/map/hooks/useMapInteraction.ts(111,32): error TS2339: Property 'clientX' does not exist on type 'unknown'.
+components/game/map/hooks/useMapInteraction.ts(112,20): error TS2339: Property 'clientY' does not exist on type 'unknown'.
+components/game/map/hooks/useMapInteraction.ts(112,32): error TS2339: Property 'clientY' does not exist on type 'unknown'.
+components/game/modals/AttributePanel.tsx(231,46): error TS2322: Type '{ key: string; label: string; data: any; }' is not assignable to type '{ label: string; data: any; }'.
+  Property 'key' does not exist on type '{ label: string; data: any; }'.
+components/game/modals/AttributePanel.tsx(246,73): error TS2322: Type '{ key: string; entry: string | StatusEffect; variant: "buff"; }' is not assignable to type '{ entry: string | StatusEffect; variant: "buff" | "curse"; }'.
+  Property 'key' does not exist on type '{ entry: string | StatusEffect; variant: "buff" | "curse"; }'.
+components/game/modals/AttributePanel.tsx(247,73): error TS2322: Type '{ key: string; entry: string | StatusEffect; variant: "curse"; }' is not assignable to type '{ entry: string | StatusEffect; variant: "buff" | "curse"; }'.
+  Property 'key' does not exist on type '{ entry: string | StatusEffect; variant: "buff" | "curse"; }'.
+components/game/modals/DynamicWorldModal.tsx(500,39): error TS2322: Type '{ key: any; item: any; linkedRumor: RumorItem; onNavigateToRumor: (id: string) => void; }' is not assignable to type '{ item: NewsItem; linkedRumor?: RumorItem; onNavigateToRumor?: (id: string) => void; }'.
+  Property 'key' does not exist on type '{ item: NewsItem; linkedRumor?: RumorItem; onNavigateToRumor?: (id: string) => void; }'.
+components/game/modals/DynamicWorldModal.tsx(664,32): error TS2322: Type '{ key: string; rumor: RumorItem; }' is not assignable to type '{ rumor: RumorItem; }'.
+  Property 'key' does not exist on type '{ rumor: RumorItem; }'.
+components/game/modals/SocialModal.tsx(198,32): error TS2339: Property '隐藏基础能力值' does not exist on type 'Confidant'.
+components/game/modals/SocialModal.tsx(361,35): error TS2339: Property '档案' does not exist on type 'Confidant'.
+components/game/modals/SocialPhoneModal.tsx(978,29): error TS2322: Type '{ key: any; post: any; resolvedPlayerName: string; }' is not assignable to type '{ post: PhonePost; isForum?: boolean; resolvedPlayerName: string; }'.
+  Property 'key' does not exist on type '{ post: PhonePost; isForum?: boolean; resolvedPlayerName: string; }'.
+components/mobile/MobileMapView.tsx(414,53): error TS2339: Property 'mapStructure' does not exist on type '{ id: string; }'.
+docs/_merge_backup_20260216-012150/App.tsx(3,35): error TS2307: Cannot find module './types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/CharacterCreation.tsx(4,27): error TS2307: Cannot find module '../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/CharacterCreation.tsx(5,36): error TS2307: Cannot find module '../utils/dataMapper' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/CharacterCreation.tsx(7,28): error TS2307: Cannot find module '../types/enums' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/combat/ActionDock.tsx(3,96): error TS2307: Cannot find module '../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/combat/ActionDock.tsx(5,33): error TS2307: Cannot find module '../../utils/itemUtils' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/combat/BattleStage.tsx(3,28): error TS2307: Cannot find module '../../types/combat-normalized' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/combat/BattleStage.tsx(4,42): error TS2307: Cannot find module '../../types/combat' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/combat/BattleStage.tsx(8,58): error TS2307: Cannot find module '../../utils/mapViewModel' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/combat/CombatResolutionPanel.tsx(2,39): error TS2307: Cannot find module '../../types/extended' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/combat/map/MapEntityToken.tsx(3,30): error TS2307: Cannot find module '../../../types/combat' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/combat/map/TacticalGrid.tsx(3,42): error TS2307: Cannot find module '../../../types/combat' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/combat/UnitCard.tsx(4,28): error TS2307: Cannot find module '../../types/combat-normalized' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/BottomBanner.tsx(3,36): error TS2307: Cannot find module '../../utils/normalizers' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/BottomBanner.tsx(4,31): error TS2307: Cannot find module '../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/center/GameInput.tsx(3,29): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/center/GameInput.tsx(4,65): error TS2307: Cannot find module '../../../utils/ui/processingStage' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/center/LogEntry.tsx(3,74): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/center/LogEntry.tsx(5,32): error TS2307: Cannot find module '../../../utils/uiUtils' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/center/LogEntry.tsx(6,41): error TS2307: Cannot find module '../../../utils/userPlaceholder' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/center/LogEntry.tsx(7,61): error TS2307: Cannot find module '../../../utils/logTextFormat' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/CenterPanel.tsx(3,31): error TS2307: Cannot find module '../../utils/imageCompression' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/CenterPanel.tsx(4,141): error TS2307: Cannot find module '../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/CenterPanel.tsx(5,84): error TS2307: Cannot find module '../../types/extended' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/CenterPanel.tsx(11,40): error TS2307: Cannot find module '../../utils/ui/logTaskLinking' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/CenterPanel.tsx(12,36): error TS2307: Cannot find module '../../hooks/usePerformanceMode' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/CenterPanel.tsx(13,65): error TS2307: Cannot find module '../../utils/ui/processingStage' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/character/EquipmentContent.tsx(4,31): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/character/EquipmentContent.tsx(5,47): error TS2307: Cannot find module '../../../utils/itemUtils' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/character/EquipmentContent.tsx(8,40): error TS2307: Cannot find module '../../../utils/equipmentLinking' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/character/SkillsContent.tsx(4,19): error TS2307: Cannot find module '../../../utils/iconMapper' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/character/SkillsContent.tsx(5,35): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/character/SkillsContent.tsx(6,33): error TS2307: Cannot find module '../../../utils/skillFormat' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/CombatPanel.tsx(6,38): error TS2307: Cannot find module '../../adapters/combatAdapter' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/CombatPanel.tsx(7,104): error TS2307: Cannot find module '../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/CombatPanel.tsx(8,107): error TS2307: Cannot find module '../../types/extended' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/CombatPanel.tsx(9,33): error TS2307: Cannot find module '../../utils/itemUtils' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/CombatPanel.tsx(294,48): error TS2339: Property 'hp' does not exist on type 'unknown'.
+docs/_merge_backup_20260216-012150/components/game/CombatPanel.tsx(295,51): error TS2339: Property 'maxHp' does not exist on type 'unknown'.
+docs/_merge_backup_20260216-012150/components/game/CombatPanel.tsx(299,40): error TS2339: Property 'name' does not exist on type 'unknown'.
+docs/_merge_backup_20260216-012150/components/game/CombatPanel.tsx(305,47): error TS2339: Property 'description' does not exist on type 'unknown'.
+docs/_merge_backup_20260216-012150/components/game/CombatPanel.tsx(399,37): error TS2339: Property 'UNIT_ID' does not exist on type 'unknown'.
+docs/_merge_backup_20260216-012150/components/game/InventoryItemCard.tsx(3,31): error TS2307: Cannot find module '../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/InventoryItemCard.tsx(4,109): error TS2307: Cannot find module '../../utils/itemUtils' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/InventoryItemCard.tsx(5,25): error TS2307: Cannot find module '../../utils/iconMapper' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/LeftPanel.tsx(3,44): error TS2307: Cannot find module '../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/LeftPanel.tsx(7,19): error TS2307: Cannot find module '../../utils/iconMapper' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/map/hooks/useMapInteraction.ts(3,68): error TS2307: Cannot find module '../../../../utils/mapMath.ts' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/map/hooks/useMapInteraction.ts(92,20): error TS2339: Property 'clientX' does not exist on type 'unknown'.
+docs/_merge_backup_20260216-012150/components/game/map/hooks/useMapInteraction.ts(92,32): error TS2339: Property 'clientX' does not exist on type 'unknown'.
+docs/_merge_backup_20260216-012150/components/game/map/hooks/useMapInteraction.ts(93,20): error TS2339: Property 'clientY' does not exist on type 'unknown'.
+docs/_merge_backup_20260216-012150/components/game/map/hooks/useMapInteraction.ts(93,32): error TS2339: Property 'clientY' does not exist on type 'unknown'.
+docs/_merge_backup_20260216-012150/components/game/map/hooks/useMapInteraction.ts(95,30): error TS2339: Property 'clientX' does not exist on type 'unknown'.
+docs/_merge_backup_20260216-012150/components/game/map/hooks/useMapInteraction.ts(95,42): error TS2339: Property 'clientX' does not exist on type 'unknown'.
+docs/_merge_backup_20260216-012150/components/game/map/hooks/useMapInteraction.ts(95,62): error TS2339: Property 'clientY' does not exist on type 'unknown'.
+docs/_merge_backup_20260216-012150/components/game/map/hooks/useMapInteraction.ts(95,74): error TS2339: Property 'clientY' does not exist on type 'unknown'.
+docs/_merge_backup_20260216-012150/components/game/map/hooks/useMapInteraction.ts(111,20): error TS2339: Property 'clientX' does not exist on type 'unknown'.
+docs/_merge_backup_20260216-012150/components/game/map/hooks/useMapInteraction.ts(111,32): error TS2339: Property 'clientX' does not exist on type 'unknown'.
+docs/_merge_backup_20260216-012150/components/game/map/hooks/useMapInteraction.ts(112,20): error TS2339: Property 'clientY' does not exist on type 'unknown'.
+docs/_merge_backup_20260216-012150/components/game/map/hooks/useMapInteraction.ts(112,32): error TS2339: Property 'clientY' does not exist on type 'unknown'.
+docs/_merge_backup_20260216-012150/components/game/map/hooks/useMapRender.ts(3,56): error TS2307: Cannot find module '../../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/map/hooks/useMapRender.ts(4,61): error TS2307: Cannot find module '../../../../utils/mapCanvas.ts' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/map/LocalMapSVG.tsx(2,60): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/map/LocalMapSVG.tsx(3,36): error TS2307: Cannot find module '../../../utils/mapMath.ts' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/map/MapContext.tsx(2,72): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/map/MapStructureSVG.tsx(2,92): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/map/MapStructureSVG.tsx(3,36): error TS2307: Cannot find module '../../../utils/mapMath' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/ArchivePanelModal.tsx(3,43): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/ArchivePanelModal.tsx(8,19): error TS2307: Cannot find module '../../../utils/iconMapper' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/AttributePanel.tsx(2,58): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/AttributePanel.tsx(231,46): error TS2322: Type '{ key: string; label: string; data: unknown; }' is not assignable to type '{ label: string; data: any; }'.
+  Property 'key' does not exist on type '{ label: string; data: any; }'.
+docs/_merge_backup_20260216-012150/components/game/modals/AttributePanel.tsx(246,73): error TS2322: Type '{ key: string; entry: any; variant: "buff"; }' is not assignable to type '{ entry: any; variant: "buff" | "curse"; }'.
+  Property 'key' does not exist on type '{ entry: any; variant: "buff" | "curse"; }'.
+docs/_merge_backup_20260216-012150/components/game/modals/AttributePanel.tsx(247,73): error TS2322: Type '{ key: string; entry: any; variant: "curse"; }' is not assignable to type '{ entry: any; variant: "buff" | "curse"; }'.
+  Property 'key' does not exist on type '{ entry: any; variant: "buff" | "curse"; }'.
+docs/_merge_backup_20260216-012150/components/game/modals/CharacterPanelModal.tsx(4,78): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/CharacterPanelModal.tsx(9,19): error TS2307: Cannot find module '../../../utils/iconMapper' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/ContractModal.tsx(3,26): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/DailyDashboardModal.tsx(3,27): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/DynamicWorldModal.tsx(3,65): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/DynamicWorldModal.tsx(4,37): error TS2307: Cannot find module '../../../utils/normalizers' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/DynamicWorldModal.tsx(5,31): error TS2307: Cannot find module '../../../hooks/gameLogic/time' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/DynamicWorldModal.tsx(500,39): error TS2322: Type '{ key: any; item: any; linkedRumor: any; onNavigateToRumor: (id: string) => void; }' is not assignable to type '{ item: NewsItem; linkedRumor?: RumorItem; onNavigateToRumor?: (id: string) => void; }'.
+  Property 'key' does not exist on type '{ item: NewsItem; linkedRumor?: RumorItem; onNavigateToRumor?: (id: string) => void; }'.
+docs/_merge_backup_20260216-012150/components/game/modals/DynamicWorldModal.tsx(664,32): error TS2322: Type '{ key: any; rumor: any; }' is not assignable to type '{ rumor: RumorItem; }'.
+  Property 'key' does not exist on type '{ rumor: RumorItem; }'.
+docs/_merge_backup_20260216-012150/components/game/modals/EquipmentModal.tsx(4,31): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/EquipmentModal.tsx(5,74): error TS2307: Cannot find module '../../../utils/itemUtils' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/FamiliaModal.tsx(3,30): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/InventoryModal.test.tsx(5,36): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/InventoryModal.tsx(4,31): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/InventoryModal.tsx(7,128): error TS2307: Cannot find module '../../../utils/itemUtils' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/LootModal.tsx(3,31): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/LootModal.tsx(4,82): error TS2307: Cannot find module '../../../utils/itemUtils' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/LootModal.tsx(6,19): error TS2307: Cannot find module '../../../utils/iconMapper' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/LootVaultModal.tsx(3,31): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/MapModal.tsx(3,67): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/MapModal.tsx(4,35): error TS2307: Cannot find module '../../../utils/mapMath' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/MapModal.tsx(9,35): error TS2307: Cannot find module '../../../utils/mapStructure' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/MapModal.tsx(10,82): error TS2307: Cannot find module '../../../utils/mapViewModel' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/MemoryModal.tsx(3,32): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/MemoryModal.tsx(4,82): error TS2307: Cannot find module '../../../types/taverndb' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/MemoryModal.tsx(6,48): error TS2307: Cannot find module '../../../utils/taverndb/tableProjection' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/MemoryModal.tsx(7,42): error TS2307: Cannot find module '../../../utils/taverndb/sheetRegistry' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/MemoryModal.tsx(8,39): error TS2307: Cannot find module '../../../hooks/gameLogic/extendedCommands' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/MemorySummaryModal.tsx(3,29): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/NotesModal.tsx(3,27): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/PartyModal.tsx(3,27): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/PartyModal.tsx(4,65): error TS2307: Cannot find module '../../../utils/itemUtils' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/PresentCharactersModal.tsx(4,27): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/SaveManagerModal.tsx(3,29): error TS2307: Cannot find module '../../../utils/gistService' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/SaveManagerModal.tsx(4,74): error TS2307: Cannot find module '../../../utils/storage/storageAdapter' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/SaveManagerModal.tsx(5,37): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/SaveManagerModal.tsx(8,34): error TS2307: Cannot find module '../../../utils/storage/storageAdapter' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/settings/SettingsAIServices.tsx(2,52): error TS2307: Cannot find module '../../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/settings/SettingsContext.tsx(3,72): error TS2307: Cannot find module '../../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/settings/SettingsContext.tsx(4,65): error TS2307: Cannot find module '../../../../utils/ai' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/settings/ui/AIConfigForm.tsx(3,51): error TS2307: Cannot find module '../../../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/settings/views/AIServicesView.tsx(2,70): error TS2307: Cannot find module '../../../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/SettingsModal.test.tsx(5,34): error TS2307: Cannot find module '../../../hooks/useGameLogic' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/SettingsModal.test.tsx(6,36): error TS2307: Cannot find module '../../../utils/dataMapper' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/SettingsModal.tsx(8,77): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/SettingsModal.tsx(9,40): error TS2307: Cannot find module '../../../utils/ai' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/SettingsModal.tsx(10,34): error TS2307: Cannot find module '../../../hooks/useAppSettings' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/SettingsModal.tsx(14,137): error TS2307: Cannot find module '../../../utils/storage/storageAdapter' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/SkillsModal.tsx(3,35): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/social/CommsHubView.tsx(3,55): error TS2307: Cannot find module '../../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/social/CommsHubView.tsx(4,32): error TS2307: Cannot find module '../../../../utils/uiUtils' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/social/ContactsView.tsx(3,32): error TS2307: Cannot find module '../../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/social/ContactsView.tsx(4,32): error TS2307: Cannot find module '../../../../utils/uiUtils' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/social/ContactsView.tsx(5,58): error TS2307: Cannot find module '../../../../utils/social/contactPresence' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/SocialModal.tsx(3,27): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/SocialPhoneModal.test.tsx(5,44): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/SocialPhoneModal.tsx(4,153): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/SocialPhoneModal.tsx(6,32): error TS2307: Cannot find module '../../../utils/uiUtils' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/SocialPhoneModal.tsx(9,59): error TS2307: Cannot find module '../../../utils/normalizers' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/SocialPhoneModal.tsx(12,60): error TS2307: Cannot find module '../../../utils/userPlaceholder' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/SocialPhoneModal.tsx(13,75): error TS2307: Cannot find module '../../../utils/social/contactPresence' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/SocialPhoneModal.tsx(978,29): error TS2322: Type '{ key: any; post: any; resolvedPlayerName: any; }' is not assignable to type '{ post: PhonePost; isForum?: boolean; resolvedPlayerName: string; }'.
+  Property 'key' does not exist on type '{ post: PhonePost; isForum?: boolean; resolvedPlayerName: string; }'.
+docs/_merge_backup_20260216-012150/components/game/modals/StoryModal.tsx(3,28): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/modals/TasksModal.tsx(8,22): error TS2307: Cannot find module '../../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/RightPanel.tsx(4,23): error TS2307: Cannot find module '../../utils/iconMapper' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/RightPanel.tsx(5,31): error TS2307: Cannot find module '../../utils/ui/navigationPriority' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/TopNav.tsx(3,26): error TS2307: Cannot find module '../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/game/UnifiedItemDetailSections.tsx(4,31): error TS2307: Cannot find module '../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/GameInterface.tsx(3,65): error TS2307: Cannot find module '../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/GameInterface.tsx(15,31): error TS2307: Cannot find module './game/views/InventoryView' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/GameInterface.tsx(16,31): error TS2307: Cannot find module './game/views/CharacterView' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/GameInterface.tsx(17,27): error TS2307: Cannot find module './game/views/WorldView' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/GameInterface.tsx(37,30): error TS2307: Cannot find module '../hooks/useGameLogic' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/GameInterface.tsx(38,35): error TS2307: Cannot find module '../utils/previewState' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/GameInterface.tsx(39,38): error TS2307: Cannot find module '../utils/commandPreview' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/GameInterface.tsx(40,42): error TS2307: Cannot find module '../utils/mapSystem' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/GameInterface.tsx(41,37): error TS2307: Cannot find module '../utils/itemUtils' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/GameInterface.tsx(42,57): error TS2307: Cannot find module '../utils/characterMath' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/GameInterface.tsx(43,43): error TS2307: Cannot find module '../utils/taverndb/phoneTableAdapter' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/GameInterface.tsx(44,39): error TS2307: Cannot find module '../utils/ui/navigationPriority' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/GameInterface.tsx(189,14): error TS2307: Cannot find module '../utils/storage/storageAdapter' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/Home.tsx(2,37): error TS2307: Cannot find module '../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/Home.tsx(3,36): error TS2307: Cannot find module '../utils/dataMapper' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/Home.tsx(4,32): error TS2307: Cannot find module '../hooks/useAppSettings' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/Home.tsx(5,36): error TS2307: Cannot find module '../hooks/usePerformanceMode' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/Home.tsx(6,88): error TS2307: Cannot find module '../utils/storage/storageAdapter' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/Home.tsx(7,43): error TS2307: Cannot find module '../utils/storage/migrations/v1LocalToIdb' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/mobile/MobileBottomNav.tsx(3,23): error TS2307: Cannot find module '../../utils/iconMapper' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/mobile/MobileBottomNav.tsx(4,31): error TS2307: Cannot find module '../../utils/ui/navigationPriority' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/mobile/MobileCharacterView.tsx(4,78): error TS2307: Cannot find module '../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/mobile/MobileCharacterView.tsx(9,19): error TS2307: Cannot find module '../../utils/iconMapper' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/mobile/MobileInventoryView.tsx(2,31): error TS2307: Cannot find module '../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/mobile/MobileInventoryView.tsx(3,128): error TS2307: Cannot find module '../../utils/itemUtils' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/mobile/MobileInventoryView.tsx(8,23): error TS2307: Cannot find module '../../utils/iconMapper' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/mobile/MobileMapView.tsx(4,85): error TS2307: Cannot find module '../../types' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/mobile/MobileMapView.tsx(7,35): error TS2307: Cannot find module '../../utils/mapStructure' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/mobile/MobileMapView.tsx(8,35): error TS2307: Cannot find module '../../utils/mapMath' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/mobile/MobileMapView.tsx(9,82): error TS2307: Cannot find module '../../utils/mapViewModel' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/mobile/MobileMapView.tsx(414,53): error TS2339: Property 'mapStructure' does not exist on type '{ id: string; }'.
+docs/_merge_backup_20260216-012150/components/mobile/MobileMenuOverlay.tsx(3,23): error TS2307: Cannot find module '../../utils/iconMapper' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/mobile/MobileMenuOverlay.tsx(5,31): error TS2307: Cannot find module '../../utils/ui/navigationPriority' or its corresponding type declarations.
+docs/_merge_backup_20260216-012150/components/mobile/MobileTopNav.tsx(3,26): error TS2307: Cannot find module '../../types' or its corresponding type declarations.
+docs/DXC1-remote-main/components/game/CombatPanel.tsx(294,48): error TS2339: Property 'hp' does not exist on type 'unknown'.
+docs/DXC1-remote-main/components/game/CombatPanel.tsx(295,51): error TS2339: Property 'maxHp' does not exist on type 'unknown'.
+docs/DXC1-remote-main/components/game/CombatPanel.tsx(299,40): error TS2339: Property 'name' does not exist on type 'unknown'.
+docs/DXC1-remote-main/components/game/CombatPanel.tsx(305,47): error TS2339: Property 'description' does not exist on type 'unknown'.
+docs/DXC1-remote-main/components/game/CombatPanel.tsx(399,37): error TS2339: Property 'UNIT_ID' does not exist on type 'unknown'.
+docs/DXC1-remote-main/components/game/map/hooks/useMapInteraction.ts(92,20): error TS2339: Property 'clientX' does not exist on type 'unknown'.
+docs/DXC1-remote-main/components/game/map/hooks/useMapInteraction.ts(92,32): error TS2339: Property 'clientX' does not exist on type 'unknown'.
+docs/DXC1-remote-main/components/game/map/hooks/useMapInteraction.ts(93,20): error TS2339: Property 'clientY' does not exist on type 'unknown'.
+docs/DXC1-remote-main/components/game/map/hooks/useMapInteraction.ts(93,32): error TS2339: Property 'clientY' does not exist on type 'unknown'.
+docs/DXC1-remote-main/components/game/map/hooks/useMapInteraction.ts(95,30): error TS2339: Property 'clientX' does not exist on type 'unknown'.
+docs/DXC1-remote-main/components/game/map/hooks/useMapInteraction.ts(95,42): error TS2339: Property 'clientX' does not exist on type 'unknown'.
+docs/DXC1-remote-main/components/game/map/hooks/useMapInteraction.ts(95,62): error TS2339: Property 'clientY' does not exist on type 'unknown'.
+docs/DXC1-remote-main/components/game/map/hooks/useMapInteraction.ts(95,74): error TS2339: Property 'clientY' does not exist on type 'unknown'.
+docs/DXC1-remote-main/components/game/map/hooks/useMapInteraction.ts(111,20): error TS2339: Property 'clientX' does not exist on type 'unknown'.
+docs/DXC1-remote-main/components/game/map/hooks/useMapInteraction.ts(111,32): error TS2339: Property 'clientX' does not exist on type 'unknown'.
+docs/DXC1-remote-main/components/game/map/hooks/useMapInteraction.ts(112,20): error TS2339: Property 'clientY' does not exist on type 'unknown'.
+docs/DXC1-remote-main/components/game/map/hooks/useMapInteraction.ts(112,32): error TS2339: Property 'clientY' does not exist on type 'unknown'.
+docs/DXC1-remote-main/components/game/modals/AttributePanel.tsx(231,46): error TS2322: Type '{ key: string; label: string; data: any; }' is not assignable to type '{ label: string; data: any; }'.
+  Property 'key' does not exist on type '{ label: string; data: any; }'.
+docs/DXC1-remote-main/components/game/modals/AttributePanel.tsx(246,73): error TS2322: Type '{ key: string; entry: string | StatusEffect; variant: "buff"; }' is not assignable to type '{ entry: string | StatusEffect; variant: "buff" | "curse"; }'.
+  Property 'key' does not exist on type '{ entry: string | StatusEffect; variant: "buff" | "curse"; }'.
+docs/DXC1-remote-main/components/game/modals/AttributePanel.tsx(247,73): error TS2322: Type '{ key: string; entry: string | StatusEffect; variant: "curse"; }' is not assignable to type '{ entry: string | StatusEffect; variant: "buff" | "curse"; }'.
+  Property 'key' does not exist on type '{ entry: string | StatusEffect; variant: "buff" | "curse"; }'.
+docs/DXC1-remote-main/components/game/modals/DynamicWorldModal.tsx(500,39): error TS2322: Type '{ key: any; item: any; linkedRumor: RumorItem; onNavigateToRumor: (id: string) => void; }' is not assignable to type '{ item: NewsItem; linkedRumor?: RumorItem; onNavigateToRumor?: (id: string) => void; }'.
+  Property 'key' does not exist on type '{ item: NewsItem; linkedRumor?: RumorItem; onNavigateToRumor?: (id: string) => void; }'.
+docs/DXC1-remote-main/components/game/modals/DynamicWorldModal.tsx(664,32): error TS2322: Type '{ key: string; rumor: RumorItem; }' is not assignable to type '{ rumor: RumorItem; }'.
+  Property 'key' does not exist on type '{ rumor: RumorItem; }'.
+docs/DXC1-remote-main/components/game/modals/SocialPhoneModal.tsx(978,29): error TS2322: Type '{ key: any; post: any; resolvedPlayerName: string; }' is not assignable to type '{ post: PhonePost; isForum?: boolean; resolvedPlayerName: string; }'.
+  Property 'key' does not exist on type '{ post: PhonePost; isForum?: boolean; resolvedPlayerName: string; }'.
+docs/DXC1-remote-main/components/mobile/MobileMapView.tsx(414,53): error TS2339: Property 'mapStructure' does not exist on type '{ id: string; }'.
+docs/DXC1-remote-main/hooks/gameLogic/commands/allHandlers.ts(3134,31): error TS2677: A type predicate's type must be assignable to its parameter's type.
+  Property 'CHAR_ID' is missing in type 'Record<string, unknown>' but required in type '{ CHAR_ID: string; }'.
+docs/DXC1-remote-main/hooks/gameLogic/commands/allHandlers.ts(4472,39): error TS2677: A type predicate's type must be assignable to its parameter's type.
+  Type 'Record<string, unknown>' is missing the following properties from type '{ contact_id: string; name: string; }': contact_id, name
+docs/DXC1-remote-main/hooks/gameLogic/useGameLogicCore.ts(137,14): error TS2741: Property 'readability' is missing in type '{ backgroundImage: string; fontSize: "medium"; enableActionOptions: true; enableStreaming: true; enableCombatUI: true; chatLogLimit: number; promptModules: PromptModule[]; memoryConfig: MemoryConfig; contextConfig: { ...; }; aiConfig: { ...; }; writingConfig: { ...; }; }' but required in type 'AppSettings'.
+docs/DXC1-remote-main/utils/iconMapper.tsx(145,42): error TS2339: Property 'style' does not exist on type '{ absoluteStrokeWidth?: boolean; }'.
+docs/DXC1-remote-main/utils/iconMapper.tsx(145,57): error TS2339: Property 'style' does not exist on type '{ absoluteStrokeWidth?: boolean; }'.
+hooks/gameLogic/commands/allHandlers.ts(3437,31): error TS2677: A type predicate's type must be assignable to its parameter's type.
+  Property 'CHAR_ID' is missing in type 'Record<string, unknown>' but required in type '{ CHAR_ID: string; }'.
+hooks/gameLogic/commands/allHandlers.ts(4792,39): error TS2677: A type predicate's type must be assignable to its parameter's type.
+  Type 'Record<string, unknown>' is missing the following properties from type '{ contact_id: string; name: string; }': contact_id, name
+utils/iconMapper.tsx(145,42): error TS2339: Property 'style' does not exist on type '{ absoluteStrokeWidth?: boolean; }'.
+utils/iconMapper.tsx(145,57): error TS2339: Property 'style' does not exist on type '{ absoluteStrokeWidth?: boolean; }'.
+utils/saveArchive.ts(1,19): error TS2307: Cannot find module 'jszip' or its corresponding type declarations.
+utils/saveArchive.ts(61,23): error TS2339: Property 'dir' does not exist on type 'unknown'.
+utils/saveArchive.ts(61,36): error TS2339: Property 'name' does not exist on type 'unknown'.
+utils/saveArchive.ts(68,36): error TS2339: Property 'async' does not exist on type 'unknown'.

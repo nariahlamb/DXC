@@ -33,9 +33,15 @@ export const createServiceInputBuilder = (ctx: ServiceInputBuilderContext) => {
     const base = {
       当前日期: state.当前日期,
       游戏时间: state.游戏时间,
+      上轮时间: state.上轮时间 || state.游戏时间,
+      流逝时长: state.流逝时长 || '',
       当前地点: state.当前地点,
       当前楼层: state.当前楼层,
-      世界坐标: state.世界坐标
+      世界坐标: state.世界坐标,
+      天气: state.天气,
+      战斗模式: state.战斗模式 || '非战斗',
+      系统通知: state.系统通知 || '',
+      回合数: state.回合数
     };
     const normalizedPlayerInput = String(meta.playerInput || '').trim() || '[无玩家输入，请仅依据状态快照执行必要填表]';
     const normalizeNarrativeLogs = (logs: { sender: string; text: string }[]) => {

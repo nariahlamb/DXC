@@ -1,13 +1,39 @@
 import type { StateVarDomainSheetFieldAllowlist, TavernCommand } from '../../../types';
+import { buildDefaultStateVariableAllowlist } from '../../../utils/taverndb/sheetRegistry';
 
 const MEMORY_OWNED_ACTIONS = new Set(['append_log_summary', 'append_log_outline']);
 const MEMORY_OWNED_SHEETS = new Set(['LOG_Summary', 'LOG_Outline']);
+const UI_TRANSIENT_LEGACY_PATH_PREFIXES = [
+  'gameState.处理中',
+  'gameState.当前界面',
+  'gameState.日常仪表盘'
+];
+
+const normalizeLegacyPath = (value: unknown): string => {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+  return raw.startsWith('gameState.') ? raw : `gameState.${raw}`;
+};
+
+const isUiTransientLegacyPath = (value: unknown): boolean => {
+  const path = normalizeLegacyPath(value);
+  if (!path) return false;
+  return UI_TRANSIENT_LEGACY_PATH_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}.`));
+};
+
+const isBlockedLegacyBusinessPath = (value: unknown): boolean => {
+  const path = normalizeLegacyPath(value);
+  if (!path || !path.startsWith('gameState.')) return false;
+  return !isUiTransientLegacyPath(path);
+};
 
 export type CommandGuardContext = {
   serviceKey: string;
   commands: TavernCommand[];
   stateWorldCadenceDue: boolean;
   stateForumCadenceDue: boolean;
+  stateWorldCadenceManualMode?: boolean;
+  stateForumCadenceManualMode?: boolean;
   legacyPathActions: Set<string>;
   resolveSheetIdFromCommand: (cmd: TavernCommand) => string;
   worldIntervalControlledSheets: Set<string>;
@@ -19,6 +45,7 @@ export type CommandGuardContext = {
 export type CommandGuardRejectReason =
   | 'memory_owned'
   | 'cadence_not_due'
+  | 'legacy_path_blocked'
   | 'sheet_not_allowed'
   | 'field_not_allowed'
   | 'not_supported_action';
@@ -36,7 +63,11 @@ export type CommandGuardResult = {
 };
 
 const normalizeAction = (cmd: any): string => {
-  return String(cmd?.action ?? cmd?.type ?? cmd?.command ?? cmd?.name ?? cmd?.cmd ?? '').trim().toLowerCase();
+  const primary = String(cmd?.action ?? cmd?.type ?? '').trim().toLowerCase();
+  const fallback = String(cmd?.command ?? cmd?.name ?? cmd?.mode ?? cmd?.cmd ?? '').trim().toLowerCase();
+  if (!primary) return fallback;
+  if (primary === 'table_op' && fallback) return fallback;
+  return primary;
 };
 
 const normalizeSheetPayloads = (value: unknown): Array<{ sheetId: string; keyField?: string; rows: Array<Record<string, unknown>> }> => {
@@ -73,12 +104,36 @@ const buildAllowedFieldsBySheet = (allowlist: StateVarDomainSheetFieldAllowlist)
   return map;
 };
 
+const cloneAllowedFieldsBySheet = (source: Map<string, Set<string>>): Map<string, Set<string>> => {
+  const cloned = new Map<string, Set<string>>();
+  source.forEach((fields, sheetId) => {
+    cloned.set(sheetId, new Set<string>(fields));
+  });
+  return cloned;
+};
+
+const DEFAULT_ALLOWED_FIELDS_BY_SHEET = buildAllowedFieldsBySheet(buildDefaultStateVariableAllowlist());
+
+const buildStrictAllowedFieldsBySheet = (
+  allowlist?: StateVarDomainSheetFieldAllowlist
+): Map<string, Set<string>> => {
+  const merged = cloneAllowedFieldsBySheet(DEFAULT_ALLOWED_FIELDS_BY_SHEET);
+  if (!allowlist) return merged;
+  const custom = buildAllowedFieldsBySheet(allowlist);
+  custom.forEach((fields, sheetId) => {
+    merged.set(sheetId, new Set<string>(fields));
+  });
+  return merged;
+};
+
 export const filterCommandsForServiceWithDiagnostics = (context: CommandGuardContext): CommandGuardResult => {
   const {
     serviceKey,
     commands,
     stateWorldCadenceDue,
     stateForumCadenceDue,
+    stateWorldCadenceManualMode,
+    stateForumCadenceManualMode,
     legacyPathActions,
     resolveSheetIdFromCommand,
     worldIntervalControlledSheets,
@@ -91,8 +146,8 @@ export const filterCommandsForServiceWithDiagnostics = (context: CommandGuardCon
   const normalizedServiceKey = serviceKey === 'memory' || serviceKey === 'map' ? serviceKey : 'state';
   const rejected: CommandGuardReject[] = [];
 
-  const allowedFieldsBySheet = strictAllowlist && allowlist
-    ? buildAllowedFieldsBySheet(allowlist)
+  const allowedFieldsBySheet = strictAllowlist
+    ? buildStrictAllowedFieldsBySheet(allowlist)
     : null;
 
   const out: TavernCommand[] = [];
@@ -128,12 +183,17 @@ export const filterCommandsForServiceWithDiagnostics = (context: CommandGuardCon
         return;
       }
       if (legacyPathActions.has(action)) {
-        if (!stateWorldCadenceDue && /^gameState\.世界(\.|$)/.test(k)) {
+        const canonicalLegacyPath = normalizeLegacyPath(k);
+        if (!stateWorldCadenceManualMode && !stateWorldCadenceDue && /^gameState\.世界(\.|$)/.test(canonicalLegacyPath)) {
           rejected.push({ reason: 'cadence_not_due', action });
           return;
         }
-        if (!stateForumCadenceDue && /^gameState\.手机\.公共帖子(\.|$)/.test(k)) {
+        if (!stateForumCadenceManualMode && !stateForumCadenceDue && /^gameState\.手机\.公共帖子(\.|$)/.test(canonicalLegacyPath)) {
           rejected.push({ reason: 'cadence_not_due', action });
+          return;
+        }
+        if (isBlockedLegacyBusinessPath(canonicalLegacyPath)) {
+          rejected.push({ reason: 'legacy_path_blocked', action });
           return;
         }
       }
@@ -142,11 +202,11 @@ export const filterCommandsForServiceWithDiagnostics = (context: CommandGuardCon
           rejected.push({ reason: 'memory_owned', action, sheetId });
           return;
         }
-        if (!stateWorldCadenceDue && worldIntervalControlledSheets.has(sheetId)) {
+        if (!stateWorldCadenceManualMode && !stateWorldCadenceDue && worldIntervalControlledSheets.has(sheetId)) {
           rejected.push({ reason: 'cadence_not_due', action, sheetId });
           return;
         }
-        if (!stateForumCadenceDue && forumIntervalControlledSheets.has(sheetId)) {
+        if (!stateForumCadenceManualMode && !stateForumCadenceDue && forumIntervalControlledSheets.has(sheetId)) {
           rejected.push({ reason: 'cadence_not_due', action, sheetId });
           return;
         }

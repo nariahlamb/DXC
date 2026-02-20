@@ -1,0 +1,58 @@
+{
+  "dimension": "state-api-write-pipeline",
+  "findings": [
+    {
+      "confidence": 0.95,
+      "line": 48,
+      "evidence": [
+        "types/story.ts:17 StoryState 为嵌套对象结构",
+        "utils/state/stateServiceInput.ts:228 仅对 state.剧情 执行扁平 pickAllowedFields"
+      ],
+      "id": "F-001",
+      "severity": "critical",
+      "snippet": "STORY_ALLOWED_KEYS 使用扁平字段，但 StoryState 为 主线/引导/时间轴/路线 嵌套结构",
+      "file": "utils/state/stateServiceInput.ts",
+      "category": "schema-mismatch",
+      "title": "剧情输入白名单与真实剧情结构不匹配，导致 state 输入缺失核心剧情上下文"
+    },
+    {
+      "snippet": "fallback 只选 string/number/boolean 顶层键，剧情等嵌套对象无法完整透传",
+      "severity": "high",
+      "category": "context-loss",
+      "title": "pickAllowedFields 的 fallback 仅提取顶层原始类型，嵌套对象场景下会近似空载荷",
+      "id": "F-002",
+      "file": "utils/state/stateServiceInput.ts",
+      "line": 118,
+      "confidence": 0.89
+    },
+    {
+      "snippet": "shouldRunStateService = ... && contextType === ACTION && isServiceConfigured(state)",
+      "severity": "high",
+      "category": "service-gating",
+      "title": "state 服务只在 ACTION 且 state apiKey 存在时运行，其他上下文不会补全状态",
+      "id": "F-004",
+      "file": "hooks/gameLogic/useGameLogicCore.ts",
+      "line": 293,
+      "confidence": 0.88
+    }
+  ],
+  "focus": "state 服务输入结构与 API 启用门槛",
+  "coverage": {
+    "areas_covered": [
+      "state 输入白名单",
+      "api 配置门槛",
+      "state 服务触发条件"
+    ],
+    "files_explored": 5,
+    "areas_remaining": [
+      "被拒命令对 UI 的可见影响量化"
+    ]
+  },
+  "iteration": 1,
+  "leads": [
+    {
+      "description": "检查 state 配置开启后故事命令是否被整体抑制",
+      "suggested_search": "state-owned: story tavern_commands dropped"
+    }
+  ]
+}

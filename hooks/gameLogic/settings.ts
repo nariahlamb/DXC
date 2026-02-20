@@ -38,7 +38,7 @@ const normalizeTriadAiConfig = (rawAiConfig: any, defaults: AppSettings['aiConfi
     const storyService = rawServices.story || defaults.services.story;
     const mapService = rawServices.map || defaults.services.map;
     const stateService = rawServices.state || defaults.services.state;
-    const memoryService = rawServices.memory || rawServices.state || defaults.services.memory || defaults.services.state;
+    const memoryService = rawServices.memory || defaults.services.memory;
 
     return {
         ...defaults,

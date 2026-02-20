@@ -37,6 +37,45 @@ describe('serviceRunner economy fallback', () => {
     expect(String(result.repairNote || '')).toContain('econ-fallback');
   });
 
+  it('injects npc fallback commands when state service returns empty for new dialogue speaker', async () => {
+    const state = createNewGameState('博丽灵梦', '女', 'Human') as any;
+    const input = JSON.stringify({
+      当前地点: '欧拉丽南大街',
+      游戏时间: '第1日 08:05',
+      回合数: 3,
+      玩家输入: '和摊贩对话',
+      叙事: [
+        { sender: '旁白', text: '她停在路边摊前。' },
+        { sender: '矮人摊贩', text: '要买点防身家伙吗？给你九折。' }
+      ],
+      填表任务: {
+        requiredSheets: ['SYS_GlobalState', 'NPC_Registry', 'NPC_InteractionLog']
+      }
+    });
+
+    const result = await executeServiceRequest({
+      serviceKey: 'state',
+      input,
+      stateSnapshot: state,
+      settings: {} as any,
+      runMemoryParallelBySheet: vi.fn(),
+      runStateParallelBySheet: vi.fn().mockResolvedValue({
+        tavern_commands: [],
+        rawResponse: '{"tavern_commands":[]}'
+      }),
+      generateServiceCommands: vi.fn()
+    });
+
+    const hasNpcUpsert = result.tavern_commands.some((cmd: any) => cmd?.action === 'upsert_npc');
+    const hasInteractionUpsert = result.tavern_commands.some(
+      (cmd: any) => cmd?.action === 'upsert_sheet_rows' && String(cmd?.value?.sheetId || '') === 'NPC_InteractionLog'
+    );
+
+    expect(hasNpcUpsert).toBe(true);
+    expect(hasInteractionUpsert).toBe(true);
+    expect(String(result.repairNote || '')).toContain('npc-fallback');
+  });
+
   it('injects apply_econ_delta for chinese numeral price text', async () => {
     const state = createNewGameState('Tester', '男', 'Human') as any;
     const input = JSON.stringify({

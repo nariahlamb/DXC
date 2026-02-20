@@ -181,6 +181,44 @@ describe('memory service log table fill', () => {
     expect(memoryInput).toContain('"伤害": 6');
   });
 
+  it('skips committing memory rows when only single-side summary is returned without pairing', async () => {
+    (generateDungeonMasterResponse as any).mockResolvedValueOnce({
+      logs: [{ sender: '旁白', text: '你在街口短暂停留后继续前进。' }],
+      tavern_commands: [],
+      rawResponse: '{"ok":true}'
+    });
+    (generateServiceCommands as any).mockImplementation(async (serviceKey: string) => {
+      if (serviceKey !== 'memory') {
+        return { tavern_commands: [], rawResponse: '{"tavern_commands":[]}' };
+      }
+      return {
+        tavern_commands: [
+          {
+            action: 'append_log_summary',
+            value: {
+              回合: 1,
+              时间: '第1日 07:10',
+              摘要: '主角在街口观察路况后继续前进。'
+            }
+          }
+        ],
+        rawResponse: '{"tavern_commands":[]}'
+      };
+    });
+
+    const state = createNewGameState('Tester', '男', 'Human') as any;
+    const { result } = renderGameLogic(state);
+
+    await act(async () => {
+      await result.current.handleAIInteraction('继续行动', 'ACTION', [], undefined, true);
+    });
+
+    await waitFor(() => {
+      expect((result.current.gameState.日志摘要 || []).length).toBe(0);
+      expect((result.current.gameState.日志大纲 || []).length).toBe(0);
+    });
+  });
+
   it('uses single-request memory fill by default', async () => {
     (generateDungeonMasterResponse as any).mockResolvedValueOnce({
       logs: [{ sender: '旁白', text: '你在公会门口整理装备。' }],

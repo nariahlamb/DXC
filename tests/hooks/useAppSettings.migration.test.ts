@@ -89,6 +89,31 @@ describe('useAppSettings legacy unified migration', () => {
     expect(result.current.settings.aiConfig.services.map.apiKey).toBe('unified-k');
   });
 
+  it('does not fallback memory service to state service config', async () => {
+    const { loadSettingsFromStorage } = await getStorageMocks();
+    loadSettingsFromStorage.mockResolvedValueOnce({
+      aiConfig: {
+        services: {
+          story: { provider: 'gemini', baseUrl: '', apiKey: '', modelId: '', forceJsonOutput: false },
+          memory: { provider: 'gemini', baseUrl: '', apiKey: '', modelId: '', forceJsonOutput: false },
+          map: { provider: 'gemini', baseUrl: '', apiKey: '', modelId: '', forceJsonOutput: false },
+          state: { provider: 'custom', baseUrl: 'http://127.0.0.1:8000/v1', apiKey: 'state-k', modelId: 'state-m', forceJsonOutput: false }
+        }
+      },
+      promptModules: []
+    });
+
+    const { result } = renderHook(() => useAppSettings());
+
+    await waitFor(() => {
+      expect(result.current.settings.aiConfig.services.state.apiKey).toBe('state-k');
+    });
+
+    expect(result.current.settings.aiConfig.services.memory.apiKey).toBe('');
+    expect(result.current.settings.aiConfig.services.memory.baseUrl).toBe('');
+    expect(result.current.settings.aiConfig.services.memory.modelId).toBe('');
+  });
+
   it('normalizes governance allowlist and soft-warning strategy', async () => {
     const { loadSettingsFromStorage } = await getStorageMocks();
     loadSettingsFromStorage.mockResolvedValueOnce({

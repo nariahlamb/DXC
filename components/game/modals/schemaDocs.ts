@@ -299,22 +299,7 @@
         }
     },
     {
-        title: "16. 笔记系统 (Notes)",
-        path: "gameState.笔记",
-        desc: "玩家自定义情报笔记。",
-        structure: "Array<NoteEntry>",
-        itemStructure: {
-            "id": "String",
-            "标题": "String",
-            "内容": "String",
-            "标签": "String[]?",
-            "时间戳": "String",
-            "更新时间": "String?",
-            "重要": "Boolean?"
-        }
-    },
-    {
-        title: "17. 遭遇 (Encounters)",
+        title: "16. 遭遇 (Encounters)",
         path: "gameState.遭遇",
         desc: "战斗与事件遭遇管理 (TavernDB扩展)。",
         structure: "Array<EncounterRow>?",

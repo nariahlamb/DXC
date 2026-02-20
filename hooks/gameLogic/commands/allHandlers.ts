@@ -53,6 +53,7 @@ import { isPlayerReference, replaceUserPlaceholders, resolvePlayerName } from '.
 import { normalizeQualityLabel } from '../../../utils/itemUtils';
 import { ensurePhoneStateBase } from '../phoneUtils';
 import { z } from 'zod'; // A-005 FIX: Import z for inline schema validation
+import { isValidContactIdentity } from '../../../utils/social/contactPresence';
 
 // Helper: push user-visible system message if available
 const pushMsg = (pushSystemMessage: ((msg: string) => void) | undefined, msg: string) => {
@@ -1432,11 +1433,21 @@ export function handleUpsertNPC(
         return [];
     };
     const normalizeNpcRow = (row: Record<string, unknown>): Record<string, unknown> | null => {
+        const {
+            当前状态: _rawCurrentStatus,
+            状态: _rawState,
+            status: _rawStatus,
+            是否在场: _rawPresence,
+            present: _rawPresent,
+            ...safeRow
+        } = row;
         const id = toText(row.id ?? row.NPC_ID ?? row.npc_id ?? row.姓名 ?? row.name ?? row.NPC);
         const name = toText(row.姓名 ?? row.name ?? row.NPC ?? row.npc_name);
         if (!id) return null;
         const presence = toBoolean(row.是否在场 ?? row.present);
-        const currentStatus = normalizeNpcCurrentStatus(row.当前状态 ?? row.status ?? row.状态, presence);
+        const statusText = toText(row.status);
+        const statusAsCurrent = normalizeNpcCurrentStatus(statusText, null);
+        const currentStatus = normalizeNpcCurrentStatus(row.当前状态 ?? row.状态, presence) ?? statusAsCurrent;
         const affinityRaw = row.好感度 ?? row.affinity;
         const hasAffinityLiteral = affinityRaw !== undefined
             && affinityRaw !== null
@@ -1445,15 +1456,16 @@ export function handleUpsertNPC(
         const resolvedPresence = resolveNpcPresence(currentStatus, presence);
         return Object.fromEntries(
             Object.entries({
-            ...row,
-            id,
-            姓名: name || undefined,
-            ...(currentStatus ? { 当前状态: currentStatus } : {}),
-            所在位置: toText(row.所在位置 ?? row.位置详情 ?? row.location) || undefined,
-            与主角关系: toText(row.与主角关系 ?? row.relation) || undefined,
-            职业身份: toText(row.职业身份 ?? row.身份 ?? row.role) || undefined,
-            ...(typeof resolvedPresence === 'boolean' ? { 是否在场: resolvedPresence } : {}),
-            ...(parsedAffinity !== null ? { 好感度: parsedAffinity } : {})
+                ...safeRow,
+                id,
+                姓名: name || undefined,
+                当前状态: currentStatus,
+                所在位置: toText(row.所在位置 ?? row.位置详情 ?? row.location) || undefined,
+                关系状态: toText(row.关系状态) || (!statusAsCurrent ? statusText : '') || undefined,
+                与主角关系: toText(row.与主角关系 ?? row.关系状态 ?? row.relation) || (!statusAsCurrent ? statusText : '') || undefined,
+                职业身份: toText(row.职业身份 ?? row.身份 ?? row.role) || undefined,
+                是否在场: resolvedPresence,
+                ...(parsedAffinity !== null ? { 好感度: parsedAffinity } : {})
             } as Record<string, unknown>).filter(([, value]) => value !== undefined)
         );
     };
@@ -1467,6 +1479,7 @@ export function handleUpsertNPC(
         const incomingIdNormalized = incomingId.toLowerCase();
         if (isPlayerReference(incomingName, resolvedPlayerName)) return false;
         if (isPlayerReference(incomingId, resolvedPlayerName)) return false;
+        if (!isValidContactIdentity({ id: incomingId, 姓名: incomingName })) return false;
         if (
             incomingIdNormalized === 'pc_main'
             || incomingIdNormalized === 'player_main'
@@ -2389,12 +2402,19 @@ const normalizeNpcSheetRows = (rows: Array<Record<string, unknown>>) => {
                 好感度: _ignoredAffinity,
                 affinity: _ignoredAffinityAlias,
                 affinity_score: _ignoredAffinityScore,
+                当前状态: _rawCurrentStatus,
+                状态: _rawState,
+                status: _rawStatus,
+                是否在场: _rawPresence,
+                present: _rawPresent,
                 ...safeRow
             } = row as Record<string, unknown>;
             const id = toText(row.id ?? row.NPC_ID ?? row.姓名 ?? row.名称);
             if (!id) return null;
             const rawPresence = toBoolean(row.是否在场 ?? row.present);
-            const currentStatus = normalizeNpcCurrentStatus(row.当前状态 ?? row.status ?? row.状态, rawPresence);
+            const statusText = toText((row as any).status);
+            const statusAsCurrent = normalizeNpcCurrentStatus(statusText, null);
+            const currentStatus = normalizeNpcCurrentStatus((row as any).当前状态 ?? (row as any).状态, rawPresence) ?? statusAsCurrent;
             const presence = resolveNpcPresence(currentStatus, rawPresence);
             const locationDetail = toText(row.位置详情 ?? row.所在位置 ?? row.location) || undefined;
             const coordinateRaw = row.坐标 ?? row.coordinate;
@@ -2416,12 +2436,13 @@ const normalizeNpcSheetRows = (rows: Array<Record<string, unknown>>) => {
                 ...safeRowPatch,
                 id,
                 姓名: toText(row.姓名 || row.名称 || id),
-                ...(currentStatus ? { 当前状态: currentStatus } : {}),
-                ...(typeof presence === 'boolean' ? { 是否在场: presence } : {}),
+                当前状态: currentStatus,
+                是否在场: presence,
                 所在位置: locationDetail,
                 位置详情: locationDetail,
                 坐标: coordinate,
-                与主角关系: toText(row['与主角关系']),
+                关系状态: toText((row as any).关系状态) || (!statusAsCurrent ? statusText : '') || undefined,
+                与主角关系: toText((row as any)['与主角关系'] ?? (row as any).关系状态) || (!statusAsCurrent ? statusText : '') || undefined,
                 职业身份: toText(row['职业/身份'] ?? row.职业身份),
                 种族: toText(row['种族/性别/年龄'] ?? row.种族),
                 等级: toText(row.等级) || undefined,
@@ -2645,33 +2666,152 @@ const normalizeQuestRuntimeStatus = (value: string): 'active' | 'completed' | 'f
     return 'active';
 };
 
+const QUEST_PLACEHOLDER_ID_RE = /^QUEST[_-]?\d+$/i;
+const QUEST_PLACEHOLDER_TITLE_RE = /^(?:quest[_-]?\d+|任务\d+|未命名任务)$/i;
+
+const normalizeQuestMatchText = (value: unknown): string => String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s·•_\-()（）\[\]【】{}<>《》,，.。:：;；!?！？'"“”‘’、/\\]/g, '');
+
+const isQuestPlaceholderId = (id: string): boolean => QUEST_PLACEHOLDER_ID_RE.test(id.trim());
+
+const isQuestWeakTitle = (title: string, relatedId?: string): boolean => {
+    const rawTitle = String(title || '').trim();
+    if (!rawTitle) return true;
+    if (QUEST_PLACEHOLDER_TITLE_RE.test(rawTitle)) return true;
+    const normalizedTitle = normalizeQuestMatchText(rawTitle);
+    if (!normalizedTitle) return true;
+    const normalizedId = normalizeQuestMatchText(relatedId || '');
+    return !!normalizedId && normalizedTitle === normalizedId;
+};
+
+const scoreQuestSemanticMatch = (
+    task: any,
+    incomingId: string,
+    incomingTitle: string,
+    incomingDescription: string
+): number => {
+    const taskId = toText(task?.id);
+    if (incomingId && taskId && incomingId === taskId) return 100;
+
+    const taskTitle = toText(task?.标题);
+    const taskDesc = toText(task?.描述);
+    const incomingTitleNorm = normalizeQuestMatchText(incomingTitle);
+    const incomingDescNorm = normalizeQuestMatchText(incomingDescription);
+    const taskTitleNorm = normalizeQuestMatchText(taskTitle);
+    const taskDescNorm = normalizeQuestMatchText(taskDesc);
+
+    let score = 0;
+    if (incomingTitleNorm && taskTitleNorm && !isQuestWeakTitle(incomingTitle, incomingId) && !isQuestWeakTitle(taskTitle, taskId)) {
+        if (incomingTitleNorm === taskTitleNorm) score += 6;
+        else if (incomingTitleNorm.includes(taskTitleNorm) || taskTitleNorm.includes(incomingTitleNorm)) score += 4;
+    }
+
+    if (incomingDescNorm && taskDescNorm) {
+        if (incomingDescNorm === taskDescNorm) score += 5;
+        else if (incomingDescNorm.includes(taskDescNorm) || taskDescNorm.includes(incomingDescNorm)) score += 3;
+    }
+
+    if (incomingTitleNorm && taskDescNorm && !isQuestWeakTitle(incomingTitle, incomingId)) {
+        if (incomingTitleNorm === taskDescNorm || incomingTitleNorm.includes(taskDescNorm) || taskDescNorm.includes(incomingTitleNorm)) {
+            score += 2;
+        }
+    }
+    if (incomingDescNorm && taskTitleNorm && !isQuestWeakTitle(taskTitle, taskId)) {
+        if (incomingDescNorm === taskTitleNorm || incomingDescNorm.includes(taskTitleNorm) || taskTitleNorm.includes(incomingDescNorm)) {
+            score += 2;
+        }
+    }
+
+    const logText = normalizeQuestMatchText(
+        Array.isArray(task?.日志)
+            ? (task.日志 as any[])
+                .map((entry) => toText((entry as any)?.内容 ?? (entry as any)?.content))
+                .join(' ')
+            : ''
+    );
+    if (logText && incomingDescNorm && (logText.includes(incomingDescNorm) || incomingDescNorm.includes(logText))) {
+        score += 2;
+    }
+    if (logText && incomingTitleNorm && !isQuestWeakTitle(incomingTitle, incomingId) && (logText.includes(incomingTitleNorm) || incomingTitleNorm.includes(logText))) {
+        score += 1;
+    }
+
+    return score;
+};
+
+const findQuestSemanticIndex = (
+    state: GameState,
+    incomingId: string,
+    incomingTitle: string,
+    incomingDescription: string
+): number => {
+    if (!Array.isArray(state.任务) || state.任务.length === 0) return -1;
+    const hasStrongSignal = !isQuestWeakTitle(incomingTitle, incomingId) || !!normalizeQuestMatchText(incomingDescription);
+    if (!hasStrongSignal) return -1;
+
+    let bestIndex = -1;
+    let bestScore = 0;
+    state.任务.forEach((task, index) => {
+        const score = scoreQuestSemanticMatch(task, incomingId, incomingTitle, incomingDescription);
+        if (score > bestScore) {
+            bestScore = score;
+            bestIndex = index;
+        }
+    });
+
+    return bestScore >= 4 ? bestIndex : -1;
+};
+
 const upsertQuestFromSheetRows = (state: GameState, rows: Array<Record<string, unknown>>) => {
     if (!Array.isArray(state.任务)) state.任务 = [];
     rows.forEach((row, index) => {
-        const id = toText(row.任务ID ?? row.id) || `QUEST_${index + 1}`;
-        const title = toText(row.任务名称 ?? row.标题) || `任务${index + 1}`;
+        const incomingId = toText(row.任务ID ?? row.id);
+        const incomingTitleRaw = toText(row.任务名称 ?? row.标题);
         const statusRaw = toText(row.状态);
         const description = toText(row.目标描述 ?? row.描述);
         const reward = toText(row.奖励);
         const rank = toText(row.评级);
         const deadline = toText(row.时限);
+
+        const directIndex = incomingId ? state.任务.findIndex((task) => task.id === incomingId) : -1;
+        const semanticIndex = directIndex >= 0
+            ? directIndex
+            : findQuestSemanticIndex(state, incomingId, incomingTitleRaw, description);
+        const idx = semanticIndex;
+        const existingTask = idx >= 0 ? (state.任务[idx] as any) : null;
+
+        const resolvedId = toText(existingTask?.id)
+            || (incomingId && !isQuestPlaceholderId(incomingId) ? incomingId : '')
+            || incomingId
+            || `QUEST_${state.任务.length + index + 1}`;
+
+        const incomingTitle = isQuestWeakTitle(incomingTitleRaw, incomingId) ? '' : incomingTitleRaw;
+        const existingTitle = toText(existingTask?.标题);
+        const stableExistingTitle = isQuestWeakTitle(existingTitle, toText(existingTask?.id)) ? '' : existingTitle;
+        const fallbackTitle = description
+            ? (description.length > 28 ? `${description.slice(0, 28)}...` : description)
+            : (isQuestPlaceholderId(resolvedId) ? '未命名任务' : resolvedId);
+        const title = incomingTitle || stableExistingTitle || fallbackTitle;
+
         const nextTask = Object.fromEntries(
             Object.entries({
-            id,
-            标题: title,
-            描述: description || undefined,
-            状态: statusRaw ? normalizeQuestRuntimeStatus(statusRaw) : undefined,
-            奖励: reward || undefined,
-            评级: (rank || undefined) as any,
-            截止时间: deadline || undefined
+                id: resolvedId,
+                标题: title || undefined,
+                描述: description || undefined,
+                状态: statusRaw ? normalizeQuestRuntimeStatus(statusRaw) : undefined,
+                奖励: reward || undefined,
+                评级: (rank || undefined) as any,
+                截止时间: deadline || undefined
             } as Record<string, unknown>).filter(([, value]) => value !== undefined)
         );
-        const idx = state.任务.findIndex((task) => task.id === id);
+
         if (idx >= 0) {
             state.任务[idx] = { ...state.任务[idx], ...nextTask };
         } else {
             state.任务.push({
-                id,
+                id: resolvedId,
                 标题: title,
                 描述: description || '',
                 状态: statusRaw ? normalizeQuestRuntimeStatus(statusRaw) : 'active',
@@ -3234,6 +3374,154 @@ const applyCharacterRegistryFromSheetRows = (state: GameState, rows: Array<Recor
     }
 };
 
+/**
+ * Parse a single DanMachi Falna ability score value.
+ * Handles multiple AI output formats:
+ *   - Rank+Number string: "I0", "H123", "D552", "S999", "SS1200", "SSS2000"
+ *   - Pure number: 0, 350, 999
+ *   - Number string: "0", "350"
+ *   - Rank-only: "I", "H" (treated as 0 proficiency)
+ *   - Chinese rank prefix: "I级0", "D级552"
+ * Returns the numeric proficiency value, or null if not parseable.
+ */
+const parseFalnaStatValue = (value: unknown): number | null => {
+    if (value === undefined || value === null) return null;
+    const num = toNumber(value);
+    if (num !== null) return Math.max(0, Math.floor(num));
+    const text = toText(value).trim();
+    if (!text) return null;
+    // Match rank letter(s) optionally followed by 级 then digits: "I0", "D552", "SS1200", "I级0", "SSS级2000"
+    const rankMatch = text.match(/^(SSS|SS|S|A|B|C|D|E|F|G|H|I)级?[\s:：]?(\d*)$/i);
+    if (rankMatch) {
+        const digits = rankMatch[2];
+        return digits ? Math.max(0, parseInt(digits, 10)) : 0;
+    }
+    // Try plain number at end of any string
+    const trailingDigits = text.match(/(\d+)\s*$/);
+    if (trailingDigits) return Math.max(0, parseInt(trailingDigits[1], 10));
+    return null;
+};
+
+/**
+ * Parse DanMachi ability scores (能力値) from various AI output formats.
+ * Accepts:
+ *   - Object: { 力量: 0, 耐久: 0, 灵巧: 0, 敏捷: 0, 魔力: 0 }
+ *   - Object with rank strings: { 力量: "I0", 耐久: "H350" }
+ *   - Flat keys on the row itself (力量, 耐久, etc.)
+ *   - Semicolon/comma-separated string: "力量:I0;耐久:I0;灵巧:I0;敏捷:I0;魔力:I0"
+ *   - Slash-separated string: "I0/I0/I0/I0/I0" (order: 力量/耐久/灵巧/敏捷/魔力)
+ */
+const parseDanmachiFalnaStats = (
+    abilityField: unknown,
+    row: Record<string, unknown>,
+    existing: { 力量: number; 耐久: number; 灵巧: number; 敏捷: number; 魔力: number }
+): { 力量: number; 耐久: number; 灵巧: number; 敏捷: number; 魔力: number } | null => {
+    const statKeys = ['力量', '耐久', '灵巧', '敏捷', '魔力'] as const;
+    const altKeyMap: Record<string, typeof statKeys[number]> = {
+        str: '力量', strength: '力量', STR: '力量', Strength: '力量',
+        end: '耐久', endurance: '耐久', END: '耐久', Endurance: '耐久', con: '耐久', constitution: '耐久', durability: '耐久',
+        dex: '灵巧', dexterity: '灵巧', DEX: '灵巧', Dexterity: '灵巧',
+        agi: '敏捷', agility: '敏捷', AGI: '敏捷', Agility: '敏捷',
+        mag: '魔力', magic: '魔力', MAG: '魔力', Magic: '魔力', mp: '魔力',
+    };
+
+    const result = { ...existing };
+    let hasAny = false;
+
+    // Strategy 1: abilityField is a plain object like { 力量: 0, 耐久: "I0" }
+    if (abilityField && typeof abilityField === 'object' && !Array.isArray(abilityField)) {
+        const obj = abilityField as Record<string, unknown>;
+        for (const key of Object.keys(obj)) {
+            const mappedKey = (statKeys as readonly string[]).includes(key) ? key as typeof statKeys[number] : altKeyMap[key];
+            if (mappedKey) {
+                const val = parseFalnaStatValue(obj[key]);
+                if (val !== null) { result[mappedKey] = val; hasAny = true; }
+            }
+        }
+        if (hasAny) return result;
+    }
+
+    // Strategy 2: abilityField is a semicolon/comma string: "力量:I0;耐久:I0;..."
+    if (typeof abilityField === 'string') {
+        const text = (abilityField as string).trim();
+        // Try "key:value" pairs separated by ; , / | or Chinese ，；
+        const pairPattern = /([力耐灵敏魔量久巧捷]+|str|end|dex|agi|mag|strength|endurance|dexterity|agility|magic)\s*[:：=]\s*([A-Za-z]*\d*)/gi;
+        let m: RegExpExecArray | null;
+        while ((m = pairPattern.exec(text)) !== null) {
+            const rawKey = m[1];
+            const rawVal = m[2];
+            const normalizedKey = (statKeys as readonly string[]).includes(rawKey) ? rawKey as typeof statKeys[number]
+                : altKeyMap[rawKey.toLowerCase()];
+            if (normalizedKey) {
+                const val = parseFalnaStatValue(rawVal);
+                if (val !== null) { result[normalizedKey] = val; hasAny = true; }
+            }
+        }
+        if (hasAny) return result;
+
+        // Try slash-separated: "I0/I0/I0/I0/I0"
+        const parts = text.split(/[/|]/).map(s => s.trim()).filter(Boolean);
+        if (parts.length >= 4) {
+            for (let i = 0; i < Math.min(parts.length, 5); i++) {
+                const val = parseFalnaStatValue(parts[i]);
+                if (val !== null) { result[statKeys[i]] = val; hasAny = true; }
+            }
+            if (hasAny) return result;
+        }
+    }
+
+    // Strategy 3: flat keys on the row: row.力量, row.耐久, etc.
+    for (const key of statKeys) {
+        const rawVal = pickRowValue(row, [key]);
+        if (rawVal !== undefined && rawVal !== null && rawVal !== '') {
+            const val = parseFalnaStatValue(rawVal);
+            if (val !== null) { result[key] = val; hasAny = true; }
+        }
+    }
+    // Also check English aliases on the row
+    for (const [altKey, mappedKey] of Object.entries(altKeyMap)) {
+        if (hasAny) break; // Already found via Chinese keys
+        const rawVal = (row as any)[altKey];
+        if (rawVal !== undefined && rawVal !== null && rawVal !== '') {
+            const val = parseFalnaStatValue(rawVal);
+            if (val !== null) { result[mappedKey] = val; hasAny = true; }
+        }
+    }
+
+    return hasAny ? result : null;
+};
+
+/**
+ * Apply FAMILIA_State sheet data to state.眷族.
+ * Handles multiple field name formats from AI.
+ */
+const applyFamiliaStateFromSheetRows = (state: GameState, rows: Array<Record<string, unknown>>) => {
+    const target = rows[rows.length - 1];
+    if (!target) return;
+    if (!state.眷族) {
+        state.眷族 = { 名称: '无', 等级: 'I', 主神: 'None', 资金: 0, 声望: 0, 设施状态: {}, 仓库: [] } as any;
+    }
+    const name = toText(pickRowValue(target, ['名称', '眷族名称', 'name', 'familia_name', 'familiaName']));
+    if (name && name !== '无') {
+        state.眷族.名称 = name;
+        // Also sync to character if they exist
+        if (state.角色) {
+            state.角色.所属眷族 = name;
+            state.角色.眷族 = name;
+        }
+    }
+    const deity = toText(pickRowValue(target, ['主神', 'patron_deity', 'deity', 'god', '神']));
+    if (deity) state.眷族.主神 = deity;
+    const rank = toText(pickRowValue(target, ['等级', 'rank', 'level', '阶级']));
+    if (rank) state.眷族.等级 = rank;
+    const funds = toNumber(pickRowValue(target, ['资金', 'funds', 'gold', '财产', '金币']));
+    if (funds !== null) state.眷族.资金 = Math.max(0, Math.floor(funds));
+    const reputation = toNumber(pickRowValue(target, ['声望', 'reputation', 'fame', '名声']));
+    if (reputation !== null) state.眷族.声望 = Math.max(0, Math.floor(reputation));
+    const facilities = pickRowValue(target, ['设施状态', 'facilities', '设施']);
+    if (facilities && typeof facilities === 'object') state.眷族.设施状态 = facilities;
+};
+
 const applyCharacterAttributesFromSheetRows = (state: GameState, rows: Array<Record<string, unknown>>) => {
     const target = rows.find((row) => toText(pickRowValue(row, ['CHAR_ID', 'char_id', 'character_id'])) === 'PC_MAIN')
         || rows.find((row) => !toText(pickRowValue(row, ['CHAR_ID', 'char_id', 'character_id'])));
@@ -3248,16 +3536,42 @@ const applyCharacterAttributesFromSheetRows = (state: GameState, rows: Array<Rec
         state.角色.最大生命值 = hpPair.max;
     }
 
-    const expText = toText(pickRowValue(target, ['经验值', 'xp', 'XP', 'experience']));
+    const expText = toText(pickRowValue(target, ['经验值', 'xp', 'XP', 'experience', 'excelia']));
     const expMatch = expText.match(/^\s*(\d+)\s*\/\s*(\d+)\s*$/);
     if (expMatch) {
         state.角色.经验值 = Number(expMatch[1]);
         state.角色.升级所需伟业 = Number(expMatch[2]);
     } else {
-        const singleExp = toNumber(pickRowValue(target, ['经验值', 'xp', 'XP', 'experience']));
+        const singleExp = toNumber(pickRowValue(target, ['经验值', 'xp', 'XP', 'experience', 'excelia']));
         if (singleExp !== null) {
             state.角色.经验值 = Math.max(0, Math.floor(singleExp));
         }
+    }
+
+    // === DanMachi Falna Ability Scores (能力值) ===
+    const abilityField = pickRowValue(target, ['能力值', '能力値', 'falna', 'falnaStats', 'stats', 'basic_abilities', 'abilities']);
+    const existingStats = state.角色.能力值 || { 力量: 0, 耐久: 0, 灵巧: 0, 敏捷: 0, 魔力: 0 };
+    const falnaStats = parseDanmachiFalnaStats(abilityField, target, existingStats);
+    if (falnaStats) {
+        state.角色.能力值 = falnaStats;
+        // Also sync legacy flattened fields
+        state.角色.力量 = falnaStats.力量;
+        state.角色.耐久 = falnaStats.耐久;
+        state.角色.灵巧 = falnaStats.灵巧;
+        state.角色.敏捷 = falnaStats.敏捷;
+        state.角色.魔力 = falnaStats.魔力;
+    }
+
+    // === Mind/Stamina pairs ===
+    const mindPair = parseCurrentMaxPair(pickRowValue(target, ['精神力', 'MP', 'mp', 'mind', '精神']));
+    if (mindPair) {
+        state.角色.精神力 = mindPair.current;
+        state.角色.最大精神力 = mindPair.max;
+    }
+    const staminaPair = parseCurrentMaxPair(pickRowValue(target, ['体力', 'stamina', 'SP', 'sp']));
+    if (staminaPair) {
+        state.角色.体力 = staminaPair.current;
+        state.角色.最大体力 = staminaPair.max;
     }
 
     const profile = ensurePlayerDndProfile(state);
@@ -3891,21 +4205,39 @@ const rebuildWorldNpcTrackingFromShadowStore = (state: GameState) => {
     const store = ensureSheetShadowStore(state);
     const rows = Array.isArray(store.WORLD_NpcTracking) ? store.WORLD_NpcTracking : [];
     const playerName = state.角色?.姓名;
-    state.世界.NPC后台跟踪 = rows
-        .map((row) => {
-            const npc = toText((row as any)?.npc_name ?? (row as any)?.NPC ?? (row as any)?.npc);
-            const action = toText((row as any)?.current_action ?? (row as any)?.当前行动 ?? (row as any)?.action);
-            if (!npc || !action) return null;
-            if (isPlayerReference(npc, playerName)) return null;
-            return {
-                NPC: npc,
-                当前行动: action,
-                位置: toText((row as any)?.location ?? (row as any)?.位置) || undefined,
-                进度: toText((row as any)?.progress ?? (row as any)?.进度) || undefined,
-                预计完成: toText((row as any)?.eta ?? (row as any)?.预计完成) || undefined
-            };
-        })
-        .filter((item) => !!item) as Array<{ NPC: string; 当前行动: string; 位置?: string; 进度?: string; 预计完成?: string }>;
+    const social = Array.isArray(state.社交) ? state.社交 : [];
+    const nameById = new Map<string, string>();
+
+    social.forEach((npc: any) => {
+        const npcId = toText(npc?.id);
+        const npcName = toText(npc?.姓名);
+        if (!npcId || !npcName) return;
+        nameById.set(npcId, npcName);
+        nameById.set(npcId.toLowerCase(), npcName);
+    });
+
+    const latestByNpc = new Map<string, { NPC: string; 当前行动: string; 位置?: string; 进度?: string; 预计完成?: string }>();
+    rows.forEach((row) => {
+        const rawNpc = toText((row as any)?.npc_name ?? (row as any)?.NPC ?? (row as any)?.npc);
+        const action = toText((row as any)?.current_action ?? (row as any)?.当前行动 ?? (row as any)?.action);
+        if (!rawNpc || !action) return;
+
+        const resolvedNpc = nameById.get(rawNpc) || nameById.get(rawNpc.toLowerCase()) || rawNpc;
+        if (isPlayerReference(rawNpc, playerName) || isPlayerReference(resolvedNpc, playerName)) return;
+
+        const key = resolvedNpc.toLowerCase();
+        if (!key) return;
+
+        latestByNpc.set(key, {
+            NPC: resolvedNpc,
+            当前行动: action,
+            位置: toText((row as any)?.location ?? (row as any)?.位置) || undefined,
+            进度: toText((row as any)?.progress ?? (row as any)?.进度) || undefined,
+            预计完成: toText((row as any)?.eta ?? (row as any)?.预计完成) || undefined
+        });
+    });
+
+    state.世界.NPC后台跟踪 = Array.from(latestByNpc.values());
 };
 
 const ensureMapStateBase = (state: GameState) => {
@@ -4052,6 +4384,7 @@ const ensureSocialBase = (state: GameState) => {
 
 const getOrCreateNpcBySheetIdentity = (state: GameState, npcId: string, npcName: string) => {
     ensureSocialBase(state);
+    if (!isValidContactIdentity({ id: npcId, 姓名: npcName })) return null;
     const byIdIndex = npcId ? state.社交.findIndex((npc: any) => String(npc?.id || '') === npcId) : -1;
     if (byIdIndex >= 0) return state.社交[byIdIndex] as any;
     const byNameIndex = npcName ? state.社交.findIndex((npc: any) => String(npc?.姓名 || '') === npcName) : -1;
@@ -4079,6 +4412,7 @@ const rebuildNpcRelationshipEventsFromShadowStore = (state: GameState) => {
         const npcName = toText((row as any)?.npc_name);
         if (isPlayerReference(npcId, playerName) || isPlayerReference(npcName, playerName)) return;
         const npc = getOrCreateNpcBySheetIdentity(state, npcId, npcName);
+        if (!npc) return;
         const resolvedId = toText(npc?.id) || `NPC_${index + 1}`;
         const list = grouped.get(resolvedId) || [];
         list.push({
@@ -4110,7 +4444,7 @@ const rebuildNpcLocationTraceFromShadowStore = (state: GameState) => {
     const store = ensureSheetShadowStore(state);
     const rows = Array.isArray(store.NPC_LocationTrace) ? store.NPC_LocationTrace : [];
     const latestByNpc = new Map<string, any>();
-    const tracesByNpc = new Map<string, any[]>();
+    const tracesByNpc = new Map<string, Map<string, any>>();
     const playerName = state.角色?.姓名;
 
     rows.forEach((row, index) => {
@@ -4118,9 +4452,11 @@ const rebuildNpcLocationTraceFromShadowStore = (state: GameState) => {
         const npcName = toText((row as any)?.npc_name);
         if (isPlayerReference(npcId, playerName) || isPlayerReference(npcName, playerName)) return;
         const npc = getOrCreateNpcBySheetIdentity(state, npcId, npcName);
+        if (!npc) return;
         const resolvedId = toText(npc?.id) || `NPC_${index + 1}`;
+        const traceId = toText((row as any)?.trace_id) || `${resolvedId}_trace_${index + 1}`;
         const trace = {
-            trace_id: toText((row as any)?.trace_id) || `${resolvedId}_trace_${index + 1}`,
+            trace_id: traceId,
             timestamp: toText((row as any)?.timestamp),
             location: toText((row as any)?.location),
             x: toNumber((row as any)?.x),
@@ -4129,9 +4465,9 @@ const rebuildNpcLocationTraceFromShadowStore = (state: GameState) => {
             detail: toText((row as any)?.detail)
         };
         latestByNpc.set(resolvedId, trace);
-        const list = tracesByNpc.get(resolvedId) || [];
-        list.push(trace);
-        tracesByNpc.set(resolvedId, list);
+        const bucket = tracesByNpc.get(resolvedId) || new Map<string, any>();
+        bucket.set(traceId, trace);
+        tracesByNpc.set(resolvedId, bucket);
     });
 
     state.社交.forEach((npc: any) => {
@@ -4151,7 +4487,7 @@ const rebuildNpcLocationTraceFromShadowStore = (state: GameState) => {
         if (typeof latest.present === 'boolean') {
             npc.是否在场 = latest.present;
         }
-        (npc as any).位置轨迹 = tracesByNpc.get(npcId) || [];
+        (npc as any).位置轨迹 = Array.from((tracesByNpc.get(npcId)?.values() || []));
     });
 };
 
@@ -4167,6 +4503,7 @@ const rebuildNpcInteractionLogFromShadowStore = (state: GameState) => {
         const npcName = toText((row as any)?.npc_name);
         if (isPlayerReference(npcId, playerName) || isPlayerReference(npcName, playerName)) return;
         const npc = getOrCreateNpcBySheetIdentity(state, npcId, npcName);
+        if (!npc) return;
         const resolvedId = toText(npc?.id) || `NPC_${index + 1}`;
         const entry = {
             interaction_id: toText((row as any)?.interaction_id) || `${resolvedId}_int_${index + 1}`,
@@ -4191,15 +4528,41 @@ const ensureQuestStateBase = (state: GameState) => {
     if (!Array.isArray(state.任务)) state.任务 = [] as any;
 };
 
-const getOrCreateQuestById = (state: GameState, questId: string) => {
+const getOrCreateQuestById = (
+    state: GameState,
+    questId: string,
+    hints?: {
+        title?: string;
+        description?: string;
+        content?: string;
+    }
+) => {
     ensureQuestStateBase(state);
-    const normalizedId = questId || `QUEST_${state.任务.length + 1}`;
-    const index = state.任务.findIndex((task: any) => String(task?.id || '') === normalizedId);
-    if (index >= 0) return state.任务[index] as any;
+
+    const normalizedId = toText(questId);
+    if (normalizedId) {
+        const index = state.任务.findIndex((task: any) => String(task?.id || '') === normalizedId);
+        if (index >= 0) return state.任务[index] as any;
+    }
+
+    const hintTitle = toText(hints?.title);
+    const hintDescription = toText(hints?.description ?? hints?.content);
+    const semanticIndex = findQuestSemanticIndex(state, normalizedId, hintTitle, hintDescription);
+    if (semanticIndex >= 0) {
+        return state.任务[semanticIndex] as any;
+    }
+
+    const fallbackId = (normalizedId && !isQuestPlaceholderId(normalizedId) ? normalizedId : '') || `QUEST_${state.任务.length + 1}`;
+    const fallbackTitle = !isQuestWeakTitle(hintTitle, fallbackId)
+        ? hintTitle
+        : (hintDescription
+            ? (hintDescription.length > 28 ? `${hintDescription.slice(0, 28)}...` : hintDescription)
+            : (isQuestPlaceholderId(fallbackId) ? '未命名任务' : fallbackId));
+
     const task = {
-        id: normalizedId,
-        标题: normalizedId,
-        描述: '',
+        id: fallbackId,
+        标题: fallbackTitle,
+        描述: hintDescription || '',
         状态: 'active',
         奖励: '',
         评级: 'E',
@@ -4216,19 +4579,28 @@ const rebuildQuestObjectivesFromShadowStore = (state: GameState) => {
     const grouped = new Map<string, any[]>();
 
     rows.forEach((row, index) => {
-        const questId = toText((row as any)?.quest_id) || `QUEST_${index + 1}`;
+        const rawQuestId = toText((row as any)?.quest_id);
         const objective = toText((row as any)?.objective);
         if (!objective) return;
-        const list = grouped.get(questId) || [];
+
+        const quest = getOrCreateQuestById(state, rawQuestId, {
+            title: toText((row as any)?.quest_title ?? (row as any)?.title),
+            description: objective
+        });
+        const resolvedQuestId = toText((quest as any)?.id)
+            || rawQuestId
+            || `QUEST_${state.任务.length + index + 1}`;
+
+        const list = grouped.get(resolvedQuestId) || [];
         list.push({
-            objective_id: toText((row as any)?.objective_id) || `${questId}_obj_${list.length + 1}`,
+            objective_id: toText((row as any)?.objective_id) || `${resolvedQuestId}_obj_${list.length + 1}`,
             objective,
             status: toText((row as any)?.status) || 'active',
             progress: toText((row as any)?.progress),
             target: toText((row as any)?.target),
             updated_at: toText((row as any)?.updated_at)
         });
-        grouped.set(questId, list);
+        grouped.set(resolvedQuestId, list);
     });
 
     grouped.forEach((objectives, questId) => {
@@ -4252,19 +4624,28 @@ const rebuildQuestProgressLogFromShadowStore = (state: GameState) => {
     const grouped = new Map<string, any[]>();
 
     rows.forEach((row, index) => {
-        const questId = toText((row as any)?.quest_id) || `QUEST_${index + 1}`;
+        const rawQuestId = toText((row as any)?.quest_id);
         const content = toText((row as any)?.content);
         const timestamp = toText((row as any)?.timestamp);
         if (!content || !timestamp) return;
-        const list = grouped.get(questId) || [];
+
+        const quest = getOrCreateQuestById(state, rawQuestId, {
+            title: toText((row as any)?.quest_title ?? (row as any)?.title),
+            content
+        });
+        const resolvedQuestId = toText((quest as any)?.id)
+            || rawQuestId
+            || `QUEST_${state.任务.length + index + 1}`;
+
+        const list = grouped.get(resolvedQuestId) || [];
         list.push({
-            progress_id: toText((row as any)?.progress_id) || `${questId}_log_${list.length + 1}`,
+            progress_id: toText((row as any)?.progress_id) || `${resolvedQuestId}_log_${list.length + 1}`,
             timestamp,
             content,
             status: toText((row as any)?.status),
             source: toText((row as any)?.source)
         });
-        grouped.set(questId, list);
+        grouped.set(resolvedQuestId, list);
     });
 
     grouped.forEach((entries, questId) => {
@@ -4750,6 +5131,10 @@ export function handleUpsertSheetRows(
             applyCharacterAttributesFromSheetRows(state, shadowRows);
             keyField = 'CHAR_ID';
             break;
+        case 'FAMILIA_State':
+            applyFamiliaStateFromSheetRows(state, payload.rows);
+            keyField = 'familia_id';
+            break;
         case 'CHARACTER_Resources':
             shadowRows = normalizePlayerCharacterRows(payload.rows);
             if (shadowRows.length === 0) break;
@@ -4797,12 +5182,17 @@ export function handleUpsertSheetRows(
             break;
         case 'WORLD_NpcTracking':
             ensureWorldStateBase(state);
-            shadowRows = payload.rows.filter((row) => {
+            shadowRows = payload.rows.map(row => {
+                const npcName = toText((row as any)?.npc_name ?? (row as any)?.NPC ?? (row as any)?.npc);
+                const trackingId = toText((row as any)?.tracking_id);
+                return { ...row, tracking_id: trackingId || npcName };
+            }).filter((row) => {
                 const playerName = state.角色?.姓名;
                 const npcName = toText((row as any)?.npc_name ?? (row as any)?.NPC ?? (row as any)?.npc);
                 const npcId = toText((row as any)?.tracking_id ?? (row as any)?.npc_id ?? (row as any)?.id);
                 return !isPlayerReference(npcId, playerName) && !isPlayerReference(npcName, playerName);
             });
+            keyField = 'tracking_id';
             break;
         case 'WORLD_News':
             ensureWorldStateBase(state);

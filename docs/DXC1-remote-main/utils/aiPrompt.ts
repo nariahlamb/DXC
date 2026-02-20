@@ -112,6 +112,7 @@ const buildNarrativeOnlyCotPrompt = (settings: AppSettings): string => {
     const lines = multiStage
         ? [
             '<叙事思考约束>',
+            '- thinking_* 必须采取严格的步骤拆解与结构化推演（如：[动机分析] -> [行动推演] -> [反馈预测]）。',
             '- thinking_* 仅用于叙事规划、风格控制与一致性检查。',
             '- 禁止在 thinking_* 中规划或输出任何 tavern_commands、表格写入动作或命令示例。',
             '- 仅围绕 logs 连贯性、角色动机一致性、世界观一致性与 action_options 可执行性思考。',
@@ -119,7 +120,8 @@ const buildNarrativeOnlyCotPrompt = (settings: AppSettings): string => {
         ]
         : [
             '<叙事思考约束>',
-            '- thinking_pre/thinking_post 仅用于叙事规划与一致性复核。',
+            '- thinking_pre/post 必须采取步骤拆解与结构化推演（如：[动机] -> [推演]）。',
+            '- thinking_pre/post 仅用于叙事规划与一致性复核。',
             '- 禁止在 thinking_* 中规划或输出任何 tavern_commands、表格写入动作或命令示例。',
             '- 仅围绕 logs 连贯性、角色动机一致性、世界观一致性与 action_options 可执行性思考。',
             '</叙事思考约束>'

@@ -60,9 +60,15 @@ export const buildServiceContext = (serviceKey: string, gameState: GameState) =>
     const base = {
         当前日期: gameState.当前日期,
         游戏时间: gameState.游戏时间,
+        上轮时间: gameState.上轮时间 || gameState.游戏时间,
+        流逝时长: gameState.流逝时长 || '',
         当前地点: gameState.当前地点,
         当前楼层: gameState.当前楼层,
-        世界坐标: gameState.世界坐标
+        世界坐标: gameState.世界坐标,
+        天气: gameState.天气,
+        战斗模式: gameState.战斗模式 || '非战斗',
+        系统通知: gameState.系统通知 || '',
+        回合数: gameState.回合数
     };
     const socialBrief = (gameState.社交 || []).map((c, index) => ({
         索引: index,
@@ -107,6 +113,7 @@ export const buildServiceContext = (serviceKey: string, gameState: GameState) =>
         return {
             ...base,
             角色: gameState.角色 || {},
+            眷族: gameState.眷族 || {},
             任务: gameState.任务 || [],
             剧情: gameState.剧情 || {},
             战斗: gameState.战斗 || {},
@@ -215,19 +222,22 @@ export const buildServicePrompt = (serviceKey: string, input: string, gameState:
             '1. 你的唯一目标是填写 LOG_Summary + LOG_Outline，且每个目标回合必须成对写入。',
             '2. 若 [服务输入] 含 待填回合 数组，则按目标回合升序逐个处理；每个回合生成一对命令。',
             '3. 若 [服务输入].填表任务.targetSheet 存在，则只能输出该表对应命令（LOG_Summary 或 LOG_Outline），禁止跨表。',
-            '4. 两条命令必须共享同一 编码索引（AMxxxx）；若无法确定可省略，由运行时自动分配。',
-            '5. 时间格式硬约束：时间=YYYY-MM-DD HH:MM；时间跨度=YYYY-MM-DD HH:MM—YYYY-MM-DD HH:MM。',
-            '6. LOG_Summary（总结表）字段语义：时间跨度 / 地点 / 纪要 / 重要对话 / 编码索引。',
-            '7. LOG_Outline（总体大纲）字段语义：时间跨度 / 大纲 / 编码索引。',
-            '8. 总结表纪要必须是“高保真、零解读”的客观记录：仅写可见动作与可闻信息，禁止心理、动机、意义升华；字数硬约束 180-240，目标约 200 字。',
-            '9. 总结表重要对话只摘录关键原句（需标注说话者），总长度不超过80 token。',
-            '10. 总体大纲必须是对同回合总结表的“精炼主干”，禁止与纪要同句复写；建议 40-120 字，只保留核心事件链。',
-            '11. 反同质化硬约束：若“大纲”与“纪要/摘要”高度近似（同句改写或大量重合），必须重写大纲后再输出。',
-            '12. append_log_summary.value 至少包含模板最小字段: 时间跨度, 地点, 纪要(或摘要), 重要对话(可空), 编码索引(可选)。兼容字段 回合/时间/摘要 可选。',
-            '13. append_log_outline.value 至少包含模板最小字段: 时间跨度, 大纲, 编码索引(可选)。兼容字段 章节/标题/开始回合/事件列表 可选。',
-            '14. 已有成对记录的回合必须跳过；全部已存在时返回 {"tavern_commands": []}。',
-            '15. 输出前自检：本轮 Summary/Outline 是否共享同一 AM 编码、是否缺字段、是否同质化；不通过则先修正再输出。',
-            '16. 禁止输出任何非日志表命令。'
+            '4. 索引一致性护栏：编码索引格式必须是 AM+数字（建议 AM0001 起）；同一回合 Summary/Outline 必须共用同一编码索引。',
+            '5. 索引序列护栏：本批次新索引必须严格递增，禁止复用历史索引、禁止倒序、禁止跳号后回补。',
+            '6. 非 targetSheet 模式下，若任一目标回合无法同时产出 Summary+Outline，必须返回空命令，不允许输出单边命令。',
+            '7. targetSheet 模式下，仅允许输出目标单表；若同回合另一表已有编码索引，必须复用该索引；无法确定则返回空命令。',
+            '8. 时间格式硬约束：时间=YYYY-MM-DD HH:MM；时间跨度=YYYY-MM-DD HH:MM—YYYY-MM-DD HH:MM。',
+            '9. LOG_Summary（总结表）字段语义：时间跨度 / 地点 / 纪要 / 重要对话 / 编码索引。',
+            '10. LOG_Outline（总体大纲）字段语义：时间跨度 / 大纲 / 编码索引。',
+            '11. 总结表纪要必须是“高保真、零解读”的客观记录：仅写可见动作与可闻信息，禁止心理、动机、意义升华；字数硬约束 180-240，目标约 200 字。',
+            '12. 总结表重要对话只摘录关键原句（需标注说话者），总长度不超过80 token。',
+            '13. 总体大纲必须是对同回合总结表的“精炼主干”，禁止与纪要同句复写；建议 40-120 字，只保留核心事件链。',
+            '14. 反同质化硬约束：若“大纲”与“纪要/摘要”高度近似（同句改写或大量重合），必须重写大纲后再输出。',
+            '15. append_log_summary.value 至少包含模板最小字段: 时间跨度, 地点, 纪要(或摘要), 重要对话(可空), 编码索引(可选)。兼容字段 回合/时间/摘要 可选。',
+            '16. append_log_outline.value 至少包含模板最小字段: 时间跨度, 大纲, 编码索引(可选)。兼容字段 章节/标题/开始回合/事件列表 可选。',
+            '17. 已有成对记录的回合必须跳过；全部已存在时返回 {"tavern_commands": []}。',
+            '18. 输出前自检：本轮 Summary/Outline 是否共享同一 AM 编码、是否缺字段、是否同质化、是否存在单边回合；不通过则先修正再输出。',
+            '19. 禁止输出任何非日志表命令。'
         ].join('\n')
         : '';
     const stateFillRule = serviceKey === 'state'
@@ -254,7 +264,18 @@ export const buildServicePrompt = (serviceKey: string, input: string, gameState:
             '10.3 示例（按叙事就近取值）：例 A「问路 + 两句对话」=> 5-10 分钟；例 B「酒馆点单 + 吃完 + 结账」=> 20-45 分钟；例 C「跨区赶路并调查线索」=> 45-90 分钟。禁止“只聊几句却推进 1 小时以上”。',
             '11. 若输出 COMBAT_BattleMap：必须保证地图尺寸可还原（Config 语义或视觉层尺寸），单位坐标为整数网格坐标，禁止像素坐标。',
             '12. 若输出 COMBAT_Map_Visuals：建议包含 SceneName + VisualJSON + GridSize（如 20x20），并可还原为 set_map_visuals。',
-            '13. 若输出 CHARACTER_Attributes/CHARACTER_Resources：优先完整提供 AC/先攻/速度/属性值/豁免熟练/技能熟练/被动感知/法术位/生命骰/金币。'
+            '13. 若输出 CHARACTER_Attributes/CHARACTER_Resources：优先完整提供 AC/先攻/速度/属性值/豁免熟练/技能熟练/被动感知/法术位/生命骰/金币。对于地错(DanMachi)环境，能力值字段必须包含 力量/耐久/灵巧/敏捷/魔力，格式为数字或等级+数字(如 "I0"/"D552")。',
+            '14. 示例（SYS_GlobalState，时间/地点/天气变化）：{"action":"upsert_sheet_rows","value":{"sheetId":"SYS_GlobalState","keyField":"_global_id","rows":[{"_global_id":"GLOBAL_STATE","当前场景":"冒险者公会","游戏时间":"09:30","当前日期":"2026-02-18","天气状况":"晴","当前回合":12}]}}。可写字段：当前场景/场景描述/当前日期/游戏时间/上轮时间/流逝时长/世界坐标X/世界坐标Y/天气状况/战斗模式/当前回合/系统通知。',
+            '15. 示例（QUEST_Active，任务变化）：{"action":"upsert_sheet_rows","value":{"sheetId":"QUEST_Active","keyField":"任务ID","rows":[{"任务ID":"Q001","任务名称":"调查失踪商队","类型":"主线","状态":"进行中","当前进度":"已抵达北门","目标描述":"追踪商队线索"}]}}。',
+            '16. 示例（ITEM_Inventory，物品变化）：获得/消耗使用 upsert => {"action":"upsert_sheet_rows","value":{"sheetId":"ITEM_Inventory","keyField":"物品ID","rows":[{"物品ID":"ITM_HealthPotion","物品名称":"治疗药水","类别":"消耗品","数量":1}]}}；移除使用 delete => {"action":"delete_sheet_rows","value":{"sheetId":"ITEM_Inventory","keyField":"物品ID","rowIds":["ITM_HealthPotion"]}}。',
+            '17. 示例（STORY_Mainline，由 state 服务写入）：{"action":"upsert_sheet_rows","value":{"sheetId":"STORY_Mainline","keyField":"mainline_id","rows":[{"mainline_id":"mainline_core","当前篇章":"第2章：暗潮","当前阶段":"追查线索","当前目标":"找到黑市联系人","行动提示":"先去西区情报屋"}]}}。',
+            '18. 示例（CHARACTER_Resources，资源变化）：{"action":"upsert_sheet_rows","value":{"sheetId":"CHARACTER_Resources","keyField":"CHAR_ID","rows":[{"CHAR_ID":"PLAYER","法术位":"1环:3/4","职业资源":"气点:2/3","生命骰":"d8:2/4","金币":860}]}}。',
+            '19. 示例（CHARACTER_Attributes，属性变化）：{"action":"upsert_sheet_rows","value":{"sheetId":"CHARACTER_Attributes","keyField":"CHAR_ID","rows":[{"CHAR_ID":"PLAYER","HP":"28/34","等级":5,"经验值":1320}]}}。地错(DanMachi)环境下能力值示例：{"action":"upsert_sheet_rows","value":{"sheetId":"CHARACTER_Attributes","keyField":"CHAR_ID","rows":[{"CHAR_ID":"PC_MAIN","HP":"20/20","等级":1,"能力值":{"力量":0,"耐久":0,"灵巧":0,"敏捷":0,"魔力":0}}]}}。能力值也支持扁平写法：力量/耐久/灵巧/敏捷/魔力 直接作为行的顶级字段。',
+            '19.1 示例（FAMILIA_State，眷族数据变化）：{"action":"upsert_sheet_rows","value":{"sheetId":"FAMILIA_State","keyField":"familia_id","rows":[{"familia_id":"PLAYER_FAMILIA","名称":"赫斯缇雅眷族","主神":"赫斯缇雅","等级":"I","资金":0,"声望":0}]}}。',
+            '19.2 示例（SKILL_Library+CHARACTER_Skills，技能/魔法注册）：先注册技能定义 SKILL_Library，再建立角色技能关联 CHARACTER_Skills。{"action":"upsert_sheet_rows","value":{"sheetId":"SKILL_Library","keyField":"SKILL_ID","rows":[{"SKILL_ID":"SKL_001","技能名称":"疾风","技能类型":"主动","效果描述":"短距离加速冲刺"}]}}。',
+            '19.3 示例（CHARACTER_Registry，角色所属眷族变更）：{"action":"upsert_sheet_rows","value":{"sheetId":"CHARACTER_Registry","keyField":"CHAR_ID","rows":[{"CHAR_ID":"PC_MAIN","所属眷族":"赫斯缇雅眷族"}]}}。',
+            '20. 可写表速查（keyField | 主要列）：SYS_GlobalState(_global_id|当前场景/游戏时间/当前日期/天气状况/战斗模式/当前回合)；NPC_Registry(NPC_ID|姓名/当前状态/所在位置/与主角关系/关键经历)；ITEM_Inventory(物品ID|物品名称/类别/数量/已装备/描述)；QUEST_Active(任务ID|任务名称/类型/状态/当前进度/目标描述)；STORY_Mainline(mainline_id|当前篇章/当前阶段/当前目标/行动提示)；FACTION_Standing(势力ID|势力名称/关系等级/声望值)；CHARACTER_Registry(CHAR_ID|姓名/种族/性别/年龄/称号/外貌/所属眷族)；CHARACTER_Resources(CHAR_ID|法术位/职业资源/生命骰/金币)；CHARACTER_Attributes(CHAR_ID|HP/等级/经验值/能力值{力量,耐久,灵巧,敏捷,魔力}/精神力/体力)；FAMILIA_State(familia_id|名称/主神/等级/资金/声望)；SKILL_Library(SKILL_ID|技能名称/技能类型/效果描述/环阶/学派)；CHARACTER_Skills(LINK_ID|CHAR_ID/SKILL_ID/获取方式)。',
+            '21. 所有示例仅作结构参考；实际输出时字段名必须严格匹配 [服务输入].表结构约束。'
         ].join('\n')
         : '';
     const socialCompatibilityRule = serviceKey === 'social'

@@ -635,9 +635,101 @@ describe('table-first sheet write handlers', () => {
     expect(first.success).toBe(true);
     expect(second.success).toBe(true);
     const quest = (state.任务 || []).find((row: any) => row.id === 'QUEST_KEEP_001');
+    expect(quest?.标题).toBe('调查异常魔力');
     expect(quest?.状态).toBe('completed');
     expect(quest?.描述).toBe('前往第 8 层调查魔力涌动');
     expect(quest?.奖励).toBe('3000 法利');
+  });
+
+  it('merges placeholder quest id rows into existing semantic quest', () => {
+    const state = createNewGameState('Tester', '男', 'Human') as any;
+    const first = handleUpsertSheetRows(state, {
+      sheetId: 'QUEST_Active',
+      rows: [
+        {
+          任务ID: 'QUEST_FAMILIA_001',
+          任务名称: '寻找眷族',
+          状态: '进行中',
+          目标描述: '前往赫斯缇雅眷族据点申请入团',
+          奖励: '获得眷属身份'
+        }
+      ]
+    });
+    const second = handleUpsertSheetRows(state, {
+      sheetId: 'QUEST_Active',
+      rows: [
+        {
+          任务ID: 'QUEST_3',
+          任务名称: '',
+          状态: '进行中',
+          目标描述: '前往赫斯缇雅眷族据点申请入团'
+        }
+      ]
+    });
+
+    expect(first.success).toBe(true);
+    expect(second.success).toBe(true);
+    const familiaTasks = (state.任务 || []).filter((task: any) =>
+      String(task?.描述 || '').includes('赫斯缇雅眷族据点')
+      || String(task?.标题 || '').includes('寻找眷族')
+    );
+    expect(familiaTasks).toHaveLength(1);
+    expect(String(familiaTasks[0].id || '')).not.toMatch(/^QUEST_\d+$/i);
+    expect(familiaTasks[0].标题).toBe('寻找眷族');
+    expect(familiaTasks[0].描述).toContain('赫斯缇雅眷族据点');
+  });
+
+  it('binds quest objective and progress rows without quest_id to existing quest by content', () => {
+    const state = createNewGameState('Tester', '男', 'Human') as any;
+    const base = handleUpsertSheetRows(state, {
+      sheetId: 'QUEST_Active',
+      rows: [
+        {
+          任务ID: 'QUEST_FAMILIA_001',
+          任务名称: '寻找眷族',
+          状态: '进行中',
+          目标描述: '前往赫斯缇雅眷族据点申请入团'
+        }
+      ]
+    });
+    const objectives = handleUpsertSheetRows(state, {
+      sheetId: 'QUEST_Objectives',
+      rows: [
+        {
+          objective_id: 'obj_1',
+          objective: '前往赫斯缇雅眷族据点申请入团',
+          status: 'active'
+        }
+      ]
+    });
+    const progress = handleUpsertSheetRows(state, {
+      sheetId: 'QUEST_ProgressLog',
+      rows: [
+        {
+          progress_id: 'log_1',
+          timestamp: '1000-01-01 08:00',
+          content: '前往赫斯缇雅眷族据点申请入团',
+          status: 'active'
+        }
+      ]
+    });
+
+    expect(base.success).toBe(true);
+    expect(objectives.success).toBe(true);
+    expect(progress.success).toBe(true);
+    const familiaTasks = (state.任务 || []).filter((task: any) =>
+      String(task?.描述 || '').includes('赫斯缇雅眷族据点')
+      || String(task?.标题 || '').includes('寻找眷族')
+    );
+    expect(familiaTasks).toHaveLength(1);
+    expect(String(familiaTasks[0].id || '')).not.toMatch(/^QUEST_\d+$/i);
+    expect(Array.isArray((familiaTasks[0] as any).目标列表)).toBe(true);
+    expect(((familiaTasks[0] as any).目标列表 || []).length).toBe(1);
+    expect((familiaTasks[0].日志 || []).length).toBe(1);
+    expect((state.任务 || []).some((task: any) =>
+      /^QUEST_\d+$/i.test(String(task.id || ''))
+      && String(task?.描述 || '').includes('赫斯缇雅眷族据点')
+    )).toBe(false);
   });
 
   it('keeps faction fields when partial FACTION_Standing updates omit optional columns', () => {
@@ -1123,6 +1215,36 @@ describe('table-first sheet write handlers', () => {
     expect(upsert.success).toBe(true);
     expect(state.世界.NPC后台跟踪).toHaveLength(1);
     expect(state.世界.NPC后台跟踪[0]?.NPC).toBe('赫斯缇雅');
+  });
+
+  it('dedupes WORLD_NpcTracking by NPC and keeps latest action', () => {
+    const state = createNewGameState('Tester', '男', 'Human') as any;
+    state.社交 = [{ id: 'NPC_Hestia', 姓名: '赫斯缇雅', 记忆: [] }];
+
+    const upsert = handleUpsertSheetRows(state, {
+      sheetId: 'WORLD_NpcTracking',
+      rows: [
+        {
+          tracking_id: 'npc_track_hestia_1',
+          npc_name: 'NPC_Hestia',
+          current_action: '离开教堂',
+          location: '欧拉丽西北区'
+        },
+        {
+          tracking_id: 'npc_track_hestia_2',
+          npc_name: 'NPC_Hestia',
+          current_action: '在神室准备晚餐',
+          location: '赫斯缇雅眷族驻地',
+          progress: '90%'
+        }
+      ]
+    });
+
+    expect(upsert.success).toBe(true);
+    expect(state.世界.NPC后台跟踪).toHaveLength(1);
+    expect(state.世界.NPC后台跟踪[0]?.NPC).toBe('赫斯缇雅');
+    expect(state.世界.NPC后台跟踪[0]?.当前行动).toBe('在神室准备晚餐');
+    expect(state.世界.NPC后台跟踪[0]?.进度).toBe('90%');
   });
 
   it('upserts and deletes world dynamic rows via table commands', () => {

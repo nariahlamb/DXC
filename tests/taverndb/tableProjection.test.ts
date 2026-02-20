@@ -378,6 +378,55 @@ describe('table projection', () => {
     expect(charAttrs?.rows[0].CHAR_ID).toBe('PC_MAIN');
   });
 
+  it('dedupes WORLD_NpcTracking/NPC_LocationTrace by npc and keeps latest details', () => {
+    clearTavernProjectionCache();
+    const state = createNewGameState('贝尔', '男', 'Human') as any;
+    state.社交 = [
+      {
+        id: 'NPC_Hestia',
+        姓名: '赫斯缇雅',
+        是否在场: true,
+        位置详情: '赫斯缇雅眷族驻地',
+        坐标: { x: 11, y: 22 },
+        位置轨迹: [
+          { trace_id: 'trace_hestia_1', timestamp: '第1日 08:00', location: '欧拉丽西北区', x: 8, y: 18, present: true, detail: '巡逻中' },
+          { trace_id: 'trace_hestia_2', timestamp: '第1日 09:00', location: '赫斯缇雅眷族驻地', x: 11, y: 22, present: true, detail: '整理文书' }
+        ],
+        记忆: []
+      },
+      {
+        id: 'Char_HestiaAlias',
+        姓名: '赫斯缇雅',
+        是否在场: true,
+        位置详情: '赫斯缇雅眷族驻地',
+        坐标: { x: 11, y: 22 },
+        记忆: []
+      }
+    ];
+    if (state.__tableRows && typeof state.__tableRows === 'object') {
+      delete state.__tableRows.WORLD_NpcTracking;
+      delete state.__tableRows.NPC_LocationTrace;
+    }
+
+    state.世界.NPC后台跟踪 = [
+      { NPC: 'NPC_Hestia', 当前行动: '离开教堂', 位置: '欧拉丽西北区', 进度: '10%' },
+      { NPC: 'NPC_Hestia', 当前行动: '在神室准备晚餐', 位置: '赫斯缇雅眷族驻地', 进度: '90%' }
+    ];
+
+    const tables = projectGameStateToTavernTables(state, { includeEmptySheets: false });
+    const trackingTable = tables.find((table) => table.id === 'WORLD_NpcTracking');
+    const traceTable = tables.find((table) => table.id === 'NPC_LocationTrace');
+
+    expect(trackingTable?.rows).toHaveLength(1);
+    const hestiaTracking = trackingTable?.rows.find((row: any) => row.npc_name === '赫斯缇雅');
+    expect(hestiaTracking?.current_action).toBe('在神室准备晚餐');
+
+    expect(traceTable?.rows).toHaveLength(1);
+    const hestiaTrace = traceTable?.rows.find((row: any) => row.npc_name === '赫斯缇雅');
+    expect(hestiaTrace?.location).toBe('赫斯缇雅眷族驻地');
+    expect(hestiaTrace?.trace_id).toBe('trace_hestia_2');
+  });
+
   it('projects SYS_GlobalState using runtime game time and turn (single snapshot semantics)', () => {
     const state = createNewGameState('Tester', '男', 'Human') as any;
     state.当前日期 = '1000-01-02';

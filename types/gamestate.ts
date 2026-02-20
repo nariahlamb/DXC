@@ -6,7 +6,7 @@ import { InventoryItem } from './item';
 import { Confidant, PhoneState } from './social';
 import { WorldState, WorldMapData, GeoPoint, FamiliaState } from './world';
 import { Task, StoryState, Contract } from './story';
-import { NoteEntry } from './notes';
+
 import { CombatState } from './combat';
 import { Skill } from './character';
 import {
@@ -67,7 +67,7 @@ export interface GameState {
   剧情: StoryState;
   契约: Contract[];
   眷族: FamiliaState;
-  笔记: NoteEntry[];
+
 
   // 核心机制
   记忆: MemorySystem;

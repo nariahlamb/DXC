@@ -133,6 +133,58 @@ describe('state variable writer', () => {
     expect(coordRow.世界坐标X).toBe(42);
     expect(coordRow.x).toBeUndefined();
   });
+  it('supports quest/story/phone/world/forum domain handlers', () => {
+    const state = createNewGameState('Tester', '男', 'Human') as any;
+
+    const quest = buildWriterCommandsFromEvent(buildEvent({
+      event_id: 'evt_q',
+      domain: 'quest',
+      entity_id: 'Q001',
+      path: 'sheet.QUEST_Active.Q001',
+      op: 'upsert',
+      value: { 任务ID: 'Q001', 任务名称: '追踪线索', 状态: '进行中' }
+    }), state);
+    const story = buildWriterCommandsFromEvent(buildEvent({
+      event_id: 'evt_s',
+      domain: 'story_mainline',
+      entity_id: 'mainline_core',
+      path: 'sheet.STORY_Mainline.mainline_core',
+      op: 'upsert',
+      value: { mainline_id: 'mainline_core', 当前篇章: '第2章' }
+    }), state);
+    const phone = buildWriterCommandsFromEvent(buildEvent({
+      event_id: 'evt_p',
+      domain: 'phone_threads',
+      entity_id: 'thread_1',
+      path: 'sheet.PHONE_Threads.thread_1',
+      op: 'upsert',
+      value: { thread_id: 'thread_1', title: '公会频道' }
+    }), state);
+    const world = buildWriterCommandsFromEvent(buildEvent({
+      event_id: 'evt_w',
+      domain: 'world_news',
+      entity_id: 'news_1',
+      path: 'sheet.WORLD_News.news_1',
+      op: 'upsert',
+      value: { news_id: 'news_1', 标题: '今日要闻' }
+    }), state);
+    const forumDelete = buildWriterCommandsFromEvent(buildEvent({
+      event_id: 'evt_f',
+      domain: 'forum_posts',
+      entity_id: 'post_1',
+      path: 'sheet.FORUM_Posts.post_1',
+      op: 'delete',
+      value: { post_id: 'post_1' }
+    }), state);
+
+    expect((quest[0] as any)?.value?.sheetId).toBe('QUEST_Active');
+    expect((story[0] as any)?.value?.sheetId).toBe('STORY_Mainline');
+    expect((phone[0] as any)?.value?.sheetId).toBe('PHONE_Threads');
+    expect((world[0] as any)?.value?.sheetId).toBe('WORLD_News');
+    expect(forumDelete[0]?.action).toBe('delete_sheet_rows');
+    expect((forumDelete[0] as any)?.value?.sheetId).toBe('FORUM_Posts');
+  });
+
   it('deduplicates by idempotency key in consume flow', () => {
     const state = createNewGameState('Tester', '男', 'Human') as any;
     const events = [

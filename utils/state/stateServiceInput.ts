@@ -11,10 +11,15 @@ const CHARACTER_ALLOWED_KEYS = [
   '状态',
   '生命值',
   '最大生命值',
+  'HP',
   '精神力',
   '最大精神力',
   '体力',
   '最大体力',
+  '法术位',
+  '职业资源',
+  '生命骰',
+  '金币',
   '法利',
   '经验值'
 ];
@@ -47,12 +52,14 @@ const INVENTORY_ALLOWED_KEYS = [
 ];
 const STORY_ALLOWED_KEYS = ['当前阶段', '当前目标', '主线进度', '支线进度', '近期事件', '风险提示', '下步建议'];
 const COMBAT_ALLOWED_KEYS = ['是否战斗中', '回合', '阶段', '地点', '先攻顺序', '战斗模式'];
+const WORLD_ALLOWED_KEYS = ['头条新闻', '街头传闻', '诸神神会', '战争游戏', 'NPC后台跟踪'];
+const PHONE_ALLOWED_KEYS = ['对话', '信件', '动态', '通讯录', '黑名单'];
 
 const MAX_SOCIAL_ROWS = 24;
 const MAX_TASK_ROWS = 24;
 const MAX_INVENTORY_ROWS = 40;
 const MAX_COMBAT_ROWS = 20;
-const MAX_STRING_LENGTH = 160;
+const MAX_STRING_LENGTH = 320;
 
 type RecordLike = Record<string, unknown>;
 
@@ -83,7 +90,7 @@ const compactString = (value: unknown, limit = MAX_STRING_LENGTH): string => {
   return `${text.slice(0, Math.max(0, limit - 1))}…`;
 };
 
-const sanitizeValue = (value: unknown, depth = 0, maxDepth = 2, maxArrayLength = 16): unknown => {
+const sanitizeValue = (value: unknown, depth = 0, maxDepth = 3, maxArrayLength = 16): unknown => {
   if (value === null || value === undefined) return undefined;
   if (typeof value === 'string') return compactString(value);
   if (typeof value === 'number' || typeof value === 'boolean') return value;
@@ -228,6 +235,8 @@ export const buildStateServiceInputPayload = ({
     剧情: pickAllowedFields(state.剧情 || {}, STORY_ALLOWED_KEYS),
     背包: compactList(state.背包 || [], INVENTORY_ALLOWED_KEYS, MAX_INVENTORY_ROWS),
     战斗: compactCombatState(state.战斗 || {}),
+    世界: pickAllowedFields(state.世界 || {}, WORLD_ALLOWED_KEYS),
+    手机: pickAllowedFields(state.手机 || {}, PHONE_ALLOWED_KEYS),
     治理契约: normalizedGovernanceContract,
     表结构约束: {
       source: 'sheetRegistry',
